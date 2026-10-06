@@ -1,0 +1,51 @@
+{
+  "faults": [
+    {
+      "s": 1650163052.42589,
+      "e": 1650163172.42589,
+      "service": "post-storage-service"
+    },
+    {
+      "s": 1650163205.491651,
+      "e": 1650163325.491651,
+      "service": "post-storage-service"
+    },
+    {
+      "s": 1650163368.39697,
+      "e": 1650163488.39697,
+      "service": "post-storage-service"
+    },
+    {
+      "s": 1650163522.43612,
+      "e": 1650163642.43612,
+      "service": "social-graph-service"
+    },
+    {
+      "s": 1650163675.643966,
+      "e": 1650163795.643966,
+      "service": "social-graph-service"
+    },
+    {
+      "s": 1650163838.593423,
+      "e": 1650163958.593423,
+      "service": "social-graph-service"
+    },
+    {
+      "s": 1650163992.665189,
+      "e": 1650164112.665189,
+      "service": "url-shorten-service"
+    },
+    {
+      "s": 1650164145.71798,
+      "e": 1650164265.71798,
+      "service": "url-shorten-service"
+    },
+    {
+      "s": 1650164308.636401,
+      "e": 1650164428.636401,
+      "service": "url-shorten-service"
+    }
+  ],
+  "start": 1650163049.89344,
+  "end": 1650164460.159563
+}

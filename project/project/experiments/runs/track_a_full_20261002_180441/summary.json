@@ -1,0 +1,49 @@
+{
+  "experiment": "track_a_full_label",
+  "timestamp": "20261002_180441",
+  "config": {
+    "hidden_dim": [
+      64,
+      64
+    ],
+    "epochs": 50,
+    "lr": 0.001,
+    "batch_size": 50,
+    "patience": 15,
+    "event_num": 15,
+    "seeds": [
+      42,
+      123,
+      456,
+      789,
+      999
+    ]
+  },
+  "results": [
+    {
+      "run_id": 1,
+      "seed": 42,
+      "error": "[Errno 2] No such file or directory: 'project\\\\recovered_artifact\\\\chunk_train.pkl'"
+    },
+    {
+      "run_id": 2,
+      "seed": 123,
+      "error": "[Errno 2] No such file or directory: 'project\\\\recovered_artifact\\\\chunk_train.pkl'"
+    },
+    {
+      "run_id": 3,
+      "seed": 456,
+      "error": "[Errno 2] No such file or directory: 'project\\\\recovered_artifact\\\\chunk_train.pkl'"
+    },
+    {
+      "run_id": 4,
+      "seed": 789,
+      "error": "[Errno 2] No such file or directory: 'project\\\\recovered_artifact\\\\chunk_train.pkl'"
+    },
+    {
+      "run_id": 5,
+      "seed": 999,
+      "error": "[Errno 2] No such file or directory: 'project\\\\recovered_artifact\\\\chunk_train.pkl'"
+    }
+  ]
+}

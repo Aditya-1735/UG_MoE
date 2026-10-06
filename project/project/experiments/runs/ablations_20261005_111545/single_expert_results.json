@@ -1,0 +1,20 @@
+[
+  {
+    "ablation": "single_expert",
+    "seed": 42,
+    "best_f1": 0.9886330515884582,
+    "best_epoch": 40,
+    "final_f1": 0.9841549295774648,
+    "final_precision": 0.9905493207324276,
+    "final_recall": 0.9778425655976677
+  },
+  {
+    "ablation": "single_expert",
+    "seed": 123,
+    "best_f1": 0.9845885431811573,
+    "best_epoch": 40,
+    "final_f1": 0.9732461355529132,
+    "final_precision": 0.9927228623408126,
+    "final_recall": 0.9545189504373178
+  }
+]

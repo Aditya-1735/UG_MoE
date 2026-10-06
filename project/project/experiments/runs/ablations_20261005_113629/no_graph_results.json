@@ -1,0 +1,12 @@
+[
+  {
+    "ablation": "no_graph",
+    "seed": 42,
+    "error": "'ExpertRouter' object has no attribute 'hidden_dim'"
+  },
+  {
+    "ablation": "no_graph",
+    "seed": 123,
+    "error": "'ExpertRouter' object has no attribute 'hidden_dim'"
+  }
+]

@@ -1,0 +1,51 @@
+{
+  "faults": [
+    {
+      "s": 1650164537,
+      "e": 1650164657,
+      "service": "nginx-web-server"
+    },
+    {
+      "s": 1650164690,
+      "e": 1650164810,
+      "service": "nginx-web-server"
+    },
+    {
+      "s": 1650164853,
+      "e": 1650164973,
+      "service": "nginx-web-server"
+    },
+    {
+      "s": 1650165007,
+      "e": 1650165127,
+      "service": "unique-id-service"
+    },
+    {
+      "s": 1650165160,
+      "e": 1650165280,
+      "service": "unique-id-service"
+    },
+    {
+      "s": 1650165323,
+      "e": 1650165443,
+      "service": "unique-id-service"
+    },
+    {
+      "s": 1650165477,
+      "e": 1650165597,
+      "service": "user-service"
+    },
+    {
+      "s": 1650165630,
+      "e": 1650165750,
+      "service": "user-service"
+    },
+    {
+      "s": 1650165793,
+      "e": 1650165913,
+      "service": "user-service"
+    }
+  ],
+  "start": 1650164533,
+  "end": 1650165944
+}

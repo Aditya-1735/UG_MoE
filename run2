@@ -1,0 +1,78 @@
+(.venv)
+as999@Aditya MINGW64 ~/OneDrive/Desktop/trash/impl/project
+$ cd "C:/Users/as999/OneDrive/Desktop/trash/impl/project" && "C:/Users/as999/OneDrive/Desktop/trash/impl/project/.venv/Scripts/python.exe" experiments/run_ablations.py
+============================================================
+ABLATION STUDIES - GRAPH-AWARE MoE
+============================================================
+Ablations: ['no_graph', 'no_uncertainty', 'no_fusion', 'single_expert', 'plain_moe', 'graph_transformer']
+5 seeds per ablation: 42, 123, 456, 789, 999
+
+============================================================
+ABLATION: no_graph - No graph routing - base router only
+============================================================
+
+============================================================
+ABLATION: no_graph | Seed: 42
+============================================================
+Config: No graph routing - base router only
+  Epoch  5: Test Loss=0.1630, F1=0.9367, Pre=0.9122, Rec=0.9627
+  Epoch 10: Test Loss=0.1076, F1=0.9604, Pre=0.9397, Rec=0.9819
+  Epoch 15: Test Loss=0.0819, F1=0.9658, Pre=0.9529, Rec=0.9790
+  Epoch 20: Test Loss=0.0769, F1=0.9709, Pre=0.9775, Rec=0.9644
+  Epoch 25: Test Loss=0.0713, F1=0.9747, Pre=0.9599, Rec=0.9901
+  Epoch 30: Test Loss=0.0568, F1=0.9793, Pre=0.9665, Rec=0.9924
+  Epoch 35: Test Loss=0.0772, F1=0.9761, Pre=0.9626, Rec=0.9901
+  Epoch 40: Test Loss=0.0680, F1=0.9803, Pre=0.9882, Rec=0.9726
+  Epoch 45: Test Loss=0.0416, F1=0.9884, Pre=0.9833, Rec=0.9936
+  Epoch 50: Test Loss=0.1064, F1=0.9728, Pre=0.9566, Rec=0.9895
+  Run 1/2 (seed=42): Best F1=0.9884 (epoch 45)
+
+============================================================
+ABLATION: no_graph | Seed: 123
+============================================================
+Config: No graph routing - base router only
+  Epoch  5: Test Loss=0.1849, F1=0.9313, Pre=0.8904, Rec=0.9761
+  Epoch 10: Test Loss=0.1836, F1=0.9323, Pre=0.8992, Rec=0.9679
+  Epoch 15: Test Loss=0.1176, F1=0.9506, Pre=0.9473, Rec=0.9539
+  Epoch 20: Test Loss=0.0805, F1=0.9700, Pre=0.9692, Rec=0.9708
+  Epoch 25: Test Loss=0.0785, F1=0.9699, Pre=0.9713, Rec=0.9685
+  Epoch 30: Test Loss=0.0480, F1=0.9834, Pre=0.9825, Rec=0.9843
+  Epoch 35: Test Loss=0.0901, F1=0.9626, Pre=0.9356, Rec=0.9913
+  Epoch 40: Test Loss=0.0398, F1=0.9860, Pre=0.9837, Rec=0.9883
+  Epoch 45: Test Loss=0.0445, F1=0.9864, Pre=0.9771, Rec=0.9959
+  Epoch 50: Test Loss=0.1382, F1=0.9643, Pre=0.9377, Rec=0.9924
+  Run 2/2 (seed=123): Best F1=0.9864 (epoch 45)
+
+============================================================
+ABLATION: no_uncertainty - No uncertainty blocks
+============================================================
+
+============================================================
+ABLATION: no_uncertainty | Seed: 42
+============================================================
+Config: No uncertainty blocks
+  Epoch  5: Test Loss=0.1652, F1=0.9352, Pre=0.8946, Rec=0.9796
+  Epoch 10: Test Loss=0.1186, F1=0.9563, Pre=0.9310, Rec=0.9831
+  Epoch 15: Test Loss=0.1134, F1=0.9518, Pre=0.9586, Rec=0.9452
+  Epoch 20: Test Loss=0.0723, F1=0.9704, Pre=0.9648, Rec=0.9761
+  Epoch 25: Test Loss=0.0694, F1=0.9689, Pre=0.9658, Rec=0.9720
+  Epoch 30: Test Loss=0.0447, F1=0.9803, Pre=0.9870, Rec=0.9738
+  Epoch 35: Test Loss=0.0448, F1=0.9820, Pre=0.9917, Rec=0.9726
+  Epoch 40: Test Loss=0.0355, F1=0.9836, Pre=0.9900, Rec=0.9773
+  Epoch 45: Test Loss=0.0293, F1=0.9874, Pre=0.9900, Rec=0.9848
+Traceback (most recent call last):
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 241, in <module>
+    main()
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 192, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 107, in run_ablation
+    loss.backward()
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\_tensor.py", line 522, in backward
+    torch.autograd.backward(
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\autograd\__init__.py", line 266, in backward
+    Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\autograd\function.py", line 277, in apply
+    def apply(self, *args):
+
+KeyboardInterrupt

@@ -1,0 +1,27 @@
+[
+  {
+    "ablation": "no_graph",
+    "seed": 42,
+    "error": "ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'"
+  },
+  {
+    "ablation": "no_graph",
+    "seed": 123,
+    "error": "ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'"
+  },
+  {
+    "ablation": "no_graph",
+    "seed": 456,
+    "error": "ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'"
+  },
+  {
+    "ablation": "no_graph",
+    "seed": 789,
+    "error": "ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'"
+  },
+  {
+    "ablation": "no_graph",
+    "seed": 999,
+    "error": "ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'"
+  }
+]

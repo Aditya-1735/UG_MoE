@@ -1,0 +1,12 @@
+[
+  {
+    "ablation": "no_graph",
+    "seed": 42,
+    "error": "mat1 and mat2 shapes cannot be multiplied (50x384 and 256x256)"
+  },
+  {
+    "ablation": "no_graph",
+    "seed": 123,
+    "error": "mat1 and mat2 shapes cannot be multiplied (50x384 and 256x256)"
+  }
+]

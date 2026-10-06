@@ -1,0 +1,21 @@
+{
+  "run_id": 4,
+  "seed": 789,
+  "best_f1": 0.9897794513179128,
+  "best_epoch": 35,
+  "final_f1": 0.9897794513179128,
+  "final_precision": 0.9903121636167922,
+  "final_recall": 0.989247311827957,
+  "config": {
+    "hidden_dim": [
+      64,
+      64
+    ],
+    "epochs": 50,
+    "lr": 0.001,
+    "batch_size": 50,
+    "patience": 15,
+    "event_num": 15,
+    "evaluation_epoch": 5
+  }
+}

@@ -1,0 +1,252 @@
+Traceback (most recent call last):
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 192, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 105, in run_ablation
+    outputs = model(graph, binary_labels)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\tracks\proposed_model\model.py", line 391, in forward
+    routing_weights, uncertainties = self.router(
+                                     ^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'
+Traceback (most recent call last):
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 192, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 105, in run_ablation
+    outputs = model(graph, binary_labels)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\tracks\proposed_model\model.py", line 391, in forward
+    routing_weights, uncertainties = self.router(
+                                     ^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'
+Traceback (most recent call last):
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 192, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 89, in run_ablation
+    model = GraphAwareMoE(**model_config).to(device)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\tracks\proposed_model\model.py", line 224, in __init__
+    self.fusion = AdaptiveFusion(
+                  ^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\src\fusion\fusion.py", line 88, in __init__
+    raise ValueError(f"Unknown fusion_type: {fusion_type}")
+ValueError: Unknown fusion_type: concat_mlp
+Traceback (most recent call last):
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 192, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 89, in run_ablation
+    model = GraphAwareMoE(**model_config).to(device)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\tracks\proposed_model\model.py", line 224, in __init__
+    self.fusion = AdaptiveFusion(
+                  ^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\src\fusion\fusion.py", line 88, in __init__
+    raise ValueError(f"Unknown fusion_type: {fusion_type}")
+ValueError: Unknown fusion_type: concat_mlp
+Traceback (most recent call last):
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 192, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 89, in run_ablation
+    model = GraphAwareMoE(**model_config).to(device)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\tracks\proposed_model\model.py", line 224, in __init__
+    self.fusion = AdaptiveFusion(
+                  ^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\src\fusion\fusion.py", line 88, in __init__
+    raise ValueError(f"Unknown fusion_type: {fusion_type}")
+ValueError: Unknown fusion_type: concat_mlp
+Traceback (most recent call last):
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 192, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\experiments\run_ablations.py", line 89, in run_ablation
+    model = GraphAwareMoE(**model_config).to(device)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\tracks\proposed_model\model.py", line 224, in __init__
+    self.fusion = AdaptiveFusion(
+                  ^^^^^^^^^^^^^^^
+  File "C:\Users\as999\OneDrive\Desktop\trash\impl\project\src\fusion\fusion.py", line 88, in __init__
+    raise ValueError(f"Unknown fusion_type: {fusion_type}")
+ValueError: Unknown fusion_type: concat_mlp
+============================================================
+ABLATION STUDIES - GRAPH-AWARE MoE
+============================================================
+Ablations: ['no_graph', 'no_uncertainty', 'no_fusion', 'single_expert', 'plain_moe', 'graph_transformer']
+5 seeds per ablation: 42, 123, 456, 789, 999
+
+============================================================
+ABLATION: no_graph - No graph routing - base router only
+============================================================
+
+============================================================
+ABLATION: no_graph | Seed: 42
+============================================================
+Config: No graph routing - base router only
+  ERROR in run 1 (seed=42): ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'
+
+============================================================
+ABLATION: no_graph | Seed: 123
+============================================================
+Config: No graph routing - base router only
+  ERROR in run 2 (seed=123): ExpertRouter.forward() got an unexpected keyword argument 'return_uncertainty'
+
+============================================================
+ABLATION: no_uncertainty - No uncertainty blocks
+============================================================
+
+============================================================
+ABLATION: no_uncertainty | Seed: 42
+============================================================
+Config: No uncertainty blocks
+  Epoch  5: Test Loss=0.1652, F1=0.9352, Pre=0.8946, Rec=0.9796
+  Epoch 10: Test Loss=0.1186, F1=0.9563, Pre=0.9310, Rec=0.9831
+  Epoch 15: Test Loss=0.1134, F1=0.9518, Pre=0.9586, Rec=0.9452
+  Epoch 20: Test Loss=0.0723, F1=0.9704, Pre=0.9648, Rec=0.9761
+  Epoch 25: Test Loss=0.0694, F1=0.9689, Pre=0.9658, Rec=0.9720
+  Epoch 30: Test Loss=0.0447, F1=0.9803, Pre=0.9870, Rec=0.9738
+  Epoch 35: Test Loss=0.0448, F1=0.9820, Pre=0.9917, Rec=0.9726
+  Epoch 40: Test Loss=0.0355, F1=0.9836, Pre=0.9900, Rec=0.9773
+  Epoch 45: Test Loss=0.0293, F1=0.9874, Pre=0.9900, Rec=0.9848
+  Epoch 50: Test Loss=0.0412, F1=0.9835, Pre=0.9775, Rec=0.9895
+  Run 1/2 (seed=42): Best F1=0.9874 (epoch 45)
+
+============================================================
+ABLATION: no_uncertainty | Seed: 123
+============================================================
+Config: No uncertainty blocks
+  Epoch  5: Test Loss=0.1604, F1=0.9402, Pre=0.9073, Rec=0.9755
+  Epoch 10: Test Loss=0.1502, F1=0.9368, Pre=0.9001, Rec=0.9767
+  Epoch 15: Test Loss=0.1013, F1=0.9612, Pre=0.9535, Rec=0.9691
+  Epoch 20: Test Loss=0.1032, F1=0.9546, Pre=0.9728, Rec=0.9370
+  Epoch 25: Test Loss=0.0610, F1=0.9735, Pre=0.9613, Rec=0.9860
+  Epoch 30: Test Loss=0.0767, F1=0.9678, Pre=0.9465, Rec=0.9901
+  Epoch 35: Test Loss=0.0710, F1=0.9749, Pre=0.9657, Rec=0.9843
+  Epoch 40: Test Loss=0.0589, F1=0.9772, Pre=0.9784, Rec=0.9761
+  Epoch 45: Test Loss=0.0525, F1=0.9799, Pre=0.9952, Rec=0.9650
+  Epoch 50: Test Loss=0.0546, F1=0.9843, Pre=0.9820, Rec=0.9866
+  Run 2/2 (seed=123): Best F1=0.9843 (epoch 50)
+
+============================================================
+ABLATION: no_fusion - Simple concat+MLP fusion instead of confidence-weighted
+============================================================
+
+============================================================
+ABLATION: no_fusion | Seed: 42
+============================================================
+Config: Simple concat+MLP fusion instead of confidence-weighted
+  ERROR in run 1 (seed=42): Unknown fusion_type: concat_mlp
+
+============================================================
+ABLATION: no_fusion | Seed: 123
+============================================================
+Config: Simple concat+MLP fusion instead of confidence-weighted
+  ERROR in run 2 (seed=123): Unknown fusion_type: concat_mlp
+
+============================================================
+ABLATION: single_expert - Single temporal expert (no MoE)
+============================================================
+
+============================================================
+ABLATION: single_expert | Seed: 42
+============================================================
+Config: Single temporal expert (no MoE)
+  Epoch  5: Test Loss=0.1813, F1=0.9345, Pre=0.9095, Rec=0.9609
+  Epoch 10: Test Loss=0.1560, F1=0.9427, Pre=0.9050, Rec=0.9837
+  Epoch 15: Test Loss=0.1689, F1=0.9188, Pre=0.9600, Rec=0.8810
+  Epoch 20: Test Loss=0.0842, F1=0.9675, Pre=0.9536, Rec=0.9819
+  Epoch 25: Test Loss=0.0775, F1=0.9744, Pre=0.9839, Rec=0.9650
+  Epoch 30: Test Loss=0.0690, F1=0.9828, Pre=0.9803, Rec=0.9854
+  Epoch 35: Test Loss=0.0630, F1=0.9826, Pre=0.9786, Rec=0.9866
+  Epoch 40: Test Loss=0.0407, F1=0.9886, Pre=0.9883, Rec=0.9889
+  Epoch 45: Test Loss=0.0564, F1=0.9831, Pre=0.9797, Rec=0.9866
+  Epoch 50: Test Loss=0.0558, F1=0.9818, Pre=0.9870, Rec=0.9767
+  Run 1/2 (seed=42): Best F1=0.9886 (epoch 40)
+
+============================================================
+ABLATION: single_expert | Seed: 123
+============================================================
+Config: Single temporal expert (no MoE)
+  Epoch  5: Test Loss=0.1879, F1=0.9320, Pre=0.9068, Rec=0.9586
+  Epoch 10: Test Loss=0.1510, F1=0.9418, Pre=0.9014, Rec=0.9860
+  Epoch 15: Test Loss=0.1225, F1=0.9640, Pre=0.9755, Rec=0.9528
+  Epoch 20: Test Loss=0.0810, F1=0.9700, Pre=0.9675, Rec=0.9726
+  Epoch 25: Test Loss=0.0642, F1=0.9757, Pre=0.9806, Rec=0.9708
+  Epoch 30: Test Loss=0.1476, F1=0.9539, Pre=0.9264, Rec=0.9831
+  Epoch 35: Test Loss=0.0676, F1=0.9803, Pre=0.9876, Rec=0.9732
+  Epoch 40: Test Loss=0.0507, F1=0.9846, Pre=0.9820, Rec=0.9872
+  Epoch 45: Test Loss=0.0583, F1=0.9838, Pre=0.9917, Rec=0.9761
+  Epoch 50: Test Loss=0.0866, F1=0.9748, Pre=0.9933, Rec=0.9569
+  Run 2/2 (seed=123): Best F1=0.9846 (epoch 40)
+
+============================================================
+ABLATION: plain_moe - Plain MoE: no graph, no uncertainty, simple fusion
+============================================================
+
+============================================================
+ABLATION: plain_moe | Seed: 42
+============================================================
+Config: Plain MoE: no graph, no uncertainty, simple fusion
+  ERROR in run 1 (seed=42): Unknown fusion_type: concat_mlp
+
+============================================================
+ABLATION: plain_moe | Seed: 123
+============================================================
+Config: Plain MoE: no graph, no uncertainty, simple fusion
+  ERROR in run 2 (seed=123): Unknown fusion_type: concat_mlp
+
+============================================================
+ABLATION: graph_transformer - Graph Transformer instead of GAT in dependency expert
+============================================================
+
+============================================================
+ABLATION: graph_transformer | Seed: 42
+============================================================
+Config: Graph Transformer instead of GAT in dependency expert
+  Epoch  5: Test Loss=0.1892, F1=0.9275, Pre=0.9149, Rec=0.9405
+  Epoch 10: Test Loss=0.1905, F1=0.9243, Pre=0.8750, Rec=0.9796
+  Epoch 15: Test Loss=0.1276, F1=0.9461, Pre=0.9842, Rec=0.9108
+  Epoch 20: Test Loss=0.0719, F1=0.9726, Pre=0.9827, Rec=0.9627
+  Epoch 25: Test Loss=0.0615, F1=0.9779, Pre=0.9887, Rec=0.9673
+  Epoch 30: Test Loss=0.0661, F1=0.9782, Pre=0.9633, Rec=0.9936
+  Epoch 35: Test Loss=0.0617, F1=0.9814, Pre=0.9797, Rec=0.9831
+  Epoch 40: Test Loss=0.0454, F1=0.9826, Pre=0.9792, Rec=0.9860
+  Epoch 45: Test Loss=0.0727, F1=0.9694, Pre=0.9891, Rec=0.9504
+  Epoch 50: Test Loss=0.0428, F1=0.9866, Pre=0.9883, Rec=0.9848
+  Run 1/2 (seed=42): Best F1=0.9866 (epoch 50)
+
+============================================================
+ABLATION: graph_transformer | Seed: 123
+============================================================
+Config: Graph Transformer instead of GAT in dependency expert
+  Epoch  5: Test Loss=0.2433, F1=0.8979, Pre=0.8961, Rec=0.8997
+  Epoch 10: Test Loss=0.1497, F1=0.9414, Pre=0.9111, Rec=0.9738
+  Epoch 15: Test Loss=0.0877, F1=0.9624, Pre=0.9552, Rec=0.9697
+  Epoch 20: Test Loss=0.1252, F1=0.9535, Pre=0.9235, Rec=0.9854
