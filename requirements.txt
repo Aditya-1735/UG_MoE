@@ -1,31 +1,67 @@
-# Core ML Framework
+# # Core ML Framework
+# torch==2.2.1
+# dgl==2.2.1
+
+# # Data Processing & Science
+# numpy==1.26.4
+# pandas==3.0.6
+# scipy==1.17.1
+# scikit-learn==1.9.1
+
+# # Utilities
+# tqdm==4.70.1
+# pyyaml==6.0.3
+# networkx==3.6.1
+
+# # Log Parsing (Drain3)
+# drain3==0.9.11
+
+# # Hawkes Process (for log preprocessing)
+# tick==0.8.0.2
+
+# # Optional: Visualization (only if needed for evaluation scripts)
+# # matplotlib==3.11.2
+# # pillow==12.3.0
+
+# # Optional: Experiment tracking (if using)
+# # wandb==0.17.6
+# # mlflow==2.15.0
+
+# # Python standard library modules used (no install needed):
+# # json, os, sys, pathlib, datetime, random, hashlib, collections, re, typing, math, argparse, subprocess, pickle, logging
+
+# Core
 torch==2.2.1
 dgl==2.2.1
+torchdata==0.7.1
+numpy<2
+pydantic
 
-# Data Processing & Science
-numpy==1.26.4
-pandas==3.0.6
-scipy==1.17.1
-scikit-learn==1.9.1
-
-# Utilities
-tqdm==4.70.1
-pyyaml==6.0.3
-networkx==3.6.1
-
-# Log Parsing (Drain3)
-drain3==0.9.11
-
-# Hawkes Process (for log preprocessing)
+# Tick ecosystem (these are transitive but pin them to avoid conflicts)
 tick==0.8.0.2
+drain3
 
-# Optional: Visualization (only if needed for evaluation scripts)
-# matplotlib==3.11.2
-# pillow==12.3.0
+# ML/DS
+scikit-learn
+pandas
+scipy
+matplotlib
 
-# Optional: Experiment tracking (if using)
-# wandb==0.17.6
-# mlflow==2.15.0
+# Tick dependencies (explicitly pin to avoid conflicts)
+numpy<2
+pandas
+scipy
+matplotlib
+numpydoc
+sphinx
+joblib
+threadpoolctl
+typing-extensions
+pydantic-core
+pyyaml
+networkx
+fsspec
+cloudpickle
 
-# Python standard library modules used (no install needed):
-# json, os, sys, pathlib, datetime, random, hashlib, collections, re, typing, math, argparse, subprocess, pickle, logging
+# Utils
+tqdm

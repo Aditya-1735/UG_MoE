@@ -1,3 +1,4 @@
 .venv
 raw_data/
 .PROJECT_EXECUTION_MASTER_PLAN_DETAILED.md.swp
+__pycache__/
