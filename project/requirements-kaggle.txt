@@ -1,0 +1,39 @@
+# Core ML
+torch==2.2.1
+dgl==2.2.1
+torchdata==0.7.1
+numpy<2
+pydantic
+
+# ML/DS
+scikit-learn
+pandas
+scipy
+matplotlib
+tqdm
+
+# Only needed for local preprocessing (not on Kaggle):
+# tick==0.8.0.2
+# drain3
+# sphinx
+# numpydoc
+# joblib
+# threadpoolctl
+# typing-extensions
+# pydantic-core
+# pyyaml
+# networkx
+# fsspec
+# cloudpickle
+
+# Kaggle requirements only (slim)
+# torch==2.2.1
+# dgl==2.2.1
+# torchdata==0.7.1
+# numpy<2
+# pydantic
+# scikit-learn
+# pandas
+# scipy
+# matplotlib
+# tqdm
