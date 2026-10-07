@@ -1,6 +1,7 @@
 #!/bin/bash
-# kaggle_setup.sh - Automated Kaggle environment setup for Graph-Aware MoE project
+# kaggle_setup.sh - Kaggle environment setup for Graph-Aware MoE project
 # Run this in a Kaggle notebook cell: !bash kaggle_setup.sh
+# NOTE: Run `git clone` and `git lfs pull` in a separate notebook cell FIRST
 
 set -e  # Exit on error
 
@@ -8,47 +9,44 @@ echo "=========================================="
 echo "Kaggle Setup: Graph-Aware MoE Project"
 echo "=========================================="
 
-# 1. Clone repository
-REPO_URL="https://github.com/Aditya-1735/UG_MoE.git"  # CHANGE THIS
-REPO_DIR="UG_MoE"
+# 1. Install system dependencies
+echo "[1/5] Checking system dependencies..."
+pip install --upgrade pip -q
 
-echo "[1/6] Cloning repository..."
-if [ -d "$REPO_DIR" ]; then
-    echo "  Directory exists, pulling latest..."
-    cd $REPO_DIR && git pull
+# 2. Install Python dependencies with GPU support
+echo "[2/5] Installing Python dependencies..."
+pip install --upgrade pip -q
+
+# Detect CUDA version for DGL wheel
+CUDA_VERSION=$(python -c "import torch; print('cu' + ''.join(torch.version.cuda.split('.')[:2]))" 2>/dev/null || echo "cpu")
+echo "Detected CUDA: $CUDA_VERSION"
+
+if [ "$CUDA_VERSION" != "cpu" ]; then
+    echo "Installing DGL for CUDA $CUDA_VERSION..."
+    pip install dgl -f https://data.dgl.ai/wheels/torch-2.2/${CUDA_VERSION}/repo.html -q
 else
-    git clone https://github.com/Aditya-1735/UG_MoE.git
-    cd UG_MoE
+    echo "CPU-only environment, installing CPU DGL"
+    pip install dgl==2.2.1 -q
 fi
 
-# 1b. Pull LFS files (required for dataset)
-echo "[1b/6] Pulling LFS files..."
-git lfs install
-git lfs pull
+pip install torch==2.2.1 torchdata==0.7.1 "numpy<2" pydantic tick==0.8.0.2 drain3 scikit-learn pandas scipy matplotlib tqdm -q
 
-# 2. Install system dependencies (Kaggle has most pre-installed)
-echo "[2/6] Checking system dependencies..."
-pip install --upgrade pip -q
-
-# 3. Install Python dependencies
-echo "[3/6] Installing Python dependencies..."
-pip install --upgrade pip -q
-pip install -r requirements.txt -q
-
-# 3b. Verify critical imports
+# 3. Verify critical imports and GPU
+echo "[2/5] Verifying imports and GPU..."
 python -c "
 import torch, dgl, torchdata, numpy, pandas, sklearn
 print(f'PyTorch: {torch.__version__}')
 print(f'DGL: {__import__(\"dgl\").__version__}')
 print(f'TorchData: {torchdata.__version__}')
 print(f'NumPy: {numpy.__version__}')
-print(f'CUDA available: {__import__(\"torch\").cuda.is_available()}')
-if __import__('torch').cuda.is_available():
+print(f'CUDA available: {torch.cuda.is_available()}')
+if torch.cuda.is_available():
     print(f'GPU: {torch.cuda.get_device_name(0)}')
+    print(f'CUDA version: {torch.version.cuda}')
 "
 
-# 4. Apply tick patches (if needed - usually not needed on Kaggle)
-echo "[4/6] Checking tick compatibility..."
+# 4. Check tick compatibility (optional - may not be needed on Kaggle)
+echo "[3/5] Checking tick compatibility..."
 python -c "
 import tick
 print(f'tick version: {tick.__version__}')
@@ -59,15 +57,12 @@ try:
     model.fit([np.array([0.1, 0.5])], end_time=2.0, baseline_start=np.ones(1)*0.2)
     print('✓ HawkesADM4 works')
 except Exception as e:
-    print(f'Tick issue: {e}')
-    print('Applying patches...')
-    import sys
-    sys.path.insert(0, '.')
-    # Apply patches if needed
-" || echo "Tick check completed"
+    print(f'Tick issue (may not be needed on Kaggle): {e}')
+    print('If preprocessing is already done, tick is not needed for training')
+"
 
-# 5. Verify model loads
-echo "[5/6] Verifying model loads..."
+# 4. Verify model loads
+echo "[4/5] Verifying model loads..."
 python -c "
 import sys
 sys.path.insert(0, '.')
@@ -100,8 +95,8 @@ print(f'Model params: {sum(p.numel() for p in model.parameters()):,}')
 print('✓ Model loads successfully')
 "
 
-# 6. Quick training test (1 epoch)
-echo "[6/6] Quick training test (1 epoch)..."
+# 5. Quick training test (1 epoch)
+echo "[5/5] Quick training test (1 epoch)..."
 python -c "
 import sys
 sys.path.insert(0, '.')
@@ -121,8 +116,13 @@ if os.path.exists('project/preprocessing/muad_compat/output/chunk_train.pkl'):
     print('Using local data')
     data_dir = 'project/preprocessing/muad_compat/output'
 else:
-    print('Data not found locally - skipping training test')
+    print('Data not found locally - check git lfs pull or Kaggle Dataset mount')
     exit(0)
+
+from vendor.muad.data.utils import load_data, create_dataloader
+from vendor.muad.data.dataset import ChunkDataset
+from tracks.proposed_model import GraphAwareMoE, DEFAULT_CONFIG
+import torch.nn as nn
 
 train_data, node_num, edges = load_data(
     'project/preprocessing/muad_compat/output/chunk_train.pkl',
@@ -164,18 +164,18 @@ echo "✅ Setup Complete!"
 echo "=========================================="
 echo ""
 echo "Next steps:"
-echo "  1. Run ablation studies:  python experiments/run_ablations.py"
-echo "  2. Run full Track B:      python experiments/run_track_b_full.py"
-echo "  3. Or run Track A:        python experiments/run_track_a_full.py"
+echo "  1. Run ablation studies:  python kaggle_train.py --experiment ablation --seeds 42,123 --epochs 30"
+echo "  2. Run full Track B:      python kaggle_train.py --experiment track_b_full --seeds 42,123,456 --epochs 50"
+echo "  3. Or run Track A:        python kaggle_train.py --experiment track_a_full --seeds 42 --epochs 50"
 echo ""
-echo "For ablation studies (2 seeds x 50 epochs = ~4 hrs):"
-echo "  python experiments/run_ablations.py"
+echo "For ablation studies (2 seeds x 30 epochs = ~2 hrs):"
+echo "  python kaggle_train.py --experiment ablation --seeds 42,123 --epochs 30"
 echo ""
 echo "For full Track B training (5 seeds x 50 epochs):"
-echo "  python experiments/run_track_b_full.py"
+echo "  python kaggle_train.py --experiment track_b_full --seeds 42,123,456,789,999 --epochs 50"
 echo ""
-echo "To run with nohup (survives disconnect):"
-echo "  nohup python experiments/run_ablations.py > ablations.log 2>&1 &"
-echo "  tail -f ablations.log"
+echo "To run with Kaggle Save Version (survives disconnect):"
+echo "  1. Click 'Save Version' -> 'Save & Run All'"
+echo "  2. Output goes to /kaggle/working and is saved with version"
 echo ""
 echo "Done!"
