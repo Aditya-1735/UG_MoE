@@ -21,6 +21,11 @@ else
     cd UG_MoE
 fi
 
+# 1b. Pull LFS files (required for dataset)
+echo "[1b/6] Pulling LFS files..."
+git lfs install
+git lfs pull
+
 # 2. Install system dependencies (Kaggle has most pre-installed)
 echo "[2/6] Checking system dependencies..."
 pip install --upgrade pip -q
