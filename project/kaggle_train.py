@@ -51,19 +51,19 @@ def run_track_b_full(args):
     print(f"Val split: {args.val_split}")
     
     # Load data
-    data_dir = Path('project/preprocessing/muad_compat/output')
-    if not Path('project/preprocessing/muad_compat/output/chunk_train.pkl').exists():
-        print("ERROR: Data not found at project/preprocessing/muad_compat/output/")
+    data_dir = Path('preprocessing/muad_compat/output')
+    if not Path('preprocessing/muad_compat/output/chunk_train.pkl').exists():
+        print("ERROR: Data not found at preprocessing/muad_compat/output/")
         print("Please ensure git lfs pull completed or data is available")
         return
     
     train_data, node_num, edges = load_data(
-        'project/preprocessing/muad_compat/output/chunk_train.pkl',
-        'project/preprocessing/muad_compat/output/metadata.json'
+        'preprocessing/muad_compat/output/chunk_train.pkl',
+        'preprocessing/muad_compat/output/metadata.json'
     )
     test_data, _, _ = load_data(
-        'project/preprocessing/muad_compat/output/chunk_test.pkl',
-        'project/preprocessing/muad_compat/output/metadata.json'
+        'preprocessing/muad_compat/output/chunk_test.pkl',
+        'preprocessing/muad_compat/output/metadata.json'
     )
     
     # Split train into train/val for checkpoint selection

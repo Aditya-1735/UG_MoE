@@ -23,13 +23,13 @@ echo "Detected CUDA: $CUDA_VERSION"
 
 if [ "$CUDA_VERSION" != "cpu" ]; then
     echo "Installing DGL for CUDA $CUDA_VERSION..."
-    pip install dgl -f https://data.dgl.ai/wheels/torch-2.2/${CUDA_VERSION}/repo.html -q
+    pip install dgl -f https://data.dgl.ai/wheels/torch-2.5/${CUDA_VERSION}/repo.html -q
 else
     echo "CPU-only environment, installing CPU DGL"
     pip install dgl==2.2.1 -q
 fi
 
-pip install torch==2.2.1 torchdata==0.7.1 "numpy<2" pydantic tick==0.8.0.2 drain3 scikit-learn pandas scipy matplotlib tqdm -q
+pip install torch==2.5.1 torchdata==0.7.1 "numpy<2" pydantic tick==0.8.0.2 drain3 scikit-learn pandas scipy matplotlib tqdm -q
 
 # 3. Verify critical imports and GPU
 echo "[2/5] Verifying imports and GPU..."
@@ -55,14 +55,14 @@ try:
     import numpy as np
     model = HawkesADM4(decay=3)
     model.fit([np.array([0.1, 0.5])], end_time=2.0, baseline_start=np.ones(1)*0.2)
-    print('✓ HawkesADM4 works')
+    print('[OK] HawkesADM4 works')
 except Exception as e:
     print(f'Tick issue (may not be needed on Kaggle): {e}')
     print('If preprocessing is already done, tick is not needed for training')
 "
 
 # 4. Verify model loads
-echo "[4/5] Verifying model loads..."
+echo '[4/5] Verifying model loads...'
 python -c "
 import sys
 sys.path.insert(0, '.')
@@ -92,7 +92,7 @@ config = {
 }
 model = GraphAwareMoE(**config)
 print(f'Model params: {sum(p.numel() for p in model.parameters()):,}')
-print('✓ Model loads successfully')
+print('[OK] Model loads successfully')
 "
 
 # 5. Quick training test (1 epoch)
@@ -109,12 +109,11 @@ import torch.nn as nn
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Device: {device}')
 
-data_dir = 'project/preprocessing/muad_compat/output'
 # Check if data exists
 import os
-if os.path.exists('project/preprocessing/muad_compat/output/chunk_train.pkl'):
+if os.path.exists('preprocessing/muad_compat/output/chunk_train.pkl'):
     print('Using local data')
-    data_dir = 'project/preprocessing/muad_compat/output'
+    data_dir = 'preprocessing/muad_compat/output'
 else:
     print('Data not found locally - check git lfs pull or Kaggle Dataset mount')
     exit(0)
@@ -125,12 +124,12 @@ from tracks.proposed_model import GraphAwareMoE, DEFAULT_CONFIG
 import torch.nn as nn
 
 train_data, node_num, edges = load_data(
-    'project/preprocessing/muad_compat/output/chunk_train.pkl',
-    'project/preprocessing/muad_compat/output/metadata.json'
+    'preprocessing/muad_compat/output/chunk_train.pkl',
+    'preprocessing/muad_compat/output/metadata.json'
 )
 test_data, _, _ = load_data(
-    'project/preprocessing/muad_compat/output/chunk_test.pkl',
-    'project/preprocessing/muad_compat/output/metadata.json'
+    'preprocessing/muad_compat/output/chunk_test.pkl',
+    'preprocessing/muad_compat/output/metadata.json'
 )
 
 train_dataset = ChunkDataset(train_data, list(train_data.keys())[:100], node_num, edges)
@@ -155,12 +154,12 @@ for graph, labels in train_loader:
     loss.backward()
     print(f'Loss: {loss.item():.4f}')
     break
-print('✓ Training step works')
+print('Training step works')
 "
 
 echo ""
 echo "=========================================="
-echo "✅ Setup Complete!"
+echo "Setup Complete!"
 echo "=========================================="
 echo ""
 echo "Next steps:"
