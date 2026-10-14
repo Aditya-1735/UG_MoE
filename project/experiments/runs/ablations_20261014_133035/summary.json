@@ -1,0 +1,79 @@
+{
+  "experiment": "ablations",
+  "timestamp": "20261014_133232",
+  "config": {
+    "hidden_dim": 64,
+    "epochs": 60,
+    "lr": 0.001,
+    "batch_size": 50,
+    "weight_decay": 1e-05,
+    "event_num": 14,
+    "seeds": [
+      42,
+      123,
+      456,
+      789,
+      999
+    ]
+  },
+  "results": {
+    "no_graph": [
+      {
+        "ablation": "no_graph",
+        "seed": 42,
+        "best_f1": 0,
+        "best_epoch": 0,
+        "final_f1": 0.6271751203258052,
+        "final_precision": 0.859026369168357,
+        "final_recall": 0.49387755102040815
+      }
+    ],
+    "no_uncertainty": [
+      {
+        "ablation": "no_uncertainty",
+        "seed": 42,
+        "best_f1": 0,
+        "best_epoch": 0,
+        "final_f1": 0.7431659249841068,
+        "final_precision": 0.816911250873515,
+        "final_recall": 0.6816326530612244
+      }
+    ],
+    "no_fusion": [
+      {
+        "ablation": "no_fusion",
+        "seed": 42,
+        "error": "'AdaptiveFusion' object has no attribute 'output_proj'"
+      }
+    ],
+    "single_expert": [
+      {
+        "ablation": "single_expert",
+        "seed": 42,
+        "best_f1": 0,
+        "best_epoch": 0,
+        "final_f1": 0.35381263616557734,
+        "final_precision": 0.7,
+        "final_recall": 0.23673469387755103
+      }
+    ],
+    "plain_moe": [
+      {
+        "ablation": "plain_moe",
+        "seed": 42,
+        "error": "'AdaptiveFusion' object has no attribute 'output_proj'"
+      }
+    ],
+    "graph_transformer": [
+      {
+        "ablation": "graph_transformer",
+        "seed": 42,
+        "best_f1": 0,
+        "best_epoch": 0,
+        "final_f1": 0.7223719676549866,
+        "final_precision": 0.7426108374384236,
+        "final_recall": 0.7032069970845481
+      }
+    ]
+  }
+}

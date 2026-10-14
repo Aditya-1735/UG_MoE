@@ -1,0 +1,11 @@
+[
+  {
+    "ablation": "graph_transformer",
+    "seed": 42,
+    "best_f1": 0,
+    "best_epoch": 0,
+    "final_f1": 0.7223719676549866,
+    "final_precision": 0.7426108374384236,
+    "final_recall": 0.7032069970845481
+  }
+]

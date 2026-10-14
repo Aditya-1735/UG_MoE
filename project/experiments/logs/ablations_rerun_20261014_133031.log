@@ -1,0 +1,134 @@
+nohup: ignoring input
+============================================================
+ABLATION STUDIES - GRAPH-AWARE MoE
+============================================================
+Ablations: ['no_graph', 'no_uncertainty', 'no_fusion', 'single_expert', 'plain_moe', 'graph_transformer']
+5 seeds per ablation: 42, 123, 456, 789, 999
+
+============================================================
+ABLATION: no_graph - No graph routing - base router only
+============================================================
+
+============================================================
+ABLATION: no_graph | Seed: 42
+============================================================
+Config: No graph routing - base router only
+  Run 1/5 (seed=42): Best F1=0.0000 (epoch 0)
+
+============================================================
+ABLATION: no_uncertainty - No uncertainty blocks
+============================================================
+
+============================================================
+ABLATION: no_uncertainty | Seed: 42
+============================================================
+Config: No uncertainty blocks
+  Run 1/5 (seed=42): Best F1=0.0000 (epoch 0)
+
+============================================================
+ABLATION: no_fusion - Simple concat+MLP fusion instead of confidence-weighted
+============================================================
+
+============================================================
+ABLATION: no_fusion | Seed: 42
+============================================================
+Config: Simple concat+MLP fusion instead of confidence-weighted
+  ERROR in run 1 (seed=42): 'AdaptiveFusion' object has no attribute 'output_proj'
+Traceback (most recent call last):
+  File "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/run_ablations.py", line 218, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/run_ablations.py", line 107, in run_ablation
+    outputs = model(graph, binary_labels)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/tracks/proposed_model/model.py", line 428, in forward
+    fused, fusion_weights = self.fusion(fusion_inputs, return_weights=True)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/src/fusion/fusion.py", line 182, in forward
+    fused = self.output_proj(fused)  # [B, hidden_dim]
+            ^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1688, in __getattr__
+    raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+AttributeError: 'AdaptiveFusion' object has no attribute 'output_proj'
+
+============================================================
+ABLATION: single_expert - Single temporal expert (no MoE)
+============================================================
+
+============================================================
+ABLATION: single_expert | Seed: 42
+============================================================
+Config: Single temporal expert (no MoE)
+  Run 1/5 (seed=42): Best F1=0.0000 (epoch 0)
+
+============================================================
+ABLATION: plain_moe - Plain MoE: no graph, no uncertainty, simple fusion
+============================================================
+
+============================================================
+ABLATION: plain_moe | Seed: 42
+============================================================
+Config: Plain MoE: no graph, no uncertainty, simple fusion
+  ERROR in run 1 (seed=42): 'AdaptiveFusion' object has no attribute 'output_proj'
+Traceback (most recent call last):
+  File "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/run_ablations.py", line 218, in main
+    result = run_ablation(ablation_name, ablation_config, seed, output_base)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/run_ablations.py", line 107, in run_ablation
+    outputs = model(graph, binary_labels)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/tracks/proposed_model/model.py", line 428, in forward
+    fused, fusion_weights = self.fusion(fusion_inputs, return_weights=True)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/src/fusion/fusion.py", line 182, in forward
+    fused = self.output_proj(fused)  # [B, hidden_dim]
+            ^^^^^^^^^^^^^^^^
+  File "/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1688, in __getattr__
+    raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+AttributeError: 'AdaptiveFusion' object has no attribute 'output_proj'
+
+============================================================
+ABLATION: graph_transformer - Graph Transformer instead of GAT in dependency expert
+============================================================
+
+============================================================
+ABLATION: graph_transformer | Seed: 42
+============================================================
+Config: Graph Transformer instead of GAT in dependency expert
+  Run 1/5 (seed=42): Best F1=0.0000 (epoch 0)
+
+============================================================
+ABLATION SUMMARY
+============================================================
+no_graph            : Mean F1=0.0000 ± 0.0000  (Max: 0.0000)
+no_uncertainty      : Mean F1=0.0000 ± 0.0000  (Max: 0.0000)
+no_fusion           : FAILED
+single_expert       : Mean F1=0.0000 ± 0.0000  (Max: 0.0000)
+plain_moe           : FAILED
+graph_transformer   : Mean F1=0.0000 ± 0.0000  (Max: 0.0000)
+
+Results saved to: experiments/runs/ablations_20261014_133035

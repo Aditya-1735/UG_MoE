@@ -1,0 +1,7 @@
+[
+  {
+    "ablation": "no_fusion",
+    "seed": 42,
+    "error": "'AdaptiveFusion' object has no attribute 'output_proj'"
+  }
+]
