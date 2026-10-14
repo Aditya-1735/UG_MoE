@@ -1,0 +1,954 @@
+ayanava_2511ai61@user:~$ ls
+CSCLog  CSCLog_project  examples.desktop  test  testfile.txt
+ayanava_2511ai61@user:~$ mkdir AHA_BTP
+ayanava_2511ai61@user:~$ ls
+AHA_BTP  CSCLog  CSCLog_project  examples.desktop  test  testfile.txt
+ayanava_2511ai61@user:~$ cd AHA_BTP/
+ayanava_2511ai61@user:~/AHA_BTP$ ls
+ayanava_2511ai61@user:~/AHA_BTP$ !git clone https://github.com/Aditya-1735/UG_MoE.git
+bash: !git: event not found
+ayanava_2511ai61@user:~/AHA_BTP$ git clone https://github.com/Aditya-1735/UG_MoE.git
+Cloning into 'UG_MoE'...
+remote: Enumerating objects: 403, done.
+remote: Counting objects: 100% (56/56), done.
+remote: Compressing objects: 100% (42/42), done.
+remote: Total 403 (delta 22), reused 48 (delta 14), pack-reused 347 (from 1)
+Receiving objects: 100% (403/403), 134.22 MiB | 9.21 MiB/s, done.
+Resolving deltas: 100% (103/103), done.
+Updating files: 100% (505/505), done.
+Filtering content: 100% (3/3), 173.78 MiB | 2.79 MiB/s, done.
+Encountered 28 file(s) that should have been pointers, but weren't:
+        project/recovered_artifact/chunk_test.pkl
+        project/recovered_artifact/chunk_train.pkl
+        project/vendor/eadro/codes/chunks/SN/0/logs.pkl
+        project/vendor/eadro/codes/chunks/SN/0/metrics.pkl
+        project/vendor/eadro/codes/chunks/SN/0/traces.pkl
+        project/vendor/eadro/codes/chunks/SN/1/logs.pkl
+        project/vendor/eadro/codes/chunks/SN/1/metrics.pkl
+        project/vendor/eadro/codes/chunks/SN/1/traces.pkl
+        project/vendor/eadro/codes/chunks/SN/2/logs.pkl
+        project/vendor/eadro/codes/chunks/SN/2/metrics.pkl
+        project/vendor/eadro/codes/chunks/SN/2/traces.pkl
+        project/vendor/eadro/codes/chunks/SN/3/logs.pkl
+        project/vendor/eadro/codes/chunks/SN/3/metrics.pkl
+        project/vendor/eadro/codes/chunks/SN/3/traces.pkl
+        project/vendor/eadro/codes/chunks/SN/4/logs.pkl
+        project/vendor/eadro/codes/chunks/SN/4/metrics.pkl
+        project/vendor/eadro/codes/chunks/SN/4/traces.pkl
+        project/vendor/eadro/codes/chunks/SN/5/logs.pkl
+        project/vendor/eadro/codes/chunks/SN/5/metrics.pkl
+        project/vendor/eadro/codes/chunks/SN/5/traces.pkl
+        project/vendor/eadro/codes/chunks/SN/6/logs.pkl
+        project/vendor/eadro/codes/chunks/SN/6/metrics.pkl
+        project/vendor/eadro/codes/chunks/SN/6/traces.pkl
+        project/vendor/eadro/codes/chunks/SN/chunk_test.pkl
+        project/vendor/eadro/codes/chunks/SN/chunk_train.pkl
+        project/vendor/eadro/codes/chunks/SN/chunks.pkl
+        project/vendor/muad/Dataset/chunk/chunk_test.pkl
+        project/vendor/muad/Dataset/chunk/chunk_train.pkl
+ayanava_2511ai61@user:~/AHA_BTP$ ls
+UG_MoE
+ayanava_2511ai61@user:~/AHA_BTP$ cd UG_MoE/
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ git lfs install
+Updated git hooks.
+Git LFS initialized.
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ git lfs pull
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ ls
+'7. UG_MoE_proposal_.pdf'
+'7. Uncertainty-Aware_Multimodal_Anomaly_Detection_for_Microservice_Systems_With_Active_Learning.pdf'
+'DATASET_FORENSICS_COMPLETE(1).md'
+ ENVIRONMENT_REPORT.md
+'IMPLEMENTATION_BLUEPRINT(1).md'
+'MUAD_MODEL_FORENSICS_COMPLETE(1).md'
+'MUAD_RUNTIME_VERIFICATION(1)(1).md'
+ project
+ PROJECT_EXECUTION_MASTER_PLAN_DETAILED.md
+ PROJECT_EXECUTION_SUMMARY.md
+ requirements.txt
+ run2
+ scripts
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ rm 7.\ U
+7. UG_MoE_proposal_.pdf
+7. Uncertainty-Aware_Multimodal_Anomaly_Detection_for_Microservice_Systems_With_Active_Learning.pdf
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ rm 7.\ U
+rm: cannot remove '7. U': No such file or directory
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ rm 7.\ UG_MoE_proposal_.pdf 
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ rm 7.\ Uncertainty-Aware_Multimodal_Anomaly_Detection_for_Microservice_Systems_With_Active_Learning.pdf 
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ ls
+'DATASET_FORENSICS_COMPLETE(1).md'      PROJECT_EXECUTION_MASTER_PLAN_DETAILED.md
+ ENVIRONMENT_REPORT.md                  PROJECT_EXECUTION_SUMMARY.md
+'IMPLEMENTATION_BLUEPRINT(1).md'        requirements.txt
+'MUAD_MODEL_FORENSICS_COMPLETE(1).md'   run2
+'MUAD_RUNTIME_VERIFICATION(1)(1).md'    scripts
+ project
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ ls -lh project/preprocessing/muad_compat/output/
+total 174M
+-rw-rw-r-- 1 ayanava_2511ai61 ayanava_2511ai61 87M Oct 14 07:44 chunks.pkl
+-rw-rw-r-- 1 ayanava_2511ai61 ayanava_2511ai61 35M Oct 14 07:44 chunk_test.pkl
+-rw-rw-r-- 1 ayanava_2511ai61 ayanava_2511ai61 53M Oct 14 07:44 chunk_train.pkl
+-rw-rw-r-- 1 ayanava_2511ai61 ayanava_2511ai61 903 Oct 14 07:43 metadata.json
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ ls
+'DATASET_FORENSICS_COMPLETE(1).md'      PROJECT_EXECUTION_MASTER_PLAN_DETAILED.md
+ ENVIRONMENT_REPORT.md                  PROJECT_EXECUTION_SUMMARY.md
+'IMPLEMENTATION_BLUEPRINT(1).md'        requirements.txt
+'MUAD_MODEL_FORENSICS_COMPLETE(1).md'   run2
+'MUAD_RUNTIME_VERIFICATION(1)(1).md'    scripts
+ project
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE$ cd project/
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ ls
+ablations.log                   kaggle_train.py  recovered_artifact       validation
+DATASET_VERIFICATION_REPORT.md  parsed_data      requirements-kaggle.txt  vendor
+experiments                     preprocessing    src
+kaggle_setup.sh                 project          tracks
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ nvidia-smi
+Wed Oct 14 07:48:24 2026       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 460.91.03    Driver Version: 460.91.03    CUDA Version: 11.2     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Tesla V100-PCIE...  Off  | 00000000:1B:00.0 Off |                    0 |
+| N/A   53C    P0   153W / 250W |   9390MiB / 32510MiB |     80%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla V100-PCIE...  Off  | 00000000:1D:00.0 Off |                    0 |
+| N/A   66C    P0   212W / 250W |  28421MiB / 32510MiB |     98%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   2  Tesla V100-PCIE...  Off  | 00000000:3D:00.0 Off |                    0 |
+| N/A   37C    P0    66W / 250W |   9006MiB / 32510MiB |     33%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   3  Tesla V100-PCIE...  Off  | 00000000:3F:00.0 Off |                    0 |
+| N/A   64C    P0   183W / 250W |  30564MiB / 32510MiB |    100%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|    0   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    0   N/A  N/A    628800      C   python                            801MiB |
+|    0   N/A  N/A   1807377      C   ...a_v11/ollama_llama_server     8581MiB |
+|    1   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    1   N/A  N/A   1563308      C   python                          28405MiB |
+|    2   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    2   N/A  N/A    133661      C   python                           1441MiB |
+|    2   N/A  N/A   1693006      C   python3                          7557MiB |
+|    3   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    3   N/A  N/A    628800      C   python                           2157MiB |
+|    3   N/A  N/A   1574938      C   python                          28391MiB |
++-----------------------------------------------------------------------------+
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
+name, memory.total [MiB], memory.free [MiB]
+Tesla V100-PCIE-32GB, 32510 MiB, 27110 MiB
+Tesla V100-PCIE-32GB, 32510 MiB, 4089 MiB
+Tesla V100-PCIE-32GB, 32510 MiB, 23504 MiB
+Tesla V100-PCIE-32GB, 32510 MiB, 1946 MiB
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ python --version
+Python 3.8.10
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ which conda
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ which conda
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ conda
+
+Command 'conda' not found, did you mean:
+
+  command 'conga' from snap conga (1.5.0)
+
+See 'snap info <snapname>' for additional versions.
+
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ whoami
+ayanava_2511ai61
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ which python
+/usr/bin/python
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ which python3
+/usr/bin/python3
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ which pip
+/usr/bin/pip
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ which virtualenv
+/usr/local/bin/virtualenv
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ nvidia-smi
+Wed Oct 14 08:28:01 2026       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 460.91.03    Driver Version: 460.91.03    CUDA Version: 11.2     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Tesla V100-PCIE...  Off  | 00000000:1B:00.0 Off |                    0 |
+| N/A   55C    P0   163W / 250W |   9390MiB / 32510MiB |     81%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla V100-PCIE...  Off  | 00000000:1D:00.0 Off |                    0 |
+| N/A   65C    P0   239W / 250W |  28421MiB / 32510MiB |    100%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   2  Tesla V100-PCIE...  Off  | 00000000:3D:00.0 Off |                    0 |
+| N/A   36C    P0    67W / 250W |   9006MiB / 32510MiB |     29%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   3  Tesla V100-PCIE...  Off  | 00000000:3F:00.0 Off |                    0 |
+| N/A   61C    P0   150W / 250W |  30564MiB / 32510MiB |     97%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|    0   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    0   N/A  N/A    628800      C   python                            801MiB |
+|    0   N/A  N/A   1812275      C   ...a_v11/ollama_llama_server     8581MiB |
+|    1   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    1   N/A  N/A   1563308      C   python                          28405MiB |
+|    2   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    2   N/A  N/A    133661      C   python                           1441MiB |
+|    2   N/A  N/A   1693006      C   python3                          7557MiB |
+|    3   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    3   N/A  N/A    628800      C   python                           2157MiB |
+|    3   N/A  N/A   1574938      C   python                          28391MiB |
++-----------------------------------------------------------------------------+
+ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ cd ~
+ayanava_2511ai61@user:~$ ls
+AHA_BTP  CSCLog  CSCLog_project  examples.desktop  test  testfile.txt
+ayanava_2511ai61@user:~$ cat testfile.txt 
+print("Hello:")ayanava_2511ai61@user:~$ cd CSCLog
+ayanava_2511ai61@user:~/CSCLog$ ls
+bilstm_tic_gnet  data  results  scripts  src  tests
+ayanava_2511ai61@user:~/CSCLog$ cd ..
+ayanava_2511ai61@user:~$ cd CSCLog_project/
+ayanava_2511ai61@user:~/CSCLog_project$ ls
+bench_batch.py   data  eval_all_ablation.py  eval_grid.log        eval_subset.py     README.md  scripts  tests
+bilstm_tic_gnet  docs  eval_grid_fast.py     eval_subset_out.txt  profile_csclog.py  results    src
+ayanava_2511ai61@user:~/CSCLog_project$ cd ~
+ayanava_2511ai61@user:~$ ls
+AHA_BTP  CSCLog  CSCLog_project  examples.desktop  test  testfile.txt
+ayanava_2511ai61@user:~$ cd ~
+ayanava_2511ai61@user:~$ ls -a
+.        .bash_history  .cache    CSCLog            .gitconfig  .nv            .ssh          .vscode-server
+..       .bash_logout   .config   CSCLog_project    .keras      .profile       test          .wget-hsts
+AHA_BTP  .bashrc        .copilot  examples.desktop  .local      .pytest_cache  testfile.txt
+ayanava_2511ai61@user:~$ cat .bashrc
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# don't put duplicate lines or lines starting with space in the history.
+# See bash(1) for more options
+HISTCONTROL=ignoreboth
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+HISTSIZE=1000
+HISTFILESIZE=2000
+
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# If set, the pattern "**" used in a pathname expansion context will
+# match all files and zero or more directories and subdirectories.
+#shopt -s globstar
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# set a fancy prompt (non-color, unless we know we "want" color)
+case "$TERM" in
+    xterm-color|*-256color) color_prompt=yes;;
+esac
+
+# uncomment for a colored prompt, if the terminal has the capability; turned
+# off by default to not distract the user: the focus in a terminal window
+# should be on the output of commands, not on the prompt
+#force_color_prompt=yes
+
+if [ -n "$force_color_prompt" ]; then
+    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+        # We have color support; assume it's compliant with Ecma-48
+        # (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+        # a case would tend to support setf rather than setaf.)
+        color_prompt=yes
+    else
+        color_prompt=
+    fi
+fi
+
+if [ "$color_prompt" = yes ]; then
+    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+else
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+fi
+unset color_prompt force_color_prompt
+
+# If this is an xterm set the title to user@host:dir
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*)
+    ;;
+esac
+
+# enable color support of ls and also add handy aliases
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
+    #alias dir='dir --color=auto'
+    #alias vdir='vdir --color=auto'
+
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+# colored GCC warnings and errors
+#export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# some more ls aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+# Fix python path: Use system Python 3.8 with PyTorch and CUDA
+export PATH=/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+alias python3='/usr/bin/python3'
+alias python='/usr/bin/python3'
+
+ayanava_2511ai61@user:~$ cp ~/.bashrc ~/.bashrc.backup
+ayanava_2511ai61@user:~$ ls -a
+.        .bash_history  .bashrc.backup  .copilot        examples.desktop  .local    .pytest_cache  testfile.txt
+..       .bash_logout   .cache          CSCLog          .gitconfig        .nv       .ssh           .vscode-server
+AHA_BTP  .bashrc        .config         CSCLog_project  .keras            .profile  test           .wget-hsts
+ayanava_2511ai61@user:~$ cd ~
+ayanava_2511ai61@user:~$ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+--2026-10-14 08:38:53--  https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+Resolving repo.anaconda.com (repo.anaconda.com)... 104.16.191.158, 104.16.32.241, 2606:4700::6810:bf9e, ...
+Connecting to repo.anaconda.com (repo.anaconda.com)|104.16.191.158|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 197973354 (189M) [application/octet-stream]
+Saving to: ‘Miniconda3-latest-Linux-x86_64.sh’
+
+Miniconda3-latest-Linux-x86_6 100%[=================================================>] 188.80M  41.6MB/s    in 5.1s    
+
+2026-10-14 08:38:58 (36.9 MB/s) - ‘Miniconda3-latest-Linux-x86_64.sh’ saved [197973354/197973354]
+
+ayanava_2511ai61@user:~$ $HOME
+bash: /DATA/ayanava_2511ai61: Is a directory
+ayanava_2511ai61@user:~$ bash Miniconda3-latest-Linux-x86_64.sh -b -p "$HOME/miniconda3"
+PREFIX=/DATA/ayanava_2511ai61/miniconda3
+Unpacking bootstrapper...
+Unpacking payload...
+
+Installing base environment...
+
+Preparing transaction: ...working... done
+Executing transaction: ...working... done
+installation finished.
+ayanava_2511ai61@user:~$ source "$HOME/miniconda3/etc/profile.d/conda.sh"
+ayanava_2511ai61@user:~$ conda --version
+conda 26.7.1
+ayanava_2511ai61@user:~$ conda create -n muad python=3.11 -y
+
+CondaToSNonInteractiveError: Terms of Service have not been accepted for the following channels. Please accept or remove them before proceeding:
+    - https://repo.anaconda.com/pkgs/main
+    - https://repo.anaconda.com/pkgs/r
+
+To accept these channels' Terms of Service, run the following commands:
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
+For information on safely removing channels from your conda configuration,
+please see the official documentation:
+
+    https://www.anaconda.com/docs/tools/working-with-conda/channels
+
+ayanava_2511ai61@user:~$ conda create -n muad python=3.11 -c conda-forge --override-channels -y
+Retrieving notices: done
+Channels:
+ - conda-forge
+Platform: linux-64
+Collecting package metadata (repodata.json): done
+Solving environment: done
+
+## Package Plan ##
+
+  environment location: /DATA/ayanava_2511ai61/miniconda3/envs/muad
+
+  added / updated specs:
+    - python=3.11
+
+
+The following packages will be downloaded:
+
+    package                    |            build
+    ---------------------------|-----------------
+    _openmp_mutex-4.5          |           20_gnu          28 KB  conda-forge
+    bzip2-1.0.8                |      hda65f42_10         252 KB  conda-forge
+    ca-certificates-2026.7.22  |       hbd8a1cb_0         129 KB  conda-forge
+    ld_impl_linux-64-2.46.1    |default_hbd61a6d_103         725 KB  conda-forge
+    libexpat-2.8.5             |       hd2095e1_0          76 KB  conda-forge
+    libffi-3.7.0               |       h81df57d_1          66 KB  conda-forge
+    libgcc-16.2.0              |       ha9f2e26_7         1.0 MB  conda-forge
+    libgomp-16.2.0             |       he0feb66_7         626 KB  conda-forge
+    liblzma-5.8.3              |       hb03c661_1         110 KB  conda-forge
+    libnsl-2.0.1               |       hb9d3cd8_1          33 KB  conda-forge
+    libpython-3.11.17          |ha57cdbe_2_cpython         7.5 MB  conda-forge
+    libsqlite-3.54.0           |     h0737f62_101         956 KB  conda-forge
+    libuuid-2.42.4             |       hcfc3c73_0          34 KB  conda-forge
+    libxcrypt-4.4.38           |       h280c20c_0         100 KB  conda-forge
+    libzlib-1.3.2              |       h25fd6f3_3          62 KB  conda-forge
+    ncurses-6.6                |       hdb14827_1         890 KB  conda-forge
+    openssl-3.6.5              |       h781a0a9_0         3.0 MB  conda-forge
+    packaging-26.3             |     pyhc364b38_0         114 KB  conda-forge
+    pip-26.2.1                 |     pyh8b19718_0         1.1 MB  conda-forge
+    python-3.11.17             |h5f976f7_2_cpython        22.2 MB  conda-forge
+    readline-8.3               |       hd6e31c0_1         341 KB  conda-forge
+    setuptools-84.0.0          |     pyh332efcf_0         512 KB  conda-forge
+    tk-8.6.13                  | noxft_h1df4ec4_4         3.4 MB  conda-forge
+    tzdata-2026c               |       h151e31d_0         116 KB  conda-forge
+    wheel-0.48.0               |     pyhd8ed1ab_0          34 KB  conda-forge
+    zstd-1.5.7                 |       hb78ec9c_7         587 KB  conda-forge
+    ------------------------------------------------------------
+                                           Total:        44.0 MB
+
+The following NEW packages will be INSTALLED:
+
+  _openmp_mutex      conda-forge/linux-64::_openmp_mutex-4.5-20_gnu 
+  bzip2              conda-forge/linux-64::bzip2-1.0.8-hda65f42_10 
+  ca-certificates    conda-forge/noarch::ca-certificates-2026.7.22-hbd8a1cb_0 
+  ld_impl_linux-64   conda-forge/linux-64::ld_impl_linux-64-2.46.1-default_hbd61a6d_103 
+  libexpat           conda-forge/linux-64::libexpat-2.8.5-hd2095e1_0 
+  libffi             conda-forge/linux-64::libffi-3.7.0-h81df57d_1 
+  libgcc             conda-forge/linux-64::libgcc-16.2.0-ha9f2e26_7 
+  libgomp            conda-forge/linux-64::libgomp-16.2.0-he0feb66_7 
+  liblzma            conda-forge/linux-64::liblzma-5.8.3-hb03c661_1 
+  libnsl             conda-forge/linux-64::libnsl-2.0.1-hb9d3cd8_1 
+  libpython          conda-forge/linux-64::libpython-3.11.17-ha57cdbe_2_cpython 
+  libsqlite          conda-forge/linux-64::libsqlite-3.54.0-h0737f62_101 
+  libuuid            conda-forge/linux-64::libuuid-2.42.4-hcfc3c73_0 
+  libxcrypt          conda-forge/linux-64::libxcrypt-4.4.38-h280c20c_0 
+  libzlib            conda-forge/linux-64::libzlib-1.3.2-h25fd6f3_3 
+  ncurses            conda-forge/linux-64::ncurses-6.6-hdb14827_1 
+  openssl            conda-forge/linux-64::openssl-3.6.5-h781a0a9_0 
+  packaging          conda-forge/noarch::packaging-26.3-pyhc364b38_0 
+  pip                conda-forge/noarch::pip-26.2.1-pyh8b19718_0 
+  python             conda-forge/linux-64::python-3.11.17-h5f976f7_2_cpython 
+  readline           conda-forge/linux-64::readline-8.3-hd6e31c0_1 
+  setuptools         conda-forge/noarch::setuptools-84.0.0-pyh332efcf_0 
+  tk                 conda-forge/linux-64::tk-8.6.13-noxft_h1df4ec4_4 
+  tzdata             conda-forge/noarch::tzdata-2026c-h151e31d_0 
+  wheel              conda-forge/noarch::wheel-0.48.0-pyhd8ed1ab_0 
+  zstd               conda-forge/linux-64::zstd-1.5.7-hb78ec9c_7 
+
+
+
+Downloading and Extracting Packages:
+                                                                                                                       
+Preparing transaction: done                                                                                            
+Verifying transaction: done                                                                                            
+Executing transaction: done                                                                                            
+#                                                                                                                      
+# To activate this environment, use                                                                                    
+#                                                                                                                      
+#     $ conda activate muad                                                                                            
+#                                                                                                                      
+# To deactivate an active environment, use                                                                             
+#                                                                                                                      
+#     $ conda deactivate                                                                                               
+                                                                                                                       
+WARNING conda.conda_pypi.main:notify_externally_managed_future(156):                                                   
+  Did you know? You can install many PyPI packages with conda                                                          
+  using the conda-pypi beta. Get started:                                                                              
+    https://docs.conda.io/projects/conda/en/stable/new-features.html                                                   
+                                                                                                                       
+ayanava_2511ai61@user:~$ ls                                                                                            
+AHA_BTP  CSCLog  CSCLog_project  examples.desktop  miniconda3  Miniconda3-latest-Linux-x86_64.sh  test  testfile.txt   
+ayanava_2511ai61@user:~$ /usr/bin/python3 --version                                                                    
+Python 3.8.10                                                                                                          
+ayanava_2511ai61@user:~$ nvidia-smi                                                                                    
+Wed Oct 14 08:45:23 2026                                                                                               
++-----------------------------------------------------------------------------+                                        
+| NVIDIA-SMI 460.91.03    Driver Version: 460.91.03    CUDA Version: 11.2     |                                        
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Tesla V100-PCIE...  Off  | 00000000:1B:00.0 Off |                    0 |
+| N/A   53C    P0   155W / 250W |  13038MiB / 32510MiB |     79%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla V100-PCIE...  Off  | 00000000:1D:00.0 Off |                    0 |
+| N/A   65C    P0   188W / 250W |  28421MiB / 32510MiB |     95%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   2  Tesla V100-PCIE...  Off  | 00000000:3D:00.0 Off |                    0 |
+| N/A   36C    P0    58W / 250W |   9006MiB / 32510MiB |     26%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   3  Tesla V100-PCIE...  Off  | 00000000:3F:00.0 Off |                    0 |
+| N/A   63C    P0   198W / 250W |  30564MiB / 32510MiB |    100%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|    0   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    0   N/A  N/A    628800      C   python                            801MiB |
+|    0   N/A  N/A   1814258      C   ...a_v11/ollama_llama_server    12229MiB |
+|    1   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    1   N/A  N/A   1563308      C   python                          28405MiB |
+|    2   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    2   N/A  N/A    133661      C   python                           1441MiB |
+|    2   N/A  N/A   1693006      C   python3                          7557MiB |
+|    3   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    3   N/A  N/A    628800      C   python                           2157MiB |
+|    3   N/A  N/A   1574938      C   python                          28391MiB |
++-----------------------------------------------------------------------------+
+ayanava_2511ai61@user:~$ source "$HOME/miniconda3/etc/profile.d/conda.sh"
+ayanava_2511ai61@user:~$ conda activate muad
+(muad) ayanava_2511ai61@user:~$ echo "$HOME"
+/DATA/ayanava_2511ai61
+(muad) ayanava_2511ai61@user:~$ ls -ld "$HOME/miniconda3"
+drwxrwxr-x 18 ayanava_2511ai61 ayanava_2511ai61 4096 Oct 14 08:39 /DATA/ayanava_2511ai61/miniconda3
+(muad) ayanava_2511ai61@user:~$ which python
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/bin/python
+(muad) ayanava_2511ai61@user:~$ python --version
+Python 3.8.10
+(muad) ayanava_2511ai61@user:~$ python -m pip --version
+pip 20.0.2 from /usr/lib/python3/dist-packages/pip (python 3.8)
+(muad) ayanava_2511ai61@user:~$ unalias python
+(muad) ayanava_2511ai61@user:~$ unalias python3
+(muad) ayanava_2511ai61@user:~$ hash -r
+(muad) ayanava_2511ai61@user:~$ python --version
+Python 3.11.17
+(muad) ayanava_2511ai61@user:~$ python -m pip --version
+pip 26.2.1 from /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/pip (python 3.11)
+(muad) ayanava_2511ai61@user:~$ nvidia-ami
+
+Command 'nvidia-ami' not found, did you mean:
+
+  command 'nvidia-smi' from deb nvidia-340 (340.108-0ubuntu5.20.04.2)
+  command 'nvidia-smi' from deb nvidia-utils-390 (390.157-0ubuntu0.20.04.1)
+  command 'nvidia-smi' from deb nvidia-utils-450-server (450.248.02-0ubuntu0.20.04.1)
+  command 'nvidia-smi' from deb nvidia-utils-470 (470.256.02-0ubuntu0.20.04.1)
+  command 'nvidia-smi' from deb nvidia-utils-470-server (470.256.02-0ubuntu0.20.04.1)
+  command 'nvidia-smi' from deb nvidia-utils-535 (535.183.01-0ubuntu0.20.04.1)
+  command 'nvidia-smi' from deb nvidia-utils-535-server (535.216.01-0ubuntu0.20.04.1)
+  command 'nvidia-smi' from deb nvidia-utils-550-server (550.127.05-0ubuntu0.20.04.1)
+  command 'nvidia-smi' from deb nvidia-utils-435 (435.21-0ubuntu7)
+  command 'nvidia-smi' from deb nvidia-utils-440 (440.82+really.440.64-0ubuntu6)
+  command 'nvidia-smi' from deb nvidia-utils-418-server (418.226.00-0ubuntu0.20.04.2)
+
+Try: apt install <deb name>
+
+(muad) ayanava_2511ai61@user:~$ nvidia-smi
+Wed Oct 14 08:49:07 2026       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 460.91.03    Driver Version: 460.91.03    CUDA Version: 11.2     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Tesla V100-PCIE...  Off  | 00000000:1B:00.0 Off |                    0 |
+| N/A   44C    P0    44W / 250W |    809MiB / 32510MiB |      0%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla V100-PCIE...  Off  | 00000000:1D:00.0 Off |                    0 |
+| N/A   61C    P0   210W / 250W |  28421MiB / 32510MiB |     96%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   2  Tesla V100-PCIE...  Off  | 00000000:3D:00.0 Off |                    0 |
+| N/A   35C    P0    52W / 250W |   9006MiB / 32510MiB |     30%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   3  Tesla V100-PCIE...  Off  | 00000000:3F:00.0 Off |                    0 |
+| N/A   65C    P0   219W / 250W |  30564MiB / 32510MiB |    100%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|    0   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    0   N/A  N/A    628800      C   python                            801MiB |
+|    1   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    1   N/A  N/A   1563308      C   python                          28405MiB |
+|    2   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    2   N/A  N/A    133661      C   python                           1441MiB |
+|    2   N/A  N/A   1693006      C   python3                          7557MiB |
+|    3   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    3   N/A  N/A    628800      C   python                           2157MiB |
+|    3   N/A  N/A   1574938      C   python                          28391MiB |
++-----------------------------------------------------------------------------+
+(muad) ayanava_2511ai61@user:~$ conda activate muad
+(muad) ayanava_2511ai61@user:~$ cd ~/AHA_BTP/UG_MoE/project
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ 
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ ls -la
+total 96
+drwxrwxr-x 11 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 .
+drwxrwxr-x  5 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:46 ..
+-rw-rw-r--  1 ayanava_2511ai61 ayanava_2511ai61 15070 Oct 14 07:43 ablations.log
+-rw-rw-r--  1 ayanava_2511ai61 ayanava_2511ai61  9287 Oct 14 07:43 DATASET_VERIFICATION_REPORT.md
+drwxrwxr-x  2 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 experiments
+-rw-rw-r--  1 ayanava_2511ai61 ayanava_2511ai61  6349 Oct 14 07:43 kaggle_setup.sh
+-rw-rw-r--  1 ayanava_2511ai61 ayanava_2511ai61 11100 Oct 14 07:43 kaggle_train.py
+drwxrwxr-x  3 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 parsed_data
+drwxrwxr-x  4 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 preprocessing
+drwxrwxr-x  3 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 project
+drwxrwxr-x  2 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 recovered_artifact
+-rw-rw-r--  1 ayanava_2511ai61 ayanava_2511ai61   478 Oct 14 07:43 requirements-kaggle.txt
+drwxrwxr-x  6 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 src
+drwxrwxr-x  3 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 tracks
+drwxrwxr-x  3 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 validation
+drwxrwxr-x  4 ayanava_2511ai61 ayanava_2511ai61  4096 Oct 14 07:43 vendor
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ 
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ find .. -maxdepth 3 \( \
+>   -name "requirements.txt" -o \
+>   -name "environment.yml" -o \
+>   -name "pyproject.toml" -o \
+>   -name "setup.py" \
+> \) -print
+../requirements.txt
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ nvidia-smi
+Wed Oct 14 08:52:06 2026       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 460.91.03    Driver Version: 460.91.03    CUDA Version: 11.2     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Tesla V100-PCIE...  Off  | 00000000:1B:00.0 Off |                    0 |
+| N/A   55C    P0   148W / 250W |   9390MiB / 32510MiB |     81%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla V100-PCIE...  Off  | 00000000:1D:00.0 Off |                    0 |
+| N/A   67C    P0   239W / 250W |  28421MiB / 32510MiB |     99%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   2  Tesla V100-PCIE...  Off  | 00000000:3D:00.0 Off |                    0 |
+| N/A   36C    P0    98W / 250W |   9006MiB / 32510MiB |     38%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+|   3  Tesla V100-PCIE...  Off  | 00000000:3F:00.0 Off |                    0 |
+| N/A   63C    P0   185W / 250W |  30564MiB / 32510MiB |     97%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|    0   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    0   N/A  N/A    628800      C   python                            801MiB |
+|    0   N/A  N/A   1814878      C   ...a_v11/ollama_llama_server     8581MiB |
+|    1   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    1   N/A  N/A   1563308      C   python                          28405MiB |
+|    2   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    2   N/A  N/A    133661      C   python                           1441MiB |
+|    2   N/A  N/A   1693006      C   python3                          7557MiB |
+|    3   N/A  N/A      2179      G   /usr/lib/xorg/Xorg                  4MiB |
+|    3   N/A  N/A    628800      C   python                           2157MiB |
+|    3   N/A  N/A   1574938      C   python                          28391MiB |
++-----------------------------------------------------------------------------+
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ cd ~/AHA_BTP/UG_MoE/project
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ 
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ echo "===== Parent requirements.txt ====="
+===== Parent requirements.txt =====
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ cat ../requirements.txt
+# # Core ML Framework
+# torch==2.2.1
+# dgl==2.2.1
+
+# # Data Processing & Science
+# numpy==1.26.4
+# pandas==3.0.6
+# scipy==1.17.1
+# scikit-learn==1.9.1
+
+# # Utilities
+# tqdm==4.70.1
+# pyyaml==6.0.3
+# networkx==3.6.1
+
+# # Log Parsing (Drain3)
+# drain3==0.9.11
+
+# # Hawkes Process (for log preprocessing)
+# tick==0.8.0.2
+
+# # Optional: Visualization (only if needed for evaluation scripts)
+# # matplotlib==3.11.2
+# # pillow==12.3.0
+
+# # Optional: Experiment tracking (if using)
+# # wandb==0.17.6
+# # mlflow==2.15.0
+
+# # Python standard library modules used (no install needed):
+# # json, os, sys, pathlib, datetime, random, hashlib, collections, re, typing, math, argparse, subprocess, pickle, logging
+
+# Core
+torch==2.2.1
+dgl==2.2.1
+torchdata==0.7.1
+numpy<2
+pydantic
+
+# Tick ecosystem (these are transitive but pin them to avoid conflicts)
+tick==0.8.0.2
+drain3
+
+# ML/DS
+scikit-learn
+pandas
+scipy
+matplotlib
+
+# Tick dependencies (explicitly pin to avoid conflicts)
+numpy<2
+pandas
+scipy
+matplotlib
+numpydoc
+sphinx
+joblib
+threadpoolctl
+typing-extensions
+pydantic-core
+pyyaml
+networkx
+fsspec
+cloudpickle
+
+# Utils
+tqdm(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ 
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ echo "===== Project requirements-kaggle.txt ====="
+===== Project requirements-kaggle.txt =====
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ cat requirements-kaggle.txt
+# Core ML
+torch==2.2.1
+dgl==2.2.1
+torchdata==0.7.1
+numpy<2
+pydantic
+
+# ML/DS
+scikit-learn
+pandas
+scipy
+matplotlib
+tqdm
+
+# Only needed for local preprocessing (not on Kaggle):
+# tick==0.8.0.2
+# drain3
+# sphinx
+# numpydoc
+# joblib
+# threadpoolctl
+# typing-extensions
+# pydantic-core
+# pyyaml
+# networkx
+# fsspec
+# cloudpickle
+
+# Kaggle requirements only (slim)
+# torch==2.2.1
+# dgl==2.2.1
+# torchdata==0.7.1
+# numpy<2
+# pydantic
+# scikit-learn
+# pandas
+# scipy
+# matplotlib
+# tqdm(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ ls -l experiments/run_ablations.py
+-rw-rw-r-- 1 ayanava_2511ai61 ayanava_2511ai61 8678 Oct 14 07:43 experiments/run_ablations.py
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ python -m pip install torch==2.2.1 \
+>   --index-url https://download.pytorch.org/whl/cu118
+Looking in indexes: https://download.pytorch.org/whl/cu118
+Collecting torch==2.2.1
+  Downloading torch-2.2.1%2Bcu118-cp311-cp311-linux_x86_64.whl (819.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 819.2/819.2 MB 37.4 MB/s  0:00:19
+Collecting filelock (from torch==2.2.1)
+  Downloading filelock-3.32.3-py3-none-any.whl.metadata (2.0 kB)
+Collecting typing-extensions>=4.8.0 (from torch==2.2.1)
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting sympy (from torch==2.2.1)
+  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)
+Collecting networkx (from torch==2.2.1)
+  Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)
+Collecting jinja2 (from torch==2.2.1)
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting fsspec (from torch==2.2.1)
+  Downloading fsspec-2026.7.0-py3-none-any.whl.metadata (10 kB)
+Collecting nvidia-cuda-nvrtc-cu11==11.8.89 (from torch==2.2.1)
+  Downloading nvidia_cuda_nvrtc_cu11-11.8.89-py3-none-manylinux1_x86_64.whl (23.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.2/23.2 MB 35.1 MB/s  0:00:00
+Collecting nvidia-cuda-runtime-cu11==11.8.89 (from torch==2.2.1)
+  Downloading nvidia_cuda_runtime_cu11-11.8.89-py3-none-manylinux1_x86_64.whl (875 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 875.6/875.6 kB 7.6 MB/s  0:00:00
+Collecting nvidia-cuda-cupti-cu11==11.8.87 (from torch==2.2.1)
+  Downloading nvidia_cuda_cupti_cu11-11.8.87-py3-none-manylinux1_x86_64.whl (13.1 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.1/13.1 MB 38.8 MB/s  0:00:00
+Collecting nvidia-cudnn-cu11==8.7.0.84 (from torch==2.2.1)
+  Downloading nvidia_cudnn_cu11-8.7.0.84-py3-none-manylinux1_x86_64.whl (728.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 728.5/728.5 MB 51.1 MB/s  0:00:11
+Collecting nvidia-cublas-cu11==11.11.3.6 (from torch==2.2.1)
+  Downloading nvidia_cublas_cu11-11.11.3.6-py3-none-manylinux1_x86_64.whl (417.9 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 417.9/417.9 MB 53.0 MB/s  0:00:07
+Collecting nvidia-cufft-cu11==10.9.0.58 (from torch==2.2.1)
+  Downloading nvidia_cufft_cu11-10.9.0.58-py3-none-manylinux1_x86_64.whl (168.4 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 168.4/168.4 MB 61.8 MB/s  0:00:02
+Collecting nvidia-curand-cu11==10.3.0.86 (from torch==2.2.1)
+  Downloading nvidia_curand_cu11-10.3.0.86-py3-none-manylinux1_x86_64.whl (58.1 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.1/58.1 MB 52.9 MB/s  0:00:01
+Collecting nvidia-cusolver-cu11==11.4.1.48 (from torch==2.2.1)
+  Downloading nvidia_cusolver_cu11-11.4.1.48-py3-none-manylinux1_x86_64.whl (128.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 128.2/128.2 MB 56.3 MB/s  0:00:02
+Collecting nvidia-cusparse-cu11==11.7.5.86 (from torch==2.2.1)
+  Downloading nvidia_cusparse_cu11-11.7.5.86-py3-none-manylinux1_x86_64.whl (204.1 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 204.1/204.1 MB 66.0 MB/s  0:00:03
+Collecting nvidia-nccl-cu11==2.19.3 (from torch==2.2.1)
+  Downloading nvidia_nccl_cu11-2.19.3-py3-none-manylinux1_x86_64.whl (135.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.3/135.3 MB 61.4 MB/s  0:00:02
+Collecting nvidia-nvtx-cu11==11.8.86 (from torch==2.2.1)
+  Downloading nvidia_nvtx_cu11-11.8.86-py3-none-manylinux1_x86_64.whl (99 kB)
+Collecting triton==2.2.0 (from torch==2.2.1)
+  Downloading triton-2.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (167.9 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 167.9/167.9 MB 50.7 MB/s  0:00:03
+Collecting MarkupSafe>=2.0 (from jinja2->torch==2.2.1)
+  Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+Collecting mpmath<1.4,>=1.1.0 (from sympy->torch==2.2.1)
+  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Downloading filelock-3.32.3-py3-none-any.whl (98 kB)
+Downloading fsspec-2026.7.0-py3-none-any.whl (206 kB)
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 18.2 MB/s  0:00:00
+Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 25.7 MB/s  0:00:00
+Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 4.1 MB/s  0:00:00
+Installing collected packages: mpmath, typing-extensions, sympy, nvidia-nvtx-cu11, nvidia-nccl-cu11, nvidia-cusparse-cu11,nvidia-curand-cu11, nvidia-cufft-cu11, nvidia-cuda-runtime-cu11, nvidia-cuda-nvrtc-cu11, nvidia-cuda-cupti-cu11, nvidia-cublas-cu11, networkx, MarkupSafe, fsspec, filelock, triton, nvidia-cusolver-cu11, nvidia-cudnn-cu11, jinja2, torch
+Successfully installed MarkupSafe-3.0.3 filelock-3.32.3 fsspec-2026.7.0 jinja2-3.1.6 mpmath-1.3.0 networkx-3.6.1 nvidia-cublas-cu11-11.11.3.6 nvidia-cuda-cupti-cu11-11.8.87 nvidia-cuda-nvrtc-cu11-11.8.89 nvidia-cuda-runtime-cu11-11.8.89 nvidia-cudnn-cu11-8.7.0.84 nvidia-cufft-cu11-10.9.0.58 nvidia-curand-cu11-10.3.0.86 nvidia-cusolver-cu11-11.4.1.48 nvidia-cusparse-cu11-11.7.5.86 nvidia-nccl-cu11-2.19.3 nvidia-nvtx-cu11-11.8.86 sympy-1.14.0 torch-2.2.1+cu118 triton-2.2.0 typing-extensions-4.16.0
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ python -c "import torch; print('PyTorch:', torch.__version__); print('CUDA build:', torch.version.cuda); print('CUDA available:', torch.cuda.is_available())"
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:20: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:84.)
+  device: torch.device = torch.device(torch._C._get_default_device()),  # torch.device('cpu'),
+PyTorch: 2.2.1+cu118
+CUDA build: 11.8
+CUDA available: True
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ CUDA_VISIBLE_DEVICES=2 python -c "import torch; x=torch.randn(1024,1024,device='cuda'); y=x@x; torch.cuda.synchronize(); print('GPU:',torch.cuda.get_device_name(0)); print('Test passed:',y.shape)"
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:20: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:84.)
+  device: torch.device = torch.device(torch._C._get_default_device()),  # torch.device('cpu'),
+GPU: Tesla V100-PCIE-32GB
+Test passed: torch.Size([1024, 1024])
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ python -m pip install "numpy==1.26.4" "torchdata==0.7.1"
+Collecting numpy==1.26.4
+  Downloading numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (61 kB)
+Collecting torchdata==0.7.1
+  Downloading torchdata-0.7.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (13 kB)
+Collecting urllib3>=1.25 (from torchdata==0.7.1)
+  Downloading urllib3-2.8.0-py3-none-any.whl.metadata (7.4 kB)
+Collecting requests (from torchdata==0.7.1)
+  Downloading requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+Requirement already satisfied: torch>=2 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torchdata==0.7.1) (2.2.1+cu118)
+Requirement already satisfied: filelock in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (3.32.3)
+Requirement already satisfied: typing-extensions>=4.8.0 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (4.16.0)
+Requirement already satisfied: sympy in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (1.14.0)
+Requirement already satisfied: networkx in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (3.6.1)
+Requirement already satisfied: jinja2 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (3.1.6)
+Requirement already satisfied: fsspec in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (2026.7.0)
+Requirement already satisfied: nvidia-cuda-nvrtc-cu11==11.8.89 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (11.8.89)
+Requirement already satisfied: nvidia-cuda-runtime-cu11==11.8.89 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (11.8.89)
+Requirement already satisfied: nvidia-cuda-cupti-cu11==11.8.87 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (11.8.87)
+Requirement already satisfied: nvidia-cudnn-cu11==8.7.0.84 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (8.7.0.84)
+Requirement already satisfied: nvidia-cublas-cu11==11.11.3.6 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (11.11.3.6)
+Requirement already satisfied: nvidia-cufft-cu11==10.9.0.58 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (10.9.0.58)
+Requirement already satisfied: nvidia-curand-cu11==10.3.0.86 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (10.3.0.86)
+Requirement already satisfied: nvidia-cusolver-cu11==11.4.1.48 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (11.4.1.48)
+Requirement already satisfied: nvidia-cusparse-cu11==11.7.5.86 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (11.7.5.86)
+Requirement already satisfied: nvidia-nccl-cu11==2.19.3 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (2.19.3)
+Requirement already satisfied: nvidia-nvtx-cu11==11.8.86 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (11.8.86)
+Requirement already satisfied: triton==2.2.0 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from torch>=2->torchdata==0.7.1) (2.2.0)
+Requirement already satisfied: MarkupSafe>=2.0 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages(from jinja2->torch>=2->torchdata==0.7.1) (3.0.3)
+Collecting charset_normalizer<4,>=2 (from requests->torchdata==0.7.1)
+  Downloading charset_normalizer-3.5.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (46 kB)
+Collecting idna<4,>=2.5 (from requests->torchdata==0.7.1)
+  Downloading idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+Collecting certifi>=2023.5.7 (from requests->torchdata==0.7.1)
+  Downloading certifi-2026.7.22-py3-none-any.whl.metadata (2.5 kB)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages (from sympy->torch>=2->torchdata==0.7.1) (1.3.0)
+Downloading numpy-1.26.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.3/18.3 MB 41.3 MB/s  0:00:00
+Downloading torchdata-0.7.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (4.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 2.3 MB/s  0:00:01
+Downloading urllib3-2.8.0-py3-none-any.whl (135 kB)
+Downloading requests-2.34.2-py3-none-any.whl (73 kB)
+Downloading charset_normalizer-3.5.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (269kB)
+Downloading idna-3.20-py3-none-any.whl (69 kB)
+Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
+Installing collected packages: urllib3, numpy, idna, charset_normalizer, certifi, requests, torchdata
+Successfully installed certifi-2026.7.22 charset_normalizer-3.5.2 idna-3.20 numpy-1.26.4 requests-2.34.2 torchdata-0.7.1 urllib3-2.8.0
+(muad) ayanava_2511ai61@user:~/AHA_BTP/UG_MoE/project$ python -m pip install dgl==2.2.1 \
+>   -f https://data.dgl.ai/wheels/torch-2.2/cu118/repo.html
+Looking in links: https://data.dgl.ai/wheels/torch-2.2/cu118/repo.html
+Collecting dgl==2.2.1
+  Downloading dgl-2.2.1%2Bcu118-cp311-cp311-manylinux1_x86_64.whl (441.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━ 330.8/441.5 MB 11.4 MB/s eta 0:00:10

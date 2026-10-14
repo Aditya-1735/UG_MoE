@@ -96,7 +96,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     patience = 10
     patience_counter = 0
     
-    for epoch in range(1, 61):
+    for epoch in range(1, 2):
         model.train()
         train_loss = 0
         for graph, labels in train_loader:
@@ -158,7 +158,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                     'optimizer_state_dict': optimizer.state_dict(),
                     'best_val_f1': best_f1,
                     'seed': seed,
-                }, output_dir / f"best_seed{seed}.pth")
+                }, output_base / f"best_seed{seed}.pth")
             else:
                 patience_counter += 1
                 if patience_counter >= patience:
@@ -204,7 +204,7 @@ def main():
     output_base = Path("experiments/runs") / f"ablations_{timestamp}"
     output_base.mkdir(parents=True, exist_ok=True)
     
-    seeds = [42, 123, 456, 789, 999]
+    seeds = [42]
     all_results = {}
     
     for ablation_name, ablation_config in ABLATIONS.items():

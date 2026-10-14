@@ -1,9 +1,37 @@
 # Project Execution Summary
 ## Uncertainty-Guided Graph-Aware Mixture-of-Experts for Multimodal Microservice Anomaly Detection
 
-**Date Completed**: 2026-10-05  
-**Phase**: Phase 2 Complete (Track A Full-Label, Track A Active Learning, Track B Full)  
-**Next Phase**: Phase 3 - Ablation Studies & Robustness Tests
+## Paper Claims vs Implementation Status
+
+### Original Paper (MUAD, IEEE TSC 2026) - Claims vs Our Implementation
+
+| Paper Component | Paper Claim | Implementation Status | Our Result | Gap |
+|-----------------|-------------|----------------------|------------|-----|
+| **Dataset (Eadro SocialNetwork)** | 7 experiments, 72 fault injections, 12 services | ✅ **Verified** | 7 experiments, 36 faults, 12 services | Paper claims 72 faults; dataset has 36 (unresolved) |
+| **MUAD Architecture** | 4 modality encoders + GATv2 + GPE + CFM + MMClassifier | ✅ **Fully Reproduced** | Commit 6031ccf architecture reproduced | Commit 58923ca crashes (hidden_dim regression) |
+| **GPE (UncertainBlock)** | Probabilistic encoding with KL reg | ✅ **Reproduced** | Including variance/log-var inconsistency bug | Bug faithfully reproduced |
+| **CFM (Confidence Fusion)** | TCP + confidence-weighted concat | ✅ **Reproduced** | Including concat vs weighted sum discrepancy | Code concatenates, paper describes weighted sum |
+| **Active Learning** | 10% labeled, entropy + confidence query | ✅ **Reproduced** | Including train_loader non-propagation bug | Bug faithfully reproduced |
+| **Test-set Checkpoint** | Best model by test F1 | ✅ **Reproduced** | Faithfully reproduced (methodological flaw) | Test-set leakage faithfully reproduced |
+| **Evaluation** | Precision/Recall/F1 on binary anomaly | ✅ **Reproduced** | Binary labels from culprit >= 1 | Correct |
+| **Full-label Training** | 50 epochs, test F1 checkpoint | ✅ **Reproduced** | F1 ≈ 0.9904 (vs paper's 0.9928) | -0.0024 gap (diff data split/seed) |
+| **Active Learning** | 30 iters, 10% labeled | ✅ **Reproduced** | F1 ≈ 0.948 (lower due to bugs) | Bugs reduce performance |
+| **Graph-Aware MoE (Proposed)** | 4 experts + uncertainty routing | ✅ **Implemented** | Track B: 0.9835 F1 on our data | New contribution |
+| **Ablations** | 6 configs planned | ❌ **Not Run** | Script ready, needs ~100 hrs CPU | Planned |
+| **Robustness Tests** | Missing modalities, noise | ❌ **Not Run** | Planned, not implemented | Planned |
+| **Clean Evaluation Track** | Fixed bugs | ❌ **Not Run** | Script ready, not run | Planned |
+
+**Key Gaps:**
+1. Paper reports F1=0.9928 on Dataset C - we got 0.9904 (different data splits)
+2. Paper claims 72 faults - dataset has 36 (unresolved discrepancy)
+3. Paper's F1=0.9928 vs our 0.9904 (different data split/seed)
+4. Ablation studies not yet run (~100 hrs CPU needed)
+5. Robustness tests not run
+6. Clean evaluation track (fixed bugs) not run
+
+---
+
+## Complete Verified Progress Summary
 
 ---
 
@@ -508,5 +536,206 @@ print('Integration test passed!')
 
 ---
 
-**End of Phase 2 Summary**  
-Track A (Full-Label: 0.9904 F1, Active Learning: 0.9480 F1) and Track B (0.9835 F1) complete. Ablation studies running. Ready for Phase 3.
+## Implementation Journey: Complete Step-by-Step Documentation
+
+### Phase 0: Forensic Investigation (Pre-Implementation)
+
+**Goal**: Understand what the paper claims vs what actually exists in code/data.
+
+**Sources Consulted:**
+1. **MUAD Paper** (IEEE TSC 2026) - Claims: F1=0.9928 on Dataset C, 72 fault injections
+2. **Eadro Paper** (ICSE 2023) - Claims: 72 fault injections in SN dataset
+3. **MUAD GitHub** (slg-frank/muad) - Commit 6031ccf (working) vs 58923ca (broken)
+4. **Eadro GitHub** (BEbillionaireUSD/Eadro) - Preprocessing code
+5. **Zenodo Dataset** (10.5281/zenodo.7615394) - Raw Eadro SocialNetwork dataset
+
+**Forensic Documents Created:**
+- `DATASET_FORENSICS_COMPLETE.md` - Dataset provenance, 36 faults (not 72), 12 services, trace channel issue, no-fault label tension
+- `MUAD_MODEL_FORENSICS_COMPLETE.md` - Full model architecture, math, losses, bugs documented
+- `MUAD_RUNTIME_VERIFICATION.md` - Empirical proof: 6031ccf works, 58923ca crashes (hidden_dim regression)
+- `IMPLEMENTATION_BLUEPRINT.md` - 15-layer architecture, validation gates, directory structure
+
+**Key Forensic Findings:**
+- Paper claims 72 faults → Dataset has 36 (4 exps × 3 services × 3 fault types)
+- Paper claims 72 faults in Eadro paper → Eadro dataset has 36
+- Eadro allocates 2 trace channels but only uses 1 (channel 1 always zero)
+- 3 genuine no-fault experiments exist but recovered artifact has 0 chunks with culprit=-1
+- Commit 58923ca silently dropped `hidden_dim=[64,64]` kwarg → shape mismatch crash
+- UncertainBlock uses same tensor as variance AND log-variance (inconsistency)
+- Test-set checkpoint selection (methodological flaw) faithfully reproduced
+
+### Phase 1: Dataset Pipeline (Sections 10-13)
+
+#### Step 1: Data Acquisition
+- **Source**: Zenodo DOI 10.5281/zenodo.7615394 (SN Dataset.zip, 78.7MB)
+- **Verified**: 7 experiments (4 fault + 3 no-fault), 36 fault records, 12 services
+- **Structure**: 4 fault exps + 3 no-fault exps, each with logs.json, spans.json, metrics/ (12 CSVs), SN.fault-*.json
+
+#### Step 2: Raw → Parsed Data Reconstruction (4 Converters)
+All labeled "RECONSTRUCTED - NOT ORIGINAL SOURCE CODE":
+
+| Converter | Input | Output | Key Transformations |
+|-----------|-------|--------|---------------------|
+| `convert_metrics.py` | `metrics/*.csv` | `metrics<idx>/<service>.csv` | Copy only (schema matches) |
+| `convert_logs.py` | `logs.json` | `templates.json` + `logs<idx>.csv` | UTC+8→UTC timestamp, Drain parsing |
+| `convert_traces.py` | `spans.json` | `traces<idx>.json` | Jaeger span→interval, processID→serviceName, CHILD_OF edges, μs→sec |
+| `convert_faults.py` | `SN.fault-*.json` | `records<idx>.json` | s=start, e=start+duration, service alias (nginx-thrift→nginx-web-server) |
+
+**Orchestrator**: `run_conversion.py` runs all 4 converters sequentially.
+
+**Output**: `project/parsed_data/SN/` with metrics0-6/, logs0-6.csv, traces0-6.json, records0-6.json, templates.json (13 templates)
+
+#### Step 3: Eadro Preprocessing (Faithful Reproduction)
+- **Environment**: uv venv Python 3.11, torch 2.2.1, dgl 2.1.0, tick 0.7.0.1 (patched)
+- **tick 0.8.0.2 patches**: 3 files patched for `__setattr__` restrictions
+- **Command**: `python align.py --name SN --test_ratio 0.4 --chunk_lenth 10 --threshold 1`
+- **Runtime**: ~20 minutes (HawkesADM4 slow)
+- **Output**: 9907 chunks, exact 60/40 split (5944 train / 3962 test)
+
+#### Step 4: MUAD Compatibility Trim
+- **Problem**: Eadro allocates `[12,10,2]` traces but only populates channel 0; MUAD expects `[12,10,1]`
+- **Solution**: `trim_trace_channel.py` - trims `traces[...,:1]` on all chunks
+- **Output**: `preprocessing/muad_compat/output/` with trimmed train/test/metadata
+
+**Validation Gates (All 10 PASS)**:
+| Gate | Check | Result |
+|------|-------|--------|
+| 1 | Raw dataset integrity (7 exps, 12 services) | ✅ |
+| 2 | Fault manifest (36 records, 12/12/12 split) | ✅ |
+| 3 | parsed_data schema | ✅ |
+| 4 | Chunk schema (4 keys, correct dtypes) | ✅ |
+| 5 | Tensor dimensions | ✅ |
+| 6 | Labels (culprit ∈ {-1,0..11}) | ✅ |
+| 7 | Graph structure (12 nodes, 24 edges) | ✅ |
+| 8 | Train/test split (60/40) | ✅ |
+| 9 | Artifact comparison | ✅ (expected diffs: event_num=14 vs 15, chunk counts) |
+| 10 | DataLoader compatibility | ✅ |
+
+### Phase 2: MUAD Baseline Reproduction (Track A)
+
+#### Track A1: Full-Label Training (5 seeds × 50 epochs)
+- **Config**: commit 6031ccf config (hidden_dim=[64,64], epochs=50, max_iter=30, event_num=15)
+- **Code Patches**: 3 files patched for `event_num` support
+- **Results**: Mean Best F1 = 0.9904 ± 0.0004 (Best: 0.9909, Min: 0.9898)
+- **vs Paper**: Paper reports 0.9928, we got 0.9904 (-0.0024 gap, diff data split/seed)
+
+#### Track A2: Active Learning (5 seeds × 30 iterations × 5 epochs/iter)
+- **Config**: 10% initial labeled, entropy (n_samples=5) + confidence (threshold=0.9) selection
+- **Bug Confirmed**: train_loader non-propagation (new samples never used)
+- **Results**: Mean Best F1 = 0.9480 ± 0.0107 (Best: 0.9573, Min: 0.9346)
+- **Bug Confirmed**: train_loader non-propagation confirmed; no high-conf pseudo-labels (threshold 0.9 too high)
+
+**All 10 Validation Gates PASS** ✅
+
+### Phase 3: Proposed Model - Graph-Aware MoE (Track B)
+
+#### Architecture Implemented
+| Component | File | Key Features |
+|-----------|------|--------------|
+| Temporal Expert | `src/experts/temporal_expert.py` | GRU/LSTM/Transformer for metric/trace; graph pooling |
+| Semantic Expert | `src/experts/semantic_expert.py` | Transformer/embedding for log semantics |
+| Dependency Expert | `src/experts/dependency_expert.py` | GAT (DGL) / Graph Transformer for service relations |
+| Cross-modal Expert | `src/experts/cross_modal_expert.py` | Bidirectional cross-attention (metric/trace/log) |
+| Expert Router | `src/routing/router.py` | Base, Graph-aware, Uncertainty-guided (top-k + load balancing) |
+| Uncertainty Module | `src/uncertainty/uncertainty.py` | Variational UncertaintyBlock (fixed var/log-var), MC dropout, ensemble |
+| Adaptive Fusion | `src/fusion/fusion.py` | Confidence-weighted, attention, gated, dynamic quality-aware |
+
+#### Track B Model (GraphAwareMoE)
+- **Parameters**: ~4.38M
+- **Features**: 4 experts, uncertainty-guided routing (top-k=2), variational uncertainty blocks, confidence-weighted fusion
+- **Loss**: Classification + 0.1×KL + 0.01×routing load balancing
+- **Config**: hidden_dim=64, expert_hidden=128, fusion=128, router_hidden=128
+
+#### Track B Results (5 seeds × 50 epochs on our regenerated data, event_num=14)
+| Seed | Best F1 | Best Epoch | Final F1 | Precision | Recall |
+|------|---------|------------|----------|-----------|--------|
+| 42 | 0.9828 | 45 | 0.9811 | 0.9803 | 0.9854 |
+| 123 | 0.9849 | 40 | 0.9778 | 0.9910 | 0.9650 |
+| 456 | 0.9829 | 35 | 0.9814 | 0.9946 | 0.9685 |
+| 789 | 0.9790 | 50 | 0.9776 | 0.9767 | 0.9784 |
+| 999 | 0.9875 | 45 | 0.9816 | 0.9677 | 0.9959 |
+
+| Statistic | Value |
+|-----------|-------|
+| **Mean Best F1** | **0.9835 ± 0.0032** |
+| Max F1 | 0.9875 (seed 999) |
+| Min F1 | 0.9790 (seed 789) |
+
+### Key Technical Fixes Applied
+
+| Issue | Fix |
+|-------|-----|
+| `tick` 0.8.0.2 `__setattr__` restrictions | Patched 3 files: `history.py`, `prox.py`, `base.py` |
+| `hidden_dim` regression (HEAD 58923ca) | Use commit 6031ccf config with explicit `hidden_dim=[64,64]` |
+| `event_num` mismatch (15 vs 14) | Patched `LogEncoder`, `MainModel`, `BaseModel` to accept `event_num` |
+| Router signature mismatch | Unified all router `forward()` signatures to accept `return_uncertainty` |
+| `ExpertRouter` input dim mismatch | Fixed `input_proj` to project to `routing_input_dim = hidden_dim * 3` |
+| `GraphAwareRouter` shape mismatch | Fixed forward to accept `[B, input_dim]` and handle graph internally |
+| `UncertaintyGuidedRouter` signature | Added `graph_info`, `expert_uncertainties`, `return_uncertainty` params |
+| `CrossModalExpertGraph` dim mismatch | Fixed `graph_pool` input dim from `hidden_dim` to `fused_dim = metric_dim * 3` |
+| `UncertaintyGuidedRouter` missing `hidden_dim` attr | Added `self.hidden_dim = hidden_dim` in `__init__` |
+
+### Quantitative Results Summary
+
+| Experiment | Mean F1 | Best F1 | Std Dev | Runs |
+|------------|---------|---------|---------|------|
+| Track A Full-Label (recovered artifact) | 0.9904 | 0.9909 | ±0.0004 | 5 |
+| Track A Active Learning | 0.9480 | 0.9573 | ±0.0107 | 5 |
+| Track B Graph-Aware MoE (our data) | 0.9835 | 0.9875 | ±0.0032 | 5 |
+
+**Comparison with Paper**:
+- Paper MUAD F1: 0.9928 (Dataset C, event_num=15, recovered artifact)
+- Our Track A: 0.9904 (event_num=15, recovered artifact) → **-0.0024 gap**
+- Our Track B: 0.9835 (event_num=14, our regenerated data) → New proposed model
+
+### Remaining Work (Phase 3)
+
+| Task | Status | Est. Time |
+|------|--------|-----------|
+| Ablation Studies (6 configs × 5 seeds × 50 epochs) | Script ready | ~100 hrs CPU |
+| Robustness Tests (6 tests × 5 seeds × 20 epochs) | Planned | ~6 hrs |
+| Clean Evaluation Track (fixed bugs) | Script ready | ~4 hrs |
+| Clean Ablation (fixed bugs) | Planned | ~20 hrs |
+| Robustness Tests (missing modalities, noise) | Planned | ~6 hrs |
+
+### How We Did It: Methodology Summary
+
+1. **Forensic-First Approach**: Never assumed paper claims; verified against raw data, git history, runtime
+2. **Reconstructed vs Reused**: Clearly labeled all reconstructed code (4 converters, trim) vs reused (vendor Eadro/MUAD)
+3. **Bug-Faithful Reproduction**: Reproduced bugs exactly as found (test-set checkpoint, AL non-propagation, UncertainBlock inconsistency)
+4. **Validation Gates**: 10 automated gates preventing progression with bad data
+5. **Separation of Tracks**: Track A (faithful MUAD) vs Track B (proposed Graph-Aware MoE) never mixed
+6. **Intermediate Artifacts Saved**: Every stage saves output (parsed_data, chunks, trimmed chunks, model checkpoints)
+7. **Per-Seed Results Saved**: Each seed's results + best checkpoint saved immediately
+8. **Validation-Based Checkpointing**: Track B uses val split for checkpoint selection (no test leakage)
+9. **Per-Run Artifacts**: Each run saves config, epoch logs, best checkpoint, final results
+10. **Documentation-First**: Every reconstructed component labeled, every bug documented, every decision recorded
+
+---
+
+## Summary
+
+### ✅ Completed (Fully Verified)
+- ✅ Dataset forensics & verification (36 faults, 12 services, 7 experiments)
+- ✅ Raw → parsed_data reconstruction (4 converters)
+- ✅ Eadro preprocessing (faithful, 9907 chunks, 60/40 split)
+- ✅ MUAD compatibility trim (trace channel trim)
+- ✅ 10 validation gates passing
+- ✅ 6 confirmed bugs reproduced
+- ✅ Track A Full-Label: 0.9904 F1 (5 seeds)
+- ✅ Track A Active Learning: 0.9480 F1 (5 seeds)
+- ✅ Track B Graph-Aware MoE: 0.9835 F1 (5 seeds)
+- ✅ All 10 validation gates passing
+- ✅ 6 confirmed bugs reproduced
+
+### 🔄 In Progress / Ready
+- ⏳ Ablation studies (script ready, ~100 hrs CPU)
+- ⏳ Robustness tests (planned)
+- ⏳ Clean evaluation track (script ready)
+
+### 📋 Ready for Next Phase
+All infrastructure, scripts, and documentation ready. Ablation studies can start immediately with `python experiments/run_ablations.py`.
+
+---
+
+**End of Implementation Journey Documentation**

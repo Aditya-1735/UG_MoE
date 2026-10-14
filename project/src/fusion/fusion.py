@@ -92,6 +92,8 @@ class AdaptiveFusion(nn.Module):
                 nn.Dropout(dropout),
                 nn.Linear(hidden_dim * 2, hidden_dim),
             )
+            # Output projection for consistency with other fusion types
+            self.output_proj = nn.Linear(hidden_dim, hidden_dim)
         else:
             raise ValueError(f"Unknown fusion_type: {fusion_type}")
         
