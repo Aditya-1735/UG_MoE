@@ -1,0 +1,522 @@
+nohup: ignoring input
+============================================================
+ABLATION STUDIES - GRAPH-AWARE MoE
+============================================================
+Ablations: ['no_graph', 'no_uncertainty', 'no_fusion', 'single_expert', 'plain_moe', 'graph_transformer']
+5 seeds per ablation: 42, 123, 456, 789, 999
+
+============================================================
+ABLATION: no_graph - No graph routing - base router only
+============================================================
+
+============================================================
+ABLATION: no_graph | Seed: 42
+============================================================
+Config: No graph routing - base router only
+  Epoch  5: Test Loss=0.2662, F1=0.8884, Pre=0.8858, Rec=0.8910
+  Epoch 10: Test Loss=0.2027, F1=0.9180, Pre=0.8801, Rec=0.9592
+  Epoch 15: Test Loss=0.2270, F1=0.9184, Pre=0.8685, Rec=0.9743
+  Epoch 20: Test Loss=0.1734, F1=0.9221, Pre=0.9373, Rec=0.9073
+  Epoch 25: Test Loss=0.1416, F1=0.9469, Pre=0.9418, Rec=0.9522
+  Epoch 30: Test Loss=0.1647, F1=0.9418, Pre=0.9223, Rec=0.9621
+  Epoch 35: Test Loss=0.1199, F1=0.9555, Pre=0.9463, Rec=0.9650
+  Epoch 40: Test Loss=0.1753, F1=0.9419, Pre=0.9125, Rec=0.9732
+  Epoch 45: Test Loss=0.1267, F1=0.9544, Pre=0.9508, Rec=0.9580
+  Epoch 50: Test Loss=0.1464, F1=0.9426, Pre=0.9331, Rec=0.9522
+  Run 1/5 (seed=42): Best F1=0.9555 (epoch 35)
+
+============================================================
+ABLATION: no_graph | Seed: 123
+============================================================
+Config: No graph routing - base router only
+  Epoch  5: Test Loss=0.2534, F1=0.9019, Pre=0.8754, Rec=0.9300
+  Epoch 10: Test Loss=0.2201, F1=0.9186, Pre=0.9125, Rec=0.9248
+  Epoch 15: Test Loss=0.1689, F1=0.9403, Pre=0.9479, Rec=0.9329
+  Epoch 20: Test Loss=0.1444, F1=0.9478, Pre=0.9481, Rec=0.9475
+  Epoch 25: Test Loss=0.1625, F1=0.9265, Pre=0.9503, Rec=0.9038
+  Epoch 30: Test Loss=0.1289, F1=0.9566, Pre=0.9558, Rec=0.9574
+  Epoch 35: Test Loss=0.1413, F1=0.9521, Pre=0.9475, Rec=0.9569
+  Epoch 40: Test Loss=0.1236, F1=0.9568, Pre=0.9393, Rec=0.9749
+  Epoch 45: Test Loss=0.1247, F1=0.9576, Pre=0.9414, Rec=0.9743
+  Epoch 50: Test Loss=0.1305, F1=0.9529, Pre=0.9272, Rec=0.9802
+  Run 2/5 (seed=123): Best F1=0.9576 (epoch 45)
+
+============================================================
+ABLATION: no_graph | Seed: 456
+============================================================
+Config: No graph routing - base router only
+  Epoch  5: Test Loss=0.2690, F1=0.8939, Pre=0.8681, Rec=0.9213
+  Epoch 10: Test Loss=0.2178, F1=0.9105, Pre=0.8798, Rec=0.9434
+  Epoch 15: Test Loss=0.1677, F1=0.9306, Pre=0.9052, Rec=0.9574
+  Epoch 20: Test Loss=0.1576, F1=0.9368, Pre=0.9197, Rec=0.9545
+  Epoch 25: Test Loss=0.1299, F1=0.9525, Pre=0.9470, Rec=0.9580
+  Epoch 30: Test Loss=0.1264, F1=0.9556, Pre=0.9638, Rec=0.9475
+  Epoch 35: Test Loss=0.1185, F1=0.9576, Pre=0.9414, Rec=0.9743
+  Epoch 40: Test Loss=0.1123, F1=0.9590, Pre=0.9502, Rec=0.9679
+  Epoch 45: Test Loss=0.1220, F1=0.9506, Pre=0.9371, Rec=0.9644
+  Epoch 50: Test Loss=0.1026, F1=0.9603, Pre=0.9540, Rec=0.9668
+  Run 3/5 (seed=456): Best F1=0.9603 (epoch 50)
+
+============================================================
+ABLATION: no_graph | Seed: 789
+============================================================
+Config: No graph routing - base router only
+  Epoch  5: Test Loss=0.2599, F1=0.8958, Pre=0.8533, Rec=0.9429
+  Epoch 10: Test Loss=0.2122, F1=0.9135, Pre=0.8788, Rec=0.9510
+  Epoch 15: Test Loss=0.1605, F1=0.9414, Pre=0.9276, Rec=0.9557
+  Epoch 20: Test Loss=0.1464, F1=0.9381, Pre=0.9531, Rec=0.9236
+  Epoch 25: Test Loss=0.1390, F1=0.9520, Pre=0.9443, Rec=0.9598
+  Epoch 30: Test Loss=0.1671, F1=0.9330, Pre=0.9622, Rec=0.9055
+  Epoch 35: Test Loss=0.1355, F1=0.9527, Pre=0.9429, Rec=0.9627
+  Epoch 40: Test Loss=0.1155, F1=0.9587, Pre=0.9430, Rec=0.9749
+  Epoch 45: Test Loss=0.1164, F1=0.9524, Pre=0.9779, Rec=0.9283
+  Epoch 50: Test Loss=0.1099, F1=0.9589, Pre=0.9391, Rec=0.9796
+  Run 4/5 (seed=789): Best F1=0.9589 (epoch 50)
+
+============================================================
+ABLATION: no_graph | Seed: 999
+============================================================
+Config: No graph routing - base router only
+  Epoch  5: Test Loss=0.2619, F1=0.8970, Pre=0.8623, Rec=0.9347
+  Epoch 10: Test Loss=0.2183, F1=0.9110, Pre=0.8834, Rec=0.9405
+  Epoch 15: Test Loss=0.1885, F1=0.9265, Pre=0.8955, Rec=0.9598
+  Epoch 20: Test Loss=0.1644, F1=0.9383, Pre=0.9504, Rec=0.9265
+  Epoch 25: Test Loss=0.1393, F1=0.9538, Pre=0.9513, Rec=0.9563
+  Epoch 30: Test Loss=0.1561, F1=0.9444, Pre=0.9102, Rec=0.9813
+  Epoch 35: Test Loss=0.1308, F1=0.9490, Pre=0.9281, Rec=0.9708
+  Epoch 40: Test Loss=0.1278, F1=0.9546, Pre=0.9529, Rec=0.9563
+  Epoch 45: Test Loss=0.1024, F1=0.9614, Pre=0.9578, Rec=0.9650
+  Epoch 50: Test Loss=0.1172, F1=0.9562, Pre=0.9448, Rec=0.9679
+  Run 5/5 (seed=999): Best F1=0.9614 (epoch 45)
+
+============================================================
+ABLATION: no_uncertainty - No uncertainty blocks
+============================================================
+
+============================================================
+ABLATION: no_uncertainty | Seed: 42
+============================================================
+Config: No uncertainty blocks
+  Epoch  5: Test Loss=0.2060, F1=0.9155, Pre=0.8939, Rec=0.9382
+  Epoch 10: Test Loss=0.1892, F1=0.9131, Pre=0.8591, Rec=0.9743
+  Epoch 15: Test Loss=0.1408, F1=0.9496, Pre=0.9431, Rec=0.9563
+  Epoch 20: Test Loss=0.1477, F1=0.9360, Pre=0.9464, Rec=0.9259
+  Epoch 25: Test Loss=0.1264, F1=0.9510, Pre=0.9397, Rec=0.9627
+  Epoch 30: Test Loss=0.1099, F1=0.9550, Pre=0.9452, Rec=0.9650
+  Epoch 35: Test Loss=0.1057, F1=0.9566, Pre=0.9547, Rec=0.9586
+  Epoch 40: Test Loss=0.1232, F1=0.9431, Pre=0.9541, Rec=0.9324
+  Epoch 45: Test Loss=0.0865, F1=0.9637, Pre=0.9595, Rec=0.9679
+  Epoch 50: Test Loss=0.0915, F1=0.9613, Pre=0.9453, Rec=0.9778
+  Run 1/5 (seed=42): Best F1=0.9637 (epoch 45)
+
+============================================================
+ABLATION: no_uncertainty | Seed: 123
+============================================================
+Config: No uncertainty blocks
+  Epoch  5: Test Loss=0.2241, F1=0.9047, Pre=0.8992, Rec=0.9102
+  Epoch 10: Test Loss=0.1734, F1=0.9248, Pre=0.8853, Rec=0.9679
+  Epoch 15: Test Loss=0.1441, F1=0.9423, Pre=0.9366, Rec=0.9481
+  Epoch 20: Test Loss=0.1221, F1=0.9537, Pre=0.9471, Rec=0.9603
+  Epoch 25: Test Loss=0.0981, F1=0.9620, Pre=0.9562, Rec=0.9679
+  Epoch 30: Test Loss=0.1160, F1=0.9513, Pre=0.9251, Rec=0.9790
+  Epoch 35: Test Loss=0.0936, F1=0.9595, Pre=0.9523, Rec=0.9668
+  Epoch 40: Test Loss=0.0877, F1=0.9640, Pre=0.9666, Rec=0.9615
+  Epoch 45: Test Loss=0.1009, F1=0.9557, Pre=0.9616, Rec=0.9499
+  Epoch 50: Test Loss=0.0788, F1=0.9667, Pre=0.9768, Rec=0.9569
+  Run 2/5 (seed=123): Best F1=0.9667 (epoch 50)
+
+============================================================
+ABLATION: no_uncertainty | Seed: 456
+============================================================
+Config: No uncertainty blocks
+  Epoch  5: Test Loss=0.2240, F1=0.8969, Pre=0.8743, Rec=0.9207
+  Epoch 10: Test Loss=0.1600, F1=0.9275, Pre=0.8979, Rec=0.9592
+  Epoch 15: Test Loss=0.1250, F1=0.9520, Pre=0.9501, Rec=0.9539
+  Epoch 20: Test Loss=0.1205, F1=0.9496, Pre=0.9390, Rec=0.9603
+  Epoch 25: Test Loss=0.1047, F1=0.9571, Pre=0.9454, Rec=0.9691
+  Epoch 30: Test Loss=0.0963, F1=0.9599, Pre=0.9503, Rec=0.9697
+  Epoch 35: Test Loss=0.0939, F1=0.9617, Pre=0.9573, Rec=0.9662
+  Epoch 40: Test Loss=0.0918, F1=0.9605, Pre=0.9642, Rec=0.9569
+  Epoch 45: Test Loss=0.0878, F1=0.9659, Pre=0.9488, Rec=0.9837
+  Epoch 50: Test Loss=0.0920, F1=0.9626, Pre=0.9505, Rec=0.9749
+  Run 3/5 (seed=456): Best F1=0.9659 (epoch 45)
+
+============================================================
+ABLATION: no_uncertainty | Seed: 789
+============================================================
+Config: No uncertainty blocks
+  Epoch  5: Test Loss=0.2138, F1=0.9026, Pre=0.8951, Rec=0.9102
+  Epoch 10: Test Loss=0.1578, F1=0.9269, Pre=0.9369, Rec=0.9172
+  Epoch 15: Test Loss=0.1463, F1=0.9281, Pre=0.9272, Rec=0.9289
+  Epoch 20: Test Loss=0.1319, F1=0.9493, Pre=0.9435, Rec=0.9551
+  Epoch 25: Test Loss=0.1246, F1=0.9494, Pre=0.9267, Rec=0.9732
+  Epoch 30: Test Loss=0.0978, F1=0.9597, Pre=0.9619, Rec=0.9574
+  Epoch 35: Test Loss=0.1559, F1=0.9198, Pre=0.9770, Rec=0.8688
+  Epoch 40: Test Loss=0.0933, F1=0.9634, Pre=0.9611, Rec=0.9656
+  Epoch 45: Test Loss=0.0871, F1=0.9638, Pre=0.9638, Rec=0.9638
+  Epoch 50: Test Loss=0.0854, F1=0.9675, Pre=0.9546, Rec=0.9808
+  Run 4/5 (seed=789): Best F1=0.9675 (epoch 50)
+
+============================================================
+ABLATION: no_uncertainty | Seed: 999
+============================================================
+Config: No uncertainty blocks
+  Epoch  5: Test Loss=0.2066, F1=0.9168, Pre=0.8991, Rec=0.9353
+  Epoch 10: Test Loss=0.1761, F1=0.9214, Pre=0.8911, Rec=0.9539
+  Epoch 15: Test Loss=0.1475, F1=0.9417, Pre=0.9237, Rec=0.9603
+  Epoch 20: Test Loss=0.1232, F1=0.9497, Pre=0.9263, Rec=0.9743
+  Epoch 25: Test Loss=0.1564, F1=0.9077, Pre=0.9474, Rec=0.8711
+  Epoch 30: Test Loss=0.1329, F1=0.9382, Pre=0.9767, Rec=0.9026
+  Epoch 35: Test Loss=0.1139, F1=0.9554, Pre=0.9323, Rec=0.9796
+  Epoch 40: Test Loss=0.1055, F1=0.9547, Pre=0.9446, Rec=0.9650
+  Epoch 45: Test Loss=0.0839, F1=0.9682, Pre=0.9696, Rec=0.9668
+  Epoch 50: Test Loss=0.0758, F1=0.9682, Pre=0.9701, Rec=0.9662
+  Run 5/5 (seed=999): Best F1=0.9682 (epoch 45)
+
+============================================================
+ABLATION: no_fusion - Simple concat+MLP fusion instead of confidence-weighted
+============================================================
+
+============================================================
+ABLATION: no_fusion | Seed: 42
+============================================================
+Config: Simple concat+MLP fusion instead of confidence-weighted
+  Epoch  5: Test Loss=0.2876, F1=0.8800, Pre=0.8268, Rec=0.9405
+  Epoch 10: Test Loss=0.2090, F1=0.9202, Pre=0.9034, Rec=0.9376
+  Epoch 15: Test Loss=0.1649, F1=0.9354, Pre=0.9468, Rec=0.9242
+  Epoch 20: Test Loss=0.2060, F1=0.9064, Pre=0.9242, Rec=0.8892
+  Epoch 25: Test Loss=0.1459, F1=0.9508, Pre=0.9442, Rec=0.9574
+  Epoch 30: Test Loss=0.1693, F1=0.9421, Pre=0.9219, Rec=0.9633
+  Epoch 35: Test Loss=0.1154, F1=0.9591, Pre=0.9406, Rec=0.9784
+  Epoch 40: Test Loss=0.1205, F1=0.9562, Pre=0.9443, Rec=0.9685
+  Epoch 45: Test Loss=0.1114, F1=0.9603, Pre=0.9467, Rec=0.9743
+  Epoch 50: Test Loss=0.1148, F1=0.9527, Pre=0.9475, Rec=0.9580
+  Run 1/5 (seed=42): Best F1=0.9603 (epoch 45)
+
+============================================================
+ABLATION: no_fusion | Seed: 123
+============================================================
+Config: Simple concat+MLP fusion instead of confidence-weighted
+  Epoch  5: Test Loss=0.2808, F1=0.8860, Pre=0.8469, Rec=0.9289
+  Epoch 10: Test Loss=0.1994, F1=0.9166, Pre=0.8866, Rec=0.9487
+  Epoch 15: Test Loss=0.1694, F1=0.9384, Pre=0.9138, Rec=0.9644
+  Epoch 20: Test Loss=0.1419, F1=0.9459, Pre=0.9345, Rec=0.9574
+  Epoch 25: Test Loss=0.1351, F1=0.9542, Pre=0.9366, Rec=0.9726
+  Epoch 30: Test Loss=0.1261, F1=0.9534, Pre=0.9518, Rec=0.9551
+  Epoch 35: Test Loss=0.1286, F1=0.9546, Pre=0.9356, Rec=0.9743
+  Epoch 40: Test Loss=0.1362, F1=0.9364, Pre=0.9647, Rec=0.9096
+  Epoch 45: Test Loss=0.1156, F1=0.9571, Pre=0.9444, Rec=0.9703
+  Epoch 50: Test Loss=0.1230, F1=0.9590, Pre=0.9361, Rec=0.9831
+  Run 2/5 (seed=123): Best F1=0.9590 (epoch 50)
+
+============================================================
+ABLATION: no_fusion | Seed: 456
+============================================================
+Config: Simple concat+MLP fusion instead of confidence-weighted
+  Epoch  5: Test Loss=0.2773, F1=0.8944, Pre=0.8464, Rec=0.9481
+  Epoch 10: Test Loss=0.2081, F1=0.9226, Pre=0.8891, Rec=0.9586
+  Epoch 15: Test Loss=0.2088, F1=0.9151, Pre=0.8600, Rec=0.9778
+  Epoch 20: Test Loss=0.2001, F1=0.9243, Pre=0.8750, Rec=0.9796
+  Epoch 25: Test Loss=0.1480, F1=0.9427, Pre=0.9263, Rec=0.9598
+  Epoch 30: Test Loss=0.1473, F1=0.9493, Pre=0.9325, Rec=0.9668
+  Epoch 35: Test Loss=0.1300, F1=0.9500, Pre=0.9321, Rec=0.9685
+  Epoch 40: Test Loss=0.1238, F1=0.9539, Pre=0.9425, Rec=0.9656
+  Epoch 45: Test Loss=0.1104, F1=0.9610, Pre=0.9519, Rec=0.9703
+  Epoch 50: Test Loss=0.1098, F1=0.9596, Pre=0.9441, Rec=0.9755
+  Run 3/5 (seed=456): Best F1=0.9610 (epoch 45)
+
+============================================================
+ABLATION: no_fusion | Seed: 789
+============================================================
+Config: Simple concat+MLP fusion instead of confidence-weighted
+  Epoch  5: Test Loss=0.2723, F1=0.8920, Pre=0.8234, Rec=0.9732
+  Epoch 10: Test Loss=0.2070, F1=0.9199, Pre=0.8934, Rec=0.9481
+  Epoch 15: Test Loss=0.1824, F1=0.9297, Pre=0.9046, Rec=0.9563
+  Epoch 20: Test Loss=0.1625, F1=0.9270, Pre=0.9400, Rec=0.9143
+  Epoch 25: Test Loss=0.1331, F1=0.9513, Pre=0.9397, Rec=0.9633
+  Epoch 30: Test Loss=0.1241, F1=0.9569, Pre=0.9558, Rec=0.9580
+  Epoch 35: Test Loss=0.1154, F1=0.9574, Pre=0.9516, Rec=0.9633
+  Epoch 40: Test Loss=0.1143, F1=0.9595, Pre=0.9446, Rec=0.9749
+  Epoch 45: Test Loss=0.1220, F1=0.9560, Pre=0.9432, Rec=0.9691
+  Epoch 50: Test Loss=0.1103, F1=0.9621, Pre=0.9469, Rec=0.9778
+  Run 4/5 (seed=789): Best F1=0.9621 (epoch 50)
+
+============================================================
+ABLATION: no_fusion | Seed: 999
+============================================================
+Config: Simple concat+MLP fusion instead of confidence-weighted
+  Epoch  5: Test Loss=0.2783, F1=0.8879, Pre=0.8273, Rec=0.9580
+  Epoch 10: Test Loss=0.1995, F1=0.9278, Pre=0.8949, Rec=0.9633
+  Epoch 15: Test Loss=0.1836, F1=0.9309, Pre=0.8942, Rec=0.9708
+  Epoch 20: Test Loss=0.1590, F1=0.9430, Pre=0.9229, Rec=0.9638
+  Epoch 25: Test Loss=0.1729, F1=0.9381, Pre=0.9575, Rec=0.9195
+  Epoch 30: Test Loss=0.1539, F1=0.9495, Pre=0.9248, Rec=0.9755
+  Epoch 35: Test Loss=0.1287, F1=0.9535, Pre=0.9507, Rec=0.9563
+  Epoch 40: Test Loss=0.1080, F1=0.9626, Pre=0.9649, Rec=0.9603
+  Epoch 45: Test Loss=0.1216, F1=0.9562, Pre=0.9584, Rec=0.9539
+  Epoch 50: Test Loss=0.1101, F1=0.9607, Pre=0.9737, Rec=0.9481
+  Run 5/5 (seed=999): Best F1=0.9626 (epoch 40)
+
+============================================================
+ABLATION: single_expert - Single temporal expert (no MoE)
+============================================================
+
+============================================================
+ABLATION: single_expert | Seed: 42
+============================================================
+Config: Single temporal expert (no MoE)
+  Epoch  5: Test Loss=0.2994, F1=0.8800, Pre=0.8441, Rec=0.9190
+  Epoch 10: Test Loss=0.2291, F1=0.9196, Pre=0.8818, Rec=0.9609
+  Epoch 15: Test Loss=0.2007, F1=0.9292, Pre=0.8934, Rec=0.9679
+  Epoch 20: Test Loss=0.1830, F1=0.9342, Pre=0.9027, Rec=0.9679
+  Epoch 25: Test Loss=0.1642, F1=0.9384, Pre=0.9101, Rec=0.9685
+  Epoch 30: Test Loss=0.1511, F1=0.9464, Pre=0.9220, Rec=0.9720
+  Epoch 35: Test Loss=0.1372, F1=0.9512, Pre=0.9427, Rec=0.9598
+  Epoch 40: Test Loss=0.1402, F1=0.9511, Pre=0.9382, Rec=0.9644
+  Epoch 45: Test Loss=0.1336, F1=0.9557, Pre=0.9377, Rec=0.9743
+  Epoch 50: Test Loss=0.1388, F1=0.9562, Pre=0.9443, Rec=0.9685
+  Run 1/5 (seed=42): Best F1=0.9562 (epoch 50)
+
+============================================================
+ABLATION: single_expert | Seed: 123
+============================================================
+Config: Single temporal expert (no MoE)
+  Epoch  5: Test Loss=0.3262, F1=0.8559, Pre=0.8495, Rec=0.8624
+  Epoch 10: Test Loss=0.2349, F1=0.9147, Pre=0.8816, Rec=0.9504
+  Epoch 15: Test Loss=0.2183, F1=0.9245, Pre=0.9041, Rec=0.9458
+  Epoch 20: Test Loss=0.1990, F1=0.9309, Pre=0.8985, Rec=0.9656
+  Epoch 25: Test Loss=0.1755, F1=0.9351, Pre=0.9060, Rec=0.9662
+  Epoch 30: Test Loss=0.1630, F1=0.9401, Pre=0.9245, Rec=0.9563
+  Epoch 35: Test Loss=0.1464, F1=0.9456, Pre=0.9494, Rec=0.9417
+  Epoch 40: Test Loss=0.1358, F1=0.9539, Pre=0.9599, Rec=0.9481
+  Epoch 45: Test Loss=0.1380, F1=0.9509, Pre=0.9322, Rec=0.9703
+  Epoch 50: Test Loss=0.1251, F1=0.9564, Pre=0.9606, Rec=0.9522
+  Run 2/5 (seed=123): Best F1=0.9564 (epoch 50)
+
+============================================================
+ABLATION: single_expert | Seed: 456
+============================================================
+Config: Single temporal expert (no MoE)
+  Epoch  5: Test Loss=0.2986, F1=0.8820, Pre=0.8401, Rec=0.9283
+  Epoch 10: Test Loss=0.2308, F1=0.9148, Pre=0.8753, Rec=0.9580
+  Epoch 15: Test Loss=0.2039, F1=0.9290, Pre=0.8951, Rec=0.9656
+  Epoch 20: Test Loss=0.1917, F1=0.9303, Pre=0.8980, Rec=0.9650
+  Epoch 25: Test Loss=0.1880, F1=0.9297, Pre=0.8822, Rec=0.9825
+  Epoch 30: Test Loss=0.1575, F1=0.9406, Pre=0.9255, Rec=0.9563
+  Epoch 35: Test Loss=0.1637, F1=0.9393, Pre=0.9149, Rec=0.9650
+  Epoch 40: Test Loss=0.1558, F1=0.9411, Pre=0.9600, Rec=0.9230
+  Epoch 45: Test Loss=0.1523, F1=0.9464, Pre=0.9407, Rec=0.9522
+  Epoch 50: Test Loss=0.1557, F1=0.9431, Pre=0.9164, Rec=0.9714
+  Run 3/5 (seed=456): Best F1=0.9464 (epoch 45)
+
+============================================================
+ABLATION: single_expert | Seed: 789
+============================================================
+Config: Single temporal expert (no MoE)
+  Epoch  5: Test Loss=0.2969, F1=0.8769, Pre=0.8633, Rec=0.8910
+  Epoch 10: Test Loss=0.2313, F1=0.9163, Pre=0.8781, Rec=0.9580
+  Epoch 15: Test Loss=0.2002, F1=0.9323, Pre=0.9028, Rec=0.9638
+  Epoch 20: Test Loss=0.1978, F1=0.9285, Pre=0.9080, Rec=0.9499
+  Epoch 25: Test Loss=0.1797, F1=0.9355, Pre=0.9087, Rec=0.9638
+  Epoch 30: Test Loss=0.1590, F1=0.9449, Pre=0.9305, Rec=0.9598
+  Epoch 35: Test Loss=0.1495, F1=0.9476, Pre=0.9308, Rec=0.9650
+  Epoch 40: Test Loss=0.1337, F1=0.9552, Pre=0.9525, Rec=0.9580
+  Epoch 45: Test Loss=0.1317, F1=0.9559, Pre=0.9504, Rec=0.9615
+  Epoch 50: Test Loss=0.1422, F1=0.9540, Pre=0.9518, Rec=0.9563
+  Run 4/5 (seed=789): Best F1=0.9559 (epoch 45)
+
+============================================================
+ABLATION: single_expert | Seed: 999
+============================================================
+Config: Single temporal expert (no MoE)
+  Epoch  5: Test Loss=0.3001, F1=0.8742, Pre=0.8465, Rec=0.9038
+  Epoch 10: Test Loss=0.2261, F1=0.9207, Pre=0.8888, Rec=0.9551
+  Epoch 15: Test Loss=0.2030, F1=0.9287, Pre=0.8951, Rec=0.9650
+  Epoch 20: Test Loss=0.1873, F1=0.9313, Pre=0.9113, Rec=0.9522
+  Epoch 25: Test Loss=0.1683, F1=0.9382, Pre=0.9291, Rec=0.9475
+  Epoch 30: Test Loss=0.1561, F1=0.9460, Pre=0.9178, Rec=0.9761
+  Epoch 35: Test Loss=0.1408, F1=0.9511, Pre=0.9448, Rec=0.9574
+  Epoch 40: Test Loss=0.1248, F1=0.9591, Pre=0.9487, Rec=0.9697
+  Epoch 45: Test Loss=0.1305, F1=0.9544, Pre=0.9395, Rec=0.9697
+  Epoch 50: Test Loss=0.1281, F1=0.9580, Pre=0.9460, Rec=0.9703
+  Run 5/5 (seed=999): Best F1=0.9591 (epoch 40)
+
+============================================================
+ABLATION: plain_moe - Plain MoE: no graph, no uncertainty, simple fusion
+============================================================
+
+============================================================
+ABLATION: plain_moe | Seed: 42
+============================================================
+Config: Plain MoE: no graph, no uncertainty, simple fusion
+  Epoch  5: Test Loss=0.2604, F1=0.8971, Pre=0.8599, Rec=0.9376
+  Epoch 10: Test Loss=0.1931, F1=0.9272, Pre=0.9014, Rec=0.9545
+  Epoch 15: Test Loss=0.1820, F1=0.9326, Pre=0.9143, Rec=0.9516
+  Epoch 20: Test Loss=0.1777, F1=0.9176, Pre=0.9478, Rec=0.8892
+  Epoch 25: Test Loss=0.1463, F1=0.9457, Pre=0.9281, Rec=0.9638
+  Epoch 30: Test Loss=0.1614, F1=0.9380, Pre=0.8968, Rec=0.9831
+  Epoch 35: Test Loss=0.1349, F1=0.9523, Pre=0.9496, Rec=0.9551
+  Epoch 40: Test Loss=0.1269, F1=0.9565, Pre=0.9639, Rec=0.9493
+  Epoch 45: Test Loss=0.1244, F1=0.9558, Pre=0.9589, Rec=0.9528
+  Epoch 50: Test Loss=0.1265, F1=0.9590, Pre=0.9507, Rec=0.9673
+  Run 1/5 (seed=42): Best F1=0.9590 (epoch 50)
+
+============================================================
+ABLATION: plain_moe | Seed: 123
+============================================================
+Config: Plain MoE: no graph, no uncertainty, simple fusion
+  Epoch  5: Test Loss=0.2832, F1=0.8949, Pre=0.8840, Rec=0.9061
+  Epoch 10: Test Loss=0.2037, F1=0.9276, Pre=0.9042, Rec=0.9522
+  Epoch 15: Test Loss=0.1748, F1=0.9416, Pre=0.9166, Rec=0.9679
+  Epoch 20: Test Loss=0.1774, F1=0.9411, Pre=0.9506, Rec=0.9318
+  Epoch 25: Test Loss=0.1352, F1=0.9545, Pre=0.9498, Rec=0.9592
+  Epoch 30: Test Loss=0.1322, F1=0.9553, Pre=0.9337, Rec=0.9778
+  Epoch 35: Test Loss=0.1239, F1=0.9593, Pre=0.9502, Rec=0.9685
+  Epoch 40: Test Loss=0.1349, F1=0.9554, Pre=0.9557, Rec=0.9551
+  Epoch 45: Test Loss=0.1181, F1=0.9605, Pre=0.9577, Rec=0.9633
+  Epoch 50: Test Loss=0.1230, F1=0.9626, Pre=0.9500, Rec=0.9755
+  Run 2/5 (seed=123): Best F1=0.9626 (epoch 50)
+
+============================================================
+ABLATION: plain_moe | Seed: 456
+============================================================
+Config: Plain MoE: no graph, no uncertainty, simple fusion
+  Epoch  5: Test Loss=0.2834, F1=0.8876, Pre=0.8508, Rec=0.9277
+  Epoch 10: Test Loss=0.2024, F1=0.9171, Pre=0.8876, Rec=0.9487
+  Epoch 15: Test Loss=0.1766, F1=0.9356, Pre=0.9074, Rec=0.9656
+  Epoch 20: Test Loss=0.1447, F1=0.9471, Pre=0.9491, Rec=0.9452
+  Epoch 25: Test Loss=0.1352, F1=0.9512, Pre=0.9479, Rec=0.9545
+  Epoch 30: Test Loss=0.1217, F1=0.9548, Pre=0.9426, Rec=0.9673
+  Epoch 35: Test Loss=0.1151, F1=0.9566, Pre=0.9433, Rec=0.9703
+  Epoch 40: Test Loss=0.1032, F1=0.9610, Pre=0.9658, Rec=0.9563
+  Epoch 45: Test Loss=0.1199, F1=0.9582, Pre=0.9420, Rec=0.9749
+  Epoch 50: Test Loss=0.1192, F1=0.9558, Pre=0.9300, Rec=0.9831
+  Run 3/5 (seed=456): Best F1=0.9610 (epoch 40)
+
+============================================================
+ABLATION: plain_moe | Seed: 789
+============================================================
+Config: Plain MoE: no graph, no uncertainty, simple fusion
+  Epoch  5: Test Loss=0.2538, F1=0.8979, Pre=0.8500, Rec=0.9516
+  Epoch 10: Test Loss=0.2177, F1=0.9157, Pre=0.8975, Rec=0.9347
+  Epoch 15: Test Loss=0.1876, F1=0.9241, Pre=0.8894, Rec=0.9615
+  Epoch 20: Test Loss=0.1771, F1=0.9275, Pre=0.9116, Rec=0.9440
+  Epoch 25: Test Loss=0.1459, F1=0.9408, Pre=0.9184, Rec=0.9644
+  Epoch 30: Test Loss=0.1918, F1=0.9338, Pre=0.8892, Rec=0.9831
+  Epoch 35: Test Loss=0.1279, F1=0.9542, Pre=0.9317, Rec=0.9778
+  Epoch 40: Test Loss=0.1274, F1=0.9553, Pre=0.9452, Rec=0.9656
+  Epoch 45: Test Loss=0.1201, F1=0.9558, Pre=0.9536, Rec=0.9580
+  Epoch 50: Test Loss=0.1244, F1=0.9576, Pre=0.9470, Rec=0.9685
+  Run 4/5 (seed=789): Best F1=0.9576 (epoch 50)
+
+============================================================
+ABLATION: plain_moe | Seed: 999
+============================================================
+Config: Plain MoE: no graph, no uncertainty, simple fusion
+  Epoch  5: Test Loss=0.2677, F1=0.8948, Pre=0.8756, Rec=0.9149
+  Epoch 10: Test Loss=0.2251, F1=0.9126, Pre=0.8885, Rec=0.9382
+  Epoch 15: Test Loss=0.1915, F1=0.9251, Pre=0.8975, Rec=0.9545
+  Epoch 20: Test Loss=0.1679, F1=0.9311, Pre=0.8955, Rec=0.9697
+  Epoch 25: Test Loss=0.1416, F1=0.9463, Pre=0.9427, Rec=0.9499
+  Epoch 30: Test Loss=0.1541, F1=0.9350, Pre=0.9389, Rec=0.9312
+  Epoch 35: Test Loss=0.1215, F1=0.9575, Pre=0.9490, Rec=0.9662
+  Epoch 40: Test Loss=0.1233, F1=0.9545, Pre=0.9431, Rec=0.9662
+  Epoch 45: Test Loss=0.1193, F1=0.9556, Pre=0.9584, Rec=0.9528
+  Epoch 50: Test Loss=0.1400, F1=0.9499, Pre=0.9601, Rec=0.9399
+  Run 5/5 (seed=999): Best F1=0.9575 (epoch 35)
+
+============================================================
+ABLATION: graph_transformer - Graph Transformer instead of GAT in dependency expert
+============================================================
+
+============================================================
+ABLATION: graph_transformer | Seed: 42
+============================================================
+Config: Graph Transformer instead of GAT in dependency expert
+  Epoch  5: Test Loss=0.2609, F1=0.8908, Pre=0.8359, Rec=0.9534
+  Epoch 10: Test Loss=0.1846, F1=0.9302, Pre=0.9060, Rec=0.9557
+  Epoch 15: Test Loss=0.1505, F1=0.9458, Pre=0.9253, Rec=0.9673
+  Epoch 20: Test Loss=0.1602, F1=0.9404, Pre=0.9042, Rec=0.9796
+  Epoch 25: Test Loss=0.1599, F1=0.9389, Pre=0.9604, Rec=0.9184
+  Epoch 30: Test Loss=0.1269, F1=0.9522, Pre=0.9300, Rec=0.9755
+  Epoch 35: Test Loss=0.1322, F1=0.9511, Pre=0.9232, Rec=0.9808
+  Epoch 40: Test Loss=0.1093, F1=0.9623, Pre=0.9505, Rec=0.9743
+  Epoch 45: Test Loss=0.1216, F1=0.9556, Pre=0.9520, Rec=0.9592
+  Epoch 50: Test Loss=0.1397, F1=0.9474, Pre=0.9444, Rec=0.9504
+  Run 1/5 (seed=42): Best F1=0.9623 (epoch 40)
+
+============================================================
+ABLATION: graph_transformer | Seed: 123
+============================================================
+Config: Graph Transformer instead of GAT in dependency expert
+  Epoch  5: Test Loss=0.3123, F1=0.8645, Pre=0.8447, Rec=0.8851
+  Epoch 10: Test Loss=0.2024, F1=0.9223, Pre=0.9070, Rec=0.9382
+  Epoch 15: Test Loss=0.1468, F1=0.9429, Pre=0.9418, Rec=0.9440
+  Epoch 20: Test Loss=0.1421, F1=0.9454, Pre=0.9370, Rec=0.9539
+  Epoch 25: Test Loss=0.1617, F1=0.9252, Pre=0.9351, Rec=0.9155
+  Epoch 30: Test Loss=0.1442, F1=0.9454, Pre=0.9682, Rec=0.9236
+  Epoch 35: Test Loss=0.1304, F1=0.9554, Pre=0.9323, Rec=0.9796
+  Epoch 40: Test Loss=0.1104, F1=0.9598, Pre=0.9524, Rec=0.9673
+  Epoch 45: Test Loss=0.1123, F1=0.9568, Pre=0.9656, Rec=0.9481
+  Epoch 50: Test Loss=0.1140, F1=0.9589, Pre=0.9461, Rec=0.9720
+  Run 2/5 (seed=123): Best F1=0.9598 (epoch 40)
+
+============================================================
+ABLATION: graph_transformer | Seed: 456
+============================================================
+Config: Graph Transformer instead of GAT in dependency expert
+  Epoch  5: Test Loss=0.3180, F1=0.8669, Pre=0.7870, Rec=0.9650
+  Epoch 10: Test Loss=0.1988, F1=0.9220, Pre=0.8942, Rec=0.9516
+  Epoch 15: Test Loss=0.1643, F1=0.9368, Pre=0.9108, Rec=0.9644
+  Epoch 20: Test Loss=0.1347, F1=0.9479, Pre=0.9413, Rec=0.9545
+  Epoch 25: Test Loss=0.1559, F1=0.9416, Pre=0.9252, Rec=0.9586
+  Epoch 30: Test Loss=0.1182, F1=0.9564, Pre=0.9531, Rec=0.9598
+  Epoch 35: Test Loss=0.1223, F1=0.9512, Pre=0.9318, Rec=0.9714
+  Epoch 40: Test Loss=0.1093, F1=0.9591, Pre=0.9539, Rec=0.9644
+  Epoch 45: Test Loss=0.1754, F1=0.9222, Pre=0.9632, Rec=0.8845
+  Epoch 50: Test Loss=0.1077, F1=0.9589, Pre=0.9512, Rec=0.9668
+  Run 3/5 (seed=456): Best F1=0.9591 (epoch 40)
+
+============================================================
+ABLATION: graph_transformer | Seed: 789
+============================================================
+Config: Graph Transformer instead of GAT in dependency expert
+  Epoch  5: Test Loss=0.2453, F1=0.8952, Pre=0.8493, Rec=0.9464
+  Epoch 10: Test Loss=0.1719, F1=0.9296, Pre=0.8987, Rec=0.9627
+  Epoch 15: Test Loss=0.1599, F1=0.9381, Pre=0.9189, Rec=0.9580
+  Epoch 20: Test Loss=0.1892, F1=0.9309, Pre=0.8981, Rec=0.9662
+  Epoch 25: Test Loss=0.1583, F1=0.9376, Pre=0.9203, Rec=0.9557
+  Epoch 30: Test Loss=0.1583, F1=0.9462, Pre=0.9239, Rec=0.9697
+  Epoch 35: Test Loss=0.1358, F1=0.9475, Pre=0.9231, Rec=0.9732
+  Epoch 40: Test Loss=0.1273, F1=0.9494, Pre=0.9590, Rec=0.9399
+  Epoch 45: Test Loss=0.1288, F1=0.9524, Pre=0.9424, Rec=0.9627
+  Epoch 50: Test Loss=0.1214, F1=0.9540, Pre=0.9355, Rec=0.9732
+  Run 4/5 (seed=789): Best F1=0.9540 (epoch 50)
+
+============================================================
+ABLATION: graph_transformer | Seed: 999
+============================================================
+Config: Graph Transformer instead of GAT in dependency expert
+  Epoch  5: Test Loss=0.2396, F1=0.9009, Pre=0.8906, Rec=0.9114
+  Epoch 10: Test Loss=0.1801, F1=0.9297, Pre=0.9153, Rec=0.9446
+  Epoch 15: Test Loss=0.1577, F1=0.9413, Pre=0.9295, Rec=0.9534
+  Epoch 20: Test Loss=0.1389, F1=0.9472, Pre=0.9577, Rec=0.9370
+  Epoch 25: Test Loss=0.1407, F1=0.9501, Pre=0.9297, Rec=0.9714
+  Epoch 30: Test Loss=0.1575, F1=0.9377, Pre=0.9193, Rec=0.9569
+  Epoch 35: Test Loss=0.1558, F1=0.9415, Pre=0.9256, Rec=0.9580
+  Epoch 40: Test Loss=0.1178, F1=0.9575, Pre=0.9439, Rec=0.9714
+  Epoch 45: Test Loss=0.1224, F1=0.9575, Pre=0.9553, Rec=0.9598
+  Epoch 50: Test Loss=0.0948, F1=0.9615, Pre=0.9479, Rec=0.9755
+  Run 5/5 (seed=999): Best F1=0.9615 (epoch 50)
+
+============================================================
+ABLATION SUMMARY
+============================================================
+no_graph            : Mean F1=0.9587 ± 0.0020  (Max: 0.9614)
+no_uncertainty      : Mean F1=0.9664 ± 0.0015  (Max: 0.9682)
+no_fusion           : Mean F1=0.9610 ± 0.0013  (Max: 0.9626)
+single_expert       : Mean F1=0.9548 ± 0.0044  (Max: 0.9591)
+plain_moe           : Mean F1=0.9595 ± 0.0020  (Max: 0.9626)
+graph_transformer   : Mean F1=0.9593 ± 0.0029  (Max: 0.9623)
+
+Results saved to: experiments/runs/ablations_20261014_182857

@@ -1,0 +1,47 @@
+[
+  {
+    "ablation": "plain_moe",
+    "seed": 42,
+    "best_f1": 0.9589595375722544,
+    "best_epoch": 50,
+    "final_f1": 0.954768078363584,
+    "final_precision": 0.943621867881549,
+    "final_recall": 0.9661807580174927
+  },
+  {
+    "ablation": "plain_moe",
+    "seed": 123,
+    "best_f1": 0.9626006904487917,
+    "best_epoch": 50,
+    "final_f1": 0.9602763385146805,
+    "final_precision": 0.9482660602615123,
+    "final_recall": 0.972594752186589
+  },
+  {
+    "ablation": "plain_moe",
+    "seed": 456,
+    "best_f1": 0.9610313507178435,
+    "best_epoch": 40,
+    "final_f1": 0.9568427030096536,
+    "final_precision": 0.9324847814056447,
+    "final_recall": 0.9825072886297376
+  },
+  {
+    "ablation": "plain_moe",
+    "seed": 789,
+    "best_f1": 0.9576246756990487,
+    "best_epoch": 50,
+    "final_f1": 0.9591484464902187,
+    "final_precision": 0.9466212379329926,
+    "final_recall": 0.9720116618075801
+  },
+  {
+    "ablation": "plain_moe",
+    "seed": 999,
+    "best_f1": 0.9575267263796591,
+    "best_epoch": 35,
+    "final_f1": 0.9520447190350103,
+    "final_precision": 0.9608076009501187,
+    "final_recall": 0.9434402332361516
+  }
+]

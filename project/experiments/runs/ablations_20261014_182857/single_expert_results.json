@@ -1,0 +1,47 @@
+[
+  {
+    "ablation": "single_expert",
+    "seed": 42,
+    "best_f1": 0.9562464018422567,
+    "best_epoch": 50,
+    "final_f1": 0.9555427251732102,
+    "final_precision": 0.9462550028587764,
+    "final_recall": 0.9650145772594753
+  },
+  {
+    "ablation": "single_expert",
+    "seed": 123,
+    "best_f1": 0.9563689604685213,
+    "best_epoch": 50,
+    "final_f1": 0.9566998244587478,
+    "final_precision": 0.9600704638872578,
+    "final_recall": 0.9533527696793003
+  },
+  {
+    "ablation": "single_expert",
+    "seed": 456,
+    "best_f1": 0.9463923500434657,
+    "best_epoch": 45,
+    "final_f1": 0.944412932501418,
+    "final_precision": 0.9193815571507454,
+    "final_recall": 0.9708454810495627
+  },
+  {
+    "ablation": "single_expert",
+    "seed": 789,
+    "best_f1": 0.9559420289855073,
+    "best_epoch": 45,
+    "final_f1": 0.9509632224168126,
+    "final_precision": 0.9520748100526009,
+    "final_recall": 0.9498542274052478
+  },
+  {
+    "ablation": "single_expert",
+    "seed": 999,
+    "best_f1": 0.9590542099192618,
+    "best_epoch": 40,
+    "final_f1": 0.9535353535353536,
+    "final_precision": 0.944,
+    "final_recall": 0.963265306122449
+  }
+]

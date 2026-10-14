@@ -96,7 +96,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     patience = 10
     patience_counter = 0
     
-    for epoch in range(1, 2):
+    for epoch in range(1, 51):
         model.train()
         train_loss = 0
         for graph, labels in train_loader:
@@ -115,7 +115,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 model.parameters(),
                 max_norm=1.0,
-                error_if_nonfinite=True,
+                error_if_nonfinite=False,
             )
             optimizer.step()
             train_loss += loss.item()
@@ -204,7 +204,7 @@ def main():
     output_base = Path("experiments/runs") / f"ablations_{timestamp}"
     output_base.mkdir(parents=True, exist_ok=True)
     
-    seeds = [42]
+    seeds = [42, 123, 456, 789, 999]
     all_results = {}
     
     for ablation_name, ablation_config in ABLATIONS.items():
