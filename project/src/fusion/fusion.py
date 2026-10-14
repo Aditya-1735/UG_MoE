@@ -84,6 +84,14 @@ class AdaptiveFusion(nn.Module):
             })
             self.output_proj = nn.Linear(hidden_dim * len(self.modalities), hidden_dim)
             
+        elif fusion_type == "concat_mlp":
+            # Simple concatenation followed by MLP projection
+            self.fusion_mlp = nn.Sequential(
+                nn.Linear(hidden_dim * len(self.modalities), hidden_dim * 2),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim * 2, hidden_dim),
+            )
         else:
             raise ValueError(f"Unknown fusion_type: {fusion_type}")
         
@@ -164,6 +172,11 @@ class AdaptiveFusion(nn.Module):
                 projected[m] * confidences[m] 
                 for m in self.modalities
             ], dim=-1)
+            
+        elif self.fusion_type == "concat_mlp":
+            # Simple concatenation followed by MLP projection
+            fused = torch.cat([projected[m] for m in self.modalities], dim=-1)
+            fused = self.fusion_mlp(fused)
         
         # Final projection
         fused = self.output_proj(fused)  # [B, hidden_dim]
