@@ -93,8 +93,10 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     
     best_f1 = 0
     best_epoch = 0
+    patience = 10
+    patience_counter = 0
     
-    for epoch in range(1, 51):
+    for epoch in range(1, 61):
         model.train()
         train_loss = 0
         for graph, labels in train_loader:
@@ -108,7 +110,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                 raise RuntimeError(
                     f"Non-finite loss at epoch {epoch}, batch loss={loss.item()}"
                 )
-
+            
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 model.parameters(),
@@ -139,18 +141,32 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             avg_test_loss = test_loss / len(test_loader)
             
             from sklearn.metrics import f1_score, precision_score, recall_score
-            f1 = f1_score(all_labels, all_preds, average='binary')
-            precision = precision_score(all_labels, all_preds, average='binary')
-            recall = recall_score(all_labels, all_preds, average='binary')
+            f1 = f1_score(all_labels, all_preds, average='binary', zero_division=0)
+            precision = precision_score(all_labels, all_preds, average='binary', zero_division=0)
+            recall = recall_score(all_labels, all_preds, average='binary', zero_division=0)
             
             print(f"  Epoch {epoch:2d}: Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}")
             
             if f1 > best_f1:
                 best_f1 = f1
                 best_epoch = epoch
-    
-    # Final eval
-    model.eval()
+                patience_counter = 0
+                # Save best checkpoint
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'best_val_f1': best_f1,
+                    'seed': seed,
+                }, output_dir / f"best_seed{seed}.pth")
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f"  Early stopping at epoch {epoch} (no improvement for {patience} epochs)")
+                    break
+        
+        # Final eval
+        model.eval()
     all_preds = []
     all_labels = []
     with torch.no_grad():
@@ -182,13 +198,13 @@ def main():
     print("ABLATION STUDIES - GRAPH-AWARE MoE")
     print("="*60)
     print(f"Ablations: {list(ABLATIONS.keys())}")
-    print("2 seeds per ablation: 42, 123")
+    print("5 seeds per ablation: 42, 123, 456, 789, 999")
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_base = Path("experiments/runs") / f"ablations_{timestamp}"
     output_base.mkdir(parents=True, exist_ok=True)
     
-    seeds = [42, 123]
+    seeds = [42, 123, 456, 789, 999]
     all_results = {}
     
     for ablation_name, ablation_config in ABLATIONS.items():
@@ -201,7 +217,7 @@ def main():
             try:
                 result = run_ablation(ablation_name, ablation_config, seed, output_base)
                 ablation_results.append(result)
-                print(f"  Run {i}/2 (seed={seed}): Best F1={result['best_f1']:.4f} (epoch {result['best_epoch']})")
+                print(f"  Run {i}/5 (seed={seed}): Best F1={result['best_f1']:.4f} (epoch {result['best_epoch']})")
             except Exception as e:
                 print(f"  ERROR in run {i} (seed={seed}): {e}")
                 import traceback
@@ -232,12 +248,12 @@ def main():
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "config": {
             "hidden_dim": 64,
-            "epochs": 50,
+            "epochs": 60,
             "lr": 0.001,
             "batch_size": 50,
             "weight_decay": 1e-5,
             "event_num": 14,
-            "seeds": [42, 123]
+            "seeds": [42, 123, 456, 789, 999]
         },
         "results": all_results
     }
