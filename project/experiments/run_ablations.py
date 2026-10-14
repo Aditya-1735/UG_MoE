@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Ablation Studies for Graph-Aware MoE
-Runs 6 ablation configs × 5 seeds on OUR regenerated data (event_num=14)
+Runs 6 ablation configs × 2 seeds on regenerated data (event_num=14)
 """
 import sys
 import json
@@ -46,8 +46,8 @@ ABLATIONS = {
         "description": "Plain MoE: no graph, no uncertainty, simple fusion"
     },
     "graph_transformer": {
+        "dependency_expert_type": "graph_transformer",
         "description": "Graph Transformer instead of GAT in dependency expert"
-        # Note: This requires modifying DependencyExpert expert_type
     }
 }
 
@@ -76,7 +76,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     train_loader = create_dataloader(train_dataset, batch_size=50, shuffle=True)
     test_loader = create_dataloader(test_dataset, batch_size=50, shuffle=False)
     
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config = DEFAULT_CONFIG.copy()
     config['log_dim'] = 14
     
@@ -88,7 +88,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     model_config = {k: v for k, v in config.items() if k != 'epochs'}
     model = GraphAwareMoE(**model_config).to(device)
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5)
     criterion = torch.nn.CrossEntropyLoss()
     
     best_f1 = 0
@@ -104,7 +104,17 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             optimizer.zero_grad()
             outputs = model(graph, binary_labels)
             loss = outputs["loss"]
+            if not torch.isfinite(loss).item():
+                raise RuntimeError(
+                    f"Non-finite loss at epoch {epoch}, batch loss={loss.item()}"
+                )
+
             loss.backward()
+            grad_norm = torch.nn.utils.clip_grad_norm_(
+                model.parameters(),
+                max_norm=1.0,
+                error_if_nonfinite=True,
+            )
             optimizer.step()
             train_loss += loss.item()
         
@@ -172,10 +182,10 @@ def main():
     print("ABLATION STUDIES - GRAPH-AWARE MoE")
     print("="*60)
     print(f"Ablations: {list(ABLATIONS.keys())}")
-    print("5 seeds per ablation: 42, 123, 456, 789, 999")
+    print("2 seeds per ablation: 42, 123")
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_base = Path("project/experiments/runs") / f"ablations_{timestamp}"
+    output_base = Path("experiments/runs") / f"ablations_{timestamp}"
     output_base.mkdir(parents=True, exist_ok=True)
     
     seeds = [42, 123]

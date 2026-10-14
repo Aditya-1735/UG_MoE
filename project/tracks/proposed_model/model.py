@@ -54,6 +54,7 @@ class GraphAwareMoE(nn.Module):
         # Expert configuration
         num_experts: int = 4,
         expert_types: List[str] = None,
+        dependency_expert_type: str = "gat",
         
         # Routing configuration
         router_type: str = "uncertainty_guided",  # "base", "graph_aware", "uncertainty_guided"
@@ -89,6 +90,7 @@ class GraphAwareMoE(nn.Module):
             expert_types = ["temporal", "semantic", "dependency", "cross_modal"]
         self.expert_types = expert_types
         self.num_experts = len(expert_types)
+        self.dependency_expert_type = dependency_expert_type
         
         # ============================================================
         # 1. Modality Encoders (reuse MUAD baseline if provided)
@@ -159,7 +161,7 @@ class GraphAwareMoE(nn.Module):
                     in_dim=hidden_dim,
                     hidden_dim=expert_hidden_dim,
                     out_dim=hidden_dim,
-                    expert_type="gat",
+                    expert_type=self.dependency_expert_type,
                     num_heads=4,
                     num_layers=2,
                     dropout=dropout,
@@ -339,7 +341,22 @@ class GraphAwareMoE(nn.Module):
                 # Need graph for GAT - use per-node embeddings from graph
                 metric_emb = modality_embeddings["metric"]  # [B, hidden_dim]
                 node_feats = metric_emb.unsqueeze(1).repeat(1, self.num_nodes, 1).view(-1, self.hidden_dim)
-                out = expert(graph, node_feats)  # [B*12, D] or [B, 12, D]
+                if self.dependency_expert_type == "graph_transformer":
+                    src, dst = graph.edges()
+                    adjacency = torch.zeros(
+                        (self.num_nodes, self.num_nodes),
+                        device=node_feats.device,
+                        dtype=node_feats.dtype,
+                    )
+                    adjacency[src % self.num_nodes, dst % self.num_nodes] = 1
+                    adjacency.fill_diagonal_(1)
+                    out = expert(
+                        node_feats,
+                        adjacency=adjacency,
+                        batch_size=B,
+                    )
+                else:
+                    out = expert(graph, node_feats)
                 if out.dim() == 3:
                     out = out.mean(dim=1)  # [B, D]
                 else:

@@ -150,10 +150,16 @@ class GraphTransformerExpert(nn.Module):
         
         # Add structure bias if adjacency provided
         if adjacency is not None:
-            if adjacency.dim() == 2:
-                adjacency = adjacency.unsqueeze(0).expand(B, -1, -1)
-            # Convert adjacency to attention bias (0 for connected, -inf for not)
-            attn_bias = torch.where(adjacency > 0, 0.0, float('-inf'))
+            if adjacency.dim() != 2 or adjacency.shape != (N, N):
+                raise ValueError(
+                    f"Expected shared adjacency shape {(N, N)}, "
+                    f"got {tuple(adjacency.shape)}"
+                )
+            adjacency = adjacency.to(device=x.device).clone()
+            adjacency.fill_diagonal_(1)
+            attn_bias = torch.zeros(
+                (N, N), device=x.device, dtype=x.dtype
+            ).masked_fill(adjacency <= 0, float("-inf"))
         else:
             attn_bias = None
         

@@ -1,0 +1,12 @@
+[
+  {
+    "ablation": "no_fusion",
+    "seed": 42,
+    "error": "Unknown fusion_type: concat_mlp"
+  },
+  {
+    "ablation": "no_fusion",
+    "seed": 123,
+    "error": "Unknown fusion_type: concat_mlp"
+  }
+]
