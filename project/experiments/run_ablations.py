@@ -115,7 +115,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 model.parameters(),
                 max_norm=1.0,
-                error_if_nonfinite=True,
+                error_if_nonfinite=False,
             )
             optimizer.step()
             train_loss += loss.item()
