@@ -1,0 +1,44 @@
+cd ~/AHA_BTP/UG_MoE/project
+
+mkdir -p experiments/logs
+LOG="experiments/logs/ablations_rerun_$(date +%Y%m%d_%H%M%S).log"
+echo "$LOG" > experiments/logs/ablations_latest.logpath
+
+export DGLBACKEND=pytorch
+export CUDA_VISIBLE_DEVICES=2
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib/python3.11/site-packages/nvidia/cuda_nvrtc/lib:$CONDA_PREFIX/lib/python3.11/site-packages/nvidia/cuda_runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+nohup python -u experiments/run_ablations.py > "$LOG" 2>&1 &
+echo $! > experiments/logs/ablations.pid
+
+echo "Run started. Log: $LOG"
+
+
+
+tail -f "$(cat experiments/logs/ablations_latest.logpath)"
+
+______________________________________________________
+
+cd ~/AHA_BTP/UG_MoE/project
+
+# Choose your physical GPU: 0, 1, 2, or 3
+GPU_ID=0
+
+# Verify that the selected GPU exists
+nvidia-smi -i "$GPU_ID" || { echo "Invalid or unavailable GPU"; exit 1; }
+
+mkdir -p experiments/logs
+LOG="experiments/logs/ablations_gpu${GPU_ID}_$(date +%Y%m%d_%H%M%S).log"
+
+export DGLBACKEND=pytorch
+export CUDA_VISIBLE_DEVICES="$GPU_ID"
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib/python3.11/site-packages/nvidia/cuda_nvrtc/lib:$CONDA_PREFIX/lib/python3.11/site-packages/nvidia/cuda_runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+nohup python -u experiments/run_ablations.py > "$LOG" 2>&1 &
+echo $! > experiments/logs/ablations.pid
+echo "$LOG" > experiments/logs/ablations_latest.logpath
+
+echo "Started ablation study on physical GPU $GPU_ID"
+echo "Log: $LOG"
+
+tail -f "$(cat experiments/logs/ablations_latest.logpath)"
