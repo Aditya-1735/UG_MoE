@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Ablation Studies for Graph-Aware MoE
-Runs 6 ablation configs × 2 seeds on regenerated data (event_num=14)
+Runs 6 ablation configs × 5 seeds on OUR regenerated data (event_num=14)
 """
 import sys
 import json
@@ -9,6 +9,7 @@ import torch
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+import argparse
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vendor/muad"))
@@ -51,7 +52,7 @@ ABLATIONS = {
     }
 }
 
-def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_base: Path):
+def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_base: Path, temperature: float = 2.0, top_k: int = 3):
     """Run single ablation experiment with given seed."""
     print(f"\n{'='*60}")
     print(f"ABLATION: {ablation_name} | Seed: {seed}")
@@ -86,6 +87,10 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             config[k] = v
     
     model_config = {k: v for k, v in config.items() if k != 'epochs'}
+    
+    # Add temperature and top_k to model config
+    model_config['temperature'] = temperature
+    model_config['top_k'] = top_k
     model = GraphAwareMoE(**model_config).to(device)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5)
@@ -194,20 +199,42 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     }
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Ablation Studies for Graph-Aware MoE")
+    parser.add_argument("--seeds", type=str, default="42,123,456,789,999", help="Comma-separated seeds")
+    parser.add_argument("--temperature", type=float, default=2.0, help="Router temperature")
+    parser.add_argument("--top_k", type=int, default=3, help="Top-k experts to route to")
+    parser.add_argument("--epochs", type=int, default=60, help="Number of epochs")
+    parser.add_argument("--ablations", type=str, default="all", help="Comma-separated list of ablations to run")
+    args = parser.parse_args()
+    
+    # Parse seeds
+    seeds = [int(s) for s in args.seeds.split(",")]
+    
     print("="*60)
     print("ABLATION STUDIES - GRAPH-AWARE MoE")
     print("="*60)
     print(f"Ablations: {list(ABLATIONS.keys())}")
-    print("5 seeds per ablation: 42, 123, 456, 789, 999")
+    print(f"Seeds: {args.seeds}")
+    print(f"Epochs: {args.epochs}")
+    print(f"Temperature: {args.temperature}")
+    print(f"Top-k: {args.top_k}")
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_base = Path("experiments/runs") / f"ablations_{timestamp}"
     output_base.mkdir(parents=True, exist_ok=True)
     
-    seeds = [42, 123, 456, 789, 999]
+    seeds = [int(s) for s in args.seeds.split(",")]
     all_results = {}
     
-    for ablation_name, ablation_config in ABLATIONS.items():
+    # Determine which ablations to run
+    if args.ablations == "all":
+        ablation_list = list(ABLATIONS.keys())
+    else:
+        ablation_list = [a.strip() for a in args.ablations.split(",")]
+    
+    for ablation_name in ablation_list:
+        ablation_config = ABLATIONS[ablation_name]
         print(f"\n{'='*60}")
         print(f"ABLATION: {ablation_name} - {ablation_config.get('description', '')}")
         print(f"{'='*60}")
@@ -215,7 +242,8 @@ def main():
         ablation_results = []
         for i, seed in enumerate(seeds, 1):
             try:
-                result = run_ablation(ablation_name, ablation_config, seed, output_base)
+                result = run_ablation(ablation_name, ablation_config, seed, output_base, 
+                                    temperature=args.temperature, top_k=args.top_k)
                 ablation_results.append(result)
                 print(f"  Run {i}/5 (seed={seed}): Best F1={result['best_f1']:.4f} (epoch {result['best_epoch']})")
             except Exception as e:

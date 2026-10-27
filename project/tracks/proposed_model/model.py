@@ -59,6 +59,7 @@ class GraphAwareMoE(nn.Module):
         # Routing configuration
         router_type: str = "uncertainty_guided",  # "base", "graph_aware", "uncertainty_guided"
         top_k: int = 2,
+        temperature: float = 2.0,
         use_graph_routing: bool = True,
         use_uncertainty_routing: bool = True,
         
@@ -190,6 +191,7 @@ class GraphAwareMoE(nn.Module):
             hidden_dim=router_hidden_dim,
             dropout=dropout,
             top_k=min(top_k, self.num_experts),
+            temperature=temperature,
             use_graph=use_graph_routing,
             use_uncertainty=use_uncertainty_routing,
         )
@@ -530,7 +532,8 @@ DEFAULT_CONFIG = {
     "num_experts": 4,
     "expert_types": ["temporal", "semantic", "dependency", "cross_modal"],
     "router_type": "uncertainty_guided",
-    "top_k": 2,
+    "top_k": 3,
+    "temperature": 2.0,
     "use_graph_routing": True,
     "use_uncertainty_routing": True,
     "fusion_type": "confidence",
