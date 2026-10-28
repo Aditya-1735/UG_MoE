@@ -74,7 +74,10 @@ class ExpertRouter(nn.Module):
         )
         
         # Load balancing loss coefficient
-        self.register_buffer("load_balancing_weight", torch.tensor(0.01))
+        self.register_buffer("load_balancing_weight", torch.tensor(0.1))
+        
+        # Entropy regularization weight
+        self.register_buffer("entropy_weight", torch.tensor(0.01))
     
     def forward(
         self,
@@ -139,17 +142,24 @@ class ExpertRouter(nn.Module):
         
         # Load balancing loss
         aux_loss = None
+        entropy_loss = None
         if self.training:
             expert_fraction = sparse_weights.mean(dim=0)
             target_fraction = 1.0 / self.num_experts
             loss = self.num_experts * torch.sum(expert_fraction ** 2) - 1.0
             aux_loss = self.load_balancing_weight * loss
+            
+            # Entropy regularization - encourage confident routing
+            entropy = -(sparse_weights * sparse_weights.log().clamp(min=-20)).sum(-1).mean()
+            entropy_loss = self.entropy_weight * entropy
+            # Store both losses in a dict for the model to access
+            aux_loss = {'load_balance': aux_loss, 'entropy': entropy_loss}
         
         if return_uncertainty:
             # Return dummy uncertainties for compatibility
             return sparse_weights, torch.zeros_like(sparse_weights)
         
-        return sparse_weights, None
+        return sparse_weights, aux_loss
     
     def _compute_load_balancing_loss(self, routing_weights: torch.Tensor) -> torch.Tensor:
         """
@@ -178,9 +188,15 @@ class GraphAwareRouter(nn.Module):
         hidden_dim: int = 128,
         num_heads: int = 4,
         dropout: float = 0.1,
+        top_k: int = 2,
     ):
         super().__init__()
         self.num_experts = num_experts
+        self.top_k = top_k
+        
+        # Load balancing and entropy weights
+        self.register_buffer("load_balancing_weight", torch.tensor(0.1))
+        self.register_buffer("entropy_weight", torch.tensor(0.01))
         
         # Node feature encoder
         self.node_encoder = nn.Sequential(
@@ -219,7 +235,7 @@ class GraphAwareRouter(nn.Module):
         self,
         features: torch.Tensor,  # [B, input_dim]
         return_uncertainty: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[Dict]]:
         """
         Args:
             features: [B, input_dim] - combined modality features
@@ -227,7 +243,7 @@ class GraphAwareRouter(nn.Module):
             
         Returns:
             routing_weights: [B, num_experts]
-            uncertainties: [B, num_experts] (optional)
+            aux_losses: dict with 'load_balance' and 'entropy' (optional)
         """
         B = features.shape[0]
         
@@ -246,11 +262,24 @@ class GraphAwareRouter(nn.Module):
         # Global routing
         global_routing = F.softmax(self.global_head(h), dim=-1)  # [B, num_experts]
         
+        # Compute auxiliary losses
+        aux_loss = None
+        if self.training:
+            expert_fraction = global_routing.mean(dim=0)
+            target_fraction = 1.0 / self.num_experts
+            lb_loss = self.num_experts * torch.sum(expert_fraction ** 2) - 1.0
+            lb_loss = self.load_balancing_weight * lb_loss
+            
+            entropy = -(global_routing * global_routing.log().clamp(min=-20)).sum(-1).mean()
+            entropy_loss = self.entropy_weight * entropy
+            
+            aux_loss = {'load_balance': lb_loss, 'entropy': entropy_loss}
+        
         if return_uncertainty:
             # Return dummy uncertainties for compatibility
             return global_routing, torch.zeros_like(global_routing)
         
-        return global_routing, None
+        return global_routing, aux_loss
 
 
 class UncertaintyGuidedRouter(nn.Module):
@@ -272,6 +301,11 @@ class UncertaintyGuidedRouter(nn.Module):
         self.num_experts = num_experts
         self.hidden_dim = hidden_dim
         self.uncertainty_weight = uncertainty_weight
+        self.top_k = top_k
+        
+        # Load balancing and entropy weights
+        self.register_buffer("load_balancing_weight", torch.tensor(0.1))
+        self.register_buffer("entropy_weight", torch.tensor(0.01))
         
         # Feature encoder
         self.encoder = nn.Sequential(
@@ -313,7 +347,7 @@ class UncertaintyGuidedRouter(nn.Module):
         graph_info: Optional[torch.Tensor] = None,  # Ignored, for compatibility
         expert_uncertainties: Optional[torch.Tensor] = None,  # [B, num_experts]
         return_uncertainty: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Optional[Dict]]:
         """
         Args:
             features: [B, input_dim] - combined modality features
@@ -323,7 +357,7 @@ class UncertaintyGuidedRouter(nn.Module):
             
         Returns:
             routing_weights: [B, num_experts]
-            uncertainties: [B, num_experts] (optional)
+            aux_losses: dict with 'load_balance' and 'entropy' (optional)
         """
         B = features.shape[0]
         
@@ -351,9 +385,22 @@ class UncertaintyGuidedRouter(nn.Module):
         
         routing_weights = F.softmax(logits, dim=-1)
         
+        # Compute auxiliary losses
+        aux_loss = None
+        if self.training:
+            expert_fraction = routing_weights.mean(dim=0)
+            target_fraction = 1.0 / self.num_experts
+            lb_loss = self.num_experts * torch.sum(expert_fraction ** 2) - 1.0
+            lb_loss = self.load_balancing_weight * lb_loss
+            
+            entropy = -(routing_weights * routing_weights.log().clamp(min=-20)).sum(-1).mean()
+            entropy_loss = self.entropy_weight * entropy
+            
+            aux_loss = {'load_balance': lb_loss, 'entropy': entropy_loss}
+        
         if return_uncertainty:
             return routing_weights, uncertainties
-        return routing_weights, None
+        return routing_weights, aux_loss
 
 
 def create_router(
@@ -374,11 +421,11 @@ def create_router(
     """
     # Filter kwargs based on router type
     if router_type == "base":
-        valid_keys = {'input_dim', 'hidden_dim', 'num_heads', 'dropout', 'temperature', 'use_graph', 'use_uncertainty', 'top_k', 'load_balancing_weight'}
+        valid_keys = {'input_dim', 'hidden_dim', 'num_heads', 'dropout', 'temperature', 'use_graph', 'use_uncertainty', 'top_k', 'load_balancing_weight', 'entropy_weight'}
     elif router_type == "graph_aware":
-        valid_keys = {'node_feat_dim', 'hidden_dim', 'num_heads', 'dropout'}
+        valid_keys = {'node_feat_dim', 'hidden_dim', 'num_heads', 'dropout', 'load_balancing_weight', 'entropy_weight'}
     elif router_type == "uncertainty_guided":
-        valid_keys = {'input_dim', 'hidden_dim', 'dropout', 'uncertainty_weight', 'top_k'}
+        valid_keys = {'input_dim', 'hidden_dim', 'dropout', 'uncertainty_weight', 'top_k', 'load_balancing_weight', 'entropy_weight'}
     else:
         valid_keys = set()
     

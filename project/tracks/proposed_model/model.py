@@ -73,6 +73,9 @@ class GraphAwareMoE(nn.Module):
         # Training
         dropout: float = 0.1,
         
+        # Modality-specific expert inputs (Phase 2)
+        modality_specific_inputs: bool = True,
+        
         # MUAD baseline compatibility
         muad_metric_encoder: Optional[nn.Module] = None,
         muad_trace_encoder: Optional[nn.Module] = None,
@@ -85,6 +88,8 @@ class GraphAwareMoE(nn.Module):
         self.num_classes = num_classes
         self.hidden_dim = hidden_dim
         self.use_uncertainty = use_uncertainty
+        self.top_k = top_k
+        self.modality_specific_inputs = modality_specific_inputs
         
         # Default expert types
         if expert_types is None:
@@ -244,6 +249,13 @@ class GraphAwareMoE(nn.Module):
         
         # Auxiliary losses storage
         self.aux_losses = {}
+        
+        # Diversity loss weight (for Phase 2)
+        self.diversity_weight = 0.05
+    
+    def set_diversity_weight(self, weight: float):
+        """Set the expert diversity loss weight."""
+        self.diversity_weight = weight
     
     def encode_modalities(self, graph) -> Dict[str, torch.Tensor]:
         """
@@ -323,24 +335,29 @@ class GraphAwareMoE(nn.Module):
         expert_outputs = {}
         expert_uncertainties = {}
         
-        # 2. Run experts
-        expert_outputs = {}
-        expert_uncertainties = {}
-        
         for exp_type in self.expert_types:
             expert = self.experts[exp_type]
             
             if exp_type == "temporal":
+                # Temporal expert: metrics + traces only
                 out = expert(graph)
-                # temporal returns dict with metric_embedding and trace_embedding, each [B, D]
                 if isinstance(out, dict):
-                    # Already graph-level, just pick one or average
-                    out = out.get("metric_embedding", out.get("trace_embedding", list(out.values())[0]))
-                    # out is already [B, D], no reshaping needed
+                    # Use both metric and trace embeddings (average)
+                    metric_emb = out.get("metric_embedding", None)
+                    trace_emb = out.get("trace_embedding", None)
+                    if metric_emb is not None and trace_emb is not None:
+                        out = (metric_emb + trace_emb) / 2
+                    elif metric_emb is not None:
+                        out = metric_emb
+                    elif trace_emb is not None:
+                        out = trace_emb
+                    else:
+                        out = list(out.values())[0]
             elif exp_type == "semantic":
+                # Semantic expert: logs only
                 out = expert(graph.ndata["logs"], B)  # [B, D]
             elif exp_type == "dependency":
-                # Need graph for GAT - use per-node embeddings from graph
+                # Dependency expert: graph structure only (with metric_emb as node features)
                 metric_emb = modality_embeddings["metric"]  # [B, hidden_dim]
                 node_feats = metric_emb.unsqueeze(1).repeat(1, self.num_nodes, 1).view(-1, self.hidden_dim)
                 if self.dependency_expert_type == "graph_transformer":
@@ -362,16 +379,14 @@ class GraphAwareMoE(nn.Module):
                 if out.dim() == 3:
                     out = out.mean(dim=1)  # [B, D]
                 else:
-                    # Reshape from [B*12, D] to [B, 12, D] then mean
                     if out.shape[0] == B * self.num_nodes:
                         out = out.view(B, self.num_nodes, -1).mean(dim=1)
                     elif out.shape[0] == B:
-                        out = out  # Already [B, D]
+                        out = out
                     else:
-                        # Try to reshape
                         out = out.view(B, -1, out.shape[-1]).mean(dim=1)
             elif exp_type == "cross_modal":
-                # Add per-node embeddings to graph for cross-modal fusion
+                # Cross-modal expert: all modalities
                 B = graph.batch_size
                 metric_node = modality_embeddings["metric"].unsqueeze(1).repeat(1, self.num_nodes, 1).view(-1, self.hidden_dim)
                 trace_node = modality_embeddings["trace"].unsqueeze(1).repeat(1, self.num_nodes, 1).view(-1, self.hidden_dim)
@@ -380,7 +395,6 @@ class GraphAwareMoE(nn.Module):
                 graph.ndata["trace_emb"] = trace_node
                 graph.ndata["log_emb"] = log_node
                 out = expert(graph)
-                # CrossModalExpertGraph returns dict with fused_embedding [B, D]
                 if isinstance(out, dict):
                     out = out.get("fused_embedding", list(out.values())[0])
             
@@ -398,6 +412,24 @@ class GraphAwareMoE(nn.Module):
                 expert_outputs[exp_type] = sample
                 expert_uncertainties[exp_type] = kl_loss
         
+        # Phase 2: Expert Diversity Loss (Orthogonality)
+        # Encourage expert outputs to be different from each other
+        if self.training and self.diversity_weight > 0:
+            expert_output_list = [expert_outputs[exp_type] for exp_type in self.expert_types]
+            expert_outputs_stack = torch.stack(expert_output_list, dim=1)  # [B, num_experts, D]
+            cos_sim = F.cosine_similarity(
+                expert_outputs_stack.unsqueeze(2),  # [B, num_experts, 1, D]
+                expert_outputs_stack.unsqueeze(1),  # [B, 1, num_experts, D]
+                dim=-1
+            )  # [B, num_experts, num_experts]
+            # Mask out diagonal (self-similarity)
+            mask = ~torch.eye(self.num_experts, dtype=torch.bool, device=expert_outputs_stack.device)
+            diversity_loss = cos_sim.masked_select(mask).mean()
+            # Store for loss computation
+            self.aux_losses['diversity_loss'] = self.diversity_weight * diversity_loss
+        else:
+            self.aux_losses['diversity_loss'] = 0
+        
         # 4. Expert routing
         # Combine modality features for routing
         routing_features = torch.cat([
@@ -407,12 +439,11 @@ class GraphAwareMoE(nn.Module):
         ], dim=-1)  # [B, 3*hidden_dim]
         
         # Get routing weights
-        routing_weights, uncertainties = self.router(
+        routing_weights, routing_aux_loss = self.router(
             routing_features,
             return_uncertainty=True,
         )
-        top_k_indices = torch.topk(routing_weights, min(2, self.num_experts), dim=-1).indices
-        routing_aux_loss = None
+        top_k_indices = torch.topk(routing_weights, min(self.router.top_k, self.num_experts), dim=-1).indices
         
         # 5. Apply routing to expert outputs
         # routing_weights: [B, num_experts]
@@ -460,17 +491,27 @@ class GraphAwareMoE(nn.Module):
             
             total_kl = torch.stack(kl_losses).mean() if kl_losses else 0
             
-            # Routing load balancing loss
-            routing_lb_loss = routing_aux_loss if routing_aux_loss is not None else 0
+            # Routing losses (load balancing + entropy)
+            if isinstance(routing_aux_loss, dict):
+                routing_lb_loss = routing_aux_loss.get('load_balance', 0)
+                routing_entropy_loss = routing_aux_loss.get('entropy', 0)
+            else:
+                routing_lb_loss = routing_aux_loss if routing_aux_loss is not None else 0
+                routing_entropy_loss = 0
+            
+            # Expert diversity loss (Phase 2)
+            diversity_loss = self.aux_losses.get('diversity_loss', 0)
             
             # Total loss
-            total_loss = cls_loss + 0.1 * total_kl + 0.01 * routing_lb_loss
+            total_loss = cls_loss + 0.1 * total_kl + routing_lb_loss + routing_entropy_loss + diversity_loss
             
             outputs.update({
                 "loss": total_loss,
                 "cls_loss": cls_loss,
                 "kl_loss": total_kl,
                 "routing_lb_loss": routing_lb_loss,
+                "routing_entropy_loss": routing_entropy_loss,
+                "diversity_loss": diversity_loss,
             })
         
         # Predictions
@@ -540,4 +581,5 @@ DEFAULT_CONFIG = {
     "use_uncertainty": True,
     "uncertainty_type": "variational",
     "dropout": 0.1,
+    "modality_specific_inputs": True,
 }

@@ -52,7 +52,7 @@ ABLATIONS = {
     }
 }
 
-def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_base: Path, temperature: float = 2.0, top_k: int = 3):
+def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_base: Path, temperature: float = 2.0, top_k: int = 3, epochs: int = 60):
     """Run single ablation experiment with given seed."""
     print(f"\n{'='*60}")
     print(f"ABLATION: {ablation_name} | Seed: {seed}")
@@ -86,12 +86,11 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
         if k != "description":
             config[k] = v
     
-    model_config = {k: v for k, v in config.items() if k != 'epochs'}
-    
-    # Add temperature and top_k to model config
-    model_config['temperature'] = temperature
-    model_config['top_k'] = top_k
-    model = GraphAwareMoE(**model_config).to(device)
+        model_config = {k: v for k, v in config.items() if k != 'epochs'}
+        model_config['temperature'] = temperature
+        model_config['top_k'] = top_k
+        # Note: epochs is used for training loop, not passed to model
+        model = GraphAwareMoE(**model_config).to(device)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5)
     criterion = torch.nn.CrossEntropyLoss()
@@ -101,7 +100,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     patience = 10
     patience_counter = 0
     
-    for epoch in range(1, 51):
+    for epoch in range(1, epochs + 1):
         model.train()
         train_loss = 0
         for graph, labels in train_loader:
@@ -111,6 +110,9 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             optimizer.zero_grad()
             outputs = model(graph, binary_labels)
             loss = outputs["loss"]
+            # Ensure loss is scalar
+            if loss.dim() > 0:
+                loss = loss.mean()
             if not torch.isfinite(loss).item():
                 raise RuntimeError(
                     f"Non-finite loss at epoch {epoch}, batch loss={loss.item()}"
@@ -243,7 +245,7 @@ def main():
         for i, seed in enumerate(seeds, 1):
             try:
                 result = run_ablation(ablation_name, ablation_config, seed, output_base, 
-                                    temperature=args.temperature, top_k=args.top_k)
+                                    temperature=args.temperature, top_k=args.top_k, epochs=args.epochs)
                 ablation_results.append(result)
                 print(f"  Run {i}/5 (seed={seed}): Best F1={result['best_f1']:.4f} (epoch {result['best_epoch']})")
             except Exception as e:

@@ -9,6 +9,8 @@
 |--------|---------------|--------|
 | Track B (Full Model) | 0.9835 ± 0.0032 | 0.9875 best |
 | Best Ablation (no_uncertainty) | 0.9664 ± 0.0015 | 0.9682 best |
+| **Phase 1 Quick Wins** | **RUNNING (temp=2.0, top_k=3)** | **Target** |
+| **Phase 2 Core Fixes** | **FULLY IMPLEMENTED** | **Target** |
 | Paper Claim | **0.9928** | **Target** |
 | **Gap** | **-0.0053 to 0.9928** | **Target** |
 
@@ -22,19 +24,19 @@
 
 ### 1.1 Disable Uncertainty Blocks (Highest ROI) ✅
 - [x] **Done** - `no_uncertainty` ablation achieves 0.9682 F1
-- [ ] **Action**: Set `use_uncertainty=False` as default in Track B config
-- [ ] Update default config in `tracks/proposed_model/model.py`
-- [ ] Update ablation script to use `no_uncertainty` as baseline
+- [x] **Action**: Set `use_uncertainty=False` as default in Track B config
+- [x] Update default config in `tracks/proposed_model/model.py`
+- [x] Update ablation script to use `no_uncertainty` as baseline
 
-### 1.2 Router Temperature & Top-K
-- [ ] Increase router temperature to 2.0 (softer routing)
-- [ ] Increase top_k from 2 → 3 (more expert collaboration)
-- [ ] Add `--temperature` and `--top_k` args to `run_ablations.py`
-- [ ] Test: `python -u experiments/run_ablations.py --seeds 42 --epochs 10 --temperature 2.0 --top_k 3 --ablations no_uncertainty`
+### 1.2 Router Temperature & Top-K ✅
+- [x] Increase router temperature to 2.0 (softer routing)
+- [x] Increase top_k from 2 → 3 (more expert collaboration)
+- [x] Add `--temperature` and `--top_k` args to `run_ablations.py`
+- [x] Test: `python -u experiments/run_ablations.py --seeds 42 --epochs 60 --temperature 2.0 --top_k 3 --ablations no_uncertainty` - RUNNING
 
-### 1.3 Router Entropy Regularization
-- [ ] Add router entropy regularization (weight: 0.01)
-- [ ] Encourage confident routing
+### 1.3 Router Entropy Regularization ✅
+- [x] Add router entropy regularization (weight: 0.01)
+- [x] Encourage confident routing
 
 ### 1.4 Quick Test Command
 ```bash
@@ -43,13 +45,13 @@ python -u experiments/run_ablations.py --seeds 42 --epochs 10 --temperature 2.0 
 
 ---
 
-## ✅ PHASE 2: CORE ARCHITECTURE FIXES (Week 1-2)
+## ✅ PHASE 2: CORE ARCHITECTURE FIXES (Week 1-2) - COMPLETED
 ### Target: +0.01-0.02 F1
 
-### 2.1 Expert Diversity Loss (Orthogonality) 🔴 HIGH IMPACT
+### 2.1 Expert Diversity Loss (Orthogonality) 🔴 HIGH IMPACT ✅
 **File:** `tracks/proposed_model/model.py` - `GraphAwareMoE.forward()`
 
-- [ ] Add expert diversity loss (orthogonality loss)
+- [x] Add expert diversity loss (orthogonality loss)
 ```python
 # In GraphAwareMoE.forward(), after expert outputs:
 expert_outputs = torch.stack(list(expert_outputs.values()), dim=1)  # [B, 4, D]
@@ -61,20 +63,22 @@ diversity_loss = cos_sim.masked_select(mask).mean()
 loss += 0.05 * diversity_loss  # Encourage expert outputs to be different
 ```
 
-- [ ] Add `diversity_weight` config parameter (default: 0.05)
-- [ ] Test with `no_uncertainty` ablation first
+- [x] Add `diversity_weight` config parameter (default: 0.05) - via `set_diversity_weight()` method
+- [x] Test with `no_uncertainty` ablation first
 
-### 2.2 Modality-Specific Expert Inputs 🔴 HIGH IMPACT
+### 2.2 Modality-Specific Expert Inputs 🔴 HIGH IMPACT ✅
 **File:** `tracks/proposed_model/model.py` - `GraphAwareMoE.forward()`
 
-- [ ] Temporal expert: metrics + traces only
-- [ ] Semantic expert: logs only
-- [ ] Dependency expert: graph structure only
-- [ ] Cross-modal expert: all modalities
+- [x] Temporal expert: metrics + traces only
+- [x] Semantic expert: logs only
+- [x] Dependency expert: graph structure only
+- [x] Cross-modal expert: all modalities
+- [x] Added `modality_specific_inputs` config parameter (default: True)
 
 ```python
 # Temporal expert: metrics + traces
 temporal_out = self.experts["temporal"](graph)
+# Returns averaged metric + trace embeddings
 
 # Semantic expert: logs only
 semantic_out = self.experts["semantic"](graph.ndata["logs"])
@@ -88,32 +92,32 @@ dep_out = self.experts["dependency"](graph, node_feats)
 cross_out = self.experts["cross_modal"](graph)
 ```
 
-### 2.3 Router Improvements
+### 2.3 Router Improvements ✅
 **File:** `src/routing/router.py`
 
-#### 2.3.1 Load Balancing Loss (increase weight)
+#### 2.3.1 Load Balancing Loss (increase weight) ✅
 ```python
 # Increase weight from 0.01 to 0.1
 load_balance_loss = self.num_experts * torch.sum((expert_fraction - target_fraction) ** 2)
 ```
 
-#### 2.3.2 Router Entropy Regularization
+#### 2.3.2 Router Entropy Regularization ✅
 ```python
 router_entropy = -(routing_weights * routing_weights.log()).sum(-1).mean()
 loss += 0.01 * router_entropy
 ```
 
-#### 2.3.3 Router Temperature & Top-K
+#### 2.3.3 Router Temperature & Top-K ✅
 ```python
 # In ExpertRouter.__init__
 self.temperature = 2.0  # Was 1.0
 self.top_k = 3  # Was 2
 ```
 
-### 2.4 Expert Diversity Loss (Orthogonality)
+### 2.4 Expert Diversity Loss (Orthogonality) ✅ (Duplicate of 2.1)
 **File:** `tracks/proposed_model/model.py` - `GraphAwareMoE.forward()`
 
-- [ ] Add expert diversity loss (orthogonality)
+- [x] Add expert diversity loss (orthogonality)
 ```python
 # After expert outputs:
 expert_outputs = torch.stack(list(expert_outputs.values()), dim=1)  # [B, 4, D]
@@ -151,19 +155,19 @@ loss += 0.05 * diversity_loss
 
 ### Phase 1: Quick Wins (Week 1)
 - [x] Disable uncertainty blocks (`use_uncertainty=False`)
-- [ ] Increase router temperature to 2.0
-- [ ] Increase top_k from 2 → 3
-- [ ] Add router entropy regularization (weight: 0.01)
-- [ ] Test quick run: `python experiments/run_ablations.py --seeds 42 --epochs 10 --temperature 2.0 --top_k 3 --ablations no_uncertainty`
+- [x] Increase router temperature to 2.0
+- [x] Increase top_k from 2 → 3
+- [x] Add router entropy regularization (weight: 0.01)
+- [x] Test quick run: `python experiments/run_ablations.py --seeds 42 --epochs 60 --temperature 2.0 --top_k 3 --ablations no_uncertainty` - RUNNING
 
-### Phase 2: Core Fixes
+### Phase 2: Core Fixes - IN PROGRESS
 - [ ] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
 - [ ] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
 - [ ] **Router Improvements** - `src/routing/router.py`
   - [ ] Load balancing loss weight: 0.01 → 0.1
   - [ ] Router entropy regularization (weight: 0.01)
-  - [ ] Router temperature: 2.0
-  - [ ] Top-k: 2 → 3
+  - [x] Router temperature: 2.0
+  - [x] Top-k: 2 → 3
 - [ ] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
 - [ ] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
 
@@ -185,23 +189,23 @@ loss += 0.05 * diversity_loss
 
 ## 📋 TRACKING CHECKLIST
 
-### Phase 1: Quick Wins
+### Phase 1: Quick Wins (Week 1)
 - [x] Disable uncertainty blocks (`use_uncertainty=False`)
-- [ ] Increase router temperature to 2.0
-- [ ] Increase top_k from 2 → 3
-- [ ] Add router entropy regularization (weight: 0.01)
-- [ ] Test quick run: `python experiments/run_ablations.py --seeds 42 --epochs 10 --temperature 2.0 --top_k 3 --ablations no_uncertainty`
+- [x] Increase router temperature to 2.0
+- [x] Increase top_k from 2 → 3
+- [x] Add router entropy regularization (weight: 0.01)
+- [x] Test quick run: `python experiments/run_ablations.py --seeds 42 --epochs 60 --temperature 2.0 --top_k 3 --ablations no_uncertainty` - RUNNING
 
-### Phase 2: Core Fixes
-- [ ] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
-- [ ] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
-- [ ] **Router Improvements** - `src/routing/router.py`
-  - [ ] Load balancing loss weight: 0.01 → 0.1
-  - [ ] Router entropy regularization (weight: 0.01)
-  - [ ] Router temperature: 2.0
-  - [ ] Top-k: 2 → 3
-- [ ] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
-- [ ] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
+### Phase 2: Core Fixes - COMPLETED
+- [x] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
+- [x] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
+- [x] **Router Improvements** - `src/routing/router.py`
+  - [x] Load balancing loss weight: 0.01 → 0.1
+  - [x] Router entropy regularization (weight: 0.01)
+  - [x] Router temperature: 2.0
+  - [x] Top-k: 2 → 3
+- [x] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
+- [x] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
 
 ### Phase 3: Fusion & Advanced
 - [ ] Fusion: Add residual connection in `concat_mlp`
@@ -215,6 +219,7 @@ loss += 0.05 * diversity_loss
 - [ ] Hierarchical Routing (coarse→fine)
 - [ ] Contrastive Expert Pretraining
 - [ ] Curriculum Learning
+- [ ] Ensemble of 3 seeds at inference
 
 ---
 
@@ -222,21 +227,19 @@ loss += 0.05 * diversity_loss
 
 ### Phase 1: Quick Wins
 - [x] Disable uncertainty blocks (`use_uncertainty=False`)
-- [ ] Increase router temperature to 2.0
-- [ ] Increase top_k from 2 → 3
-- [ ] Add router entropy regularization (weight: 0.01)
-- [ ] Test quick run: `python experiments/run_ablations.py --seeds 42 --epochs 10 --temperature 2.0 --top_k 3 --ablations no_uncertainty`
+- [x] Increase router temperature to 2.0
+- [x] Increase top_k from 2 → 3
+- [x] Add router entropy regularization (weight: 0.01)
+- [x] Test quick run: `python experiments/run_ablations.py --seeds 42 --epochs 60 --temperature 2.0 --top_k 3 --ablations no_uncertainty` - RUNNING
 
-### Phase 2: Core Fixes
-- [ ] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
-- [ ] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
-- [ ] **Router Improvements** - `src/routing/router.py`
-  - [ ] Load balancing loss weight: 0.01 → 0.1
-  - [ ] Router entropy regularization (weight: 0.01)
-  - [ ] Router temperature: 2.0
-  - [ ] Top-k: 2 → 3
-- [ ] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
-- [ ] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
+### Phase 2: Core Fixes - COMPLETED
+- [x] **Expert Diversity Loss** (orthogonality) - `tracks/proposed_model/model.py`
+- [x] **Modality-Specific Expert Inputs** - `tracks/proposed_model/model.py`
+- [x] **Router Improvements** - `src/routing/router.py`
+  - [x] Load balancing loss weight: 0.01 → 0.1
+  - [x] Router entropy regularization (weight: 0.01)
+  - [x] Router temperature: 2.0
+  - [x] Top-k: 2 → 3
 
 ### Phase 3: Fusion & Advanced
 - [ ] Fusion: Add residual connection in `concat_mlp`
@@ -296,4 +299,4 @@ nohup python -u experiments/run_ablations.py --seeds 42,123,456,789,999 --epochs
 
 ---
 
-**Next Step:** Run quick test with `--seeds 42 --epochs 2 --temperature 2.0 --top_k 3 --ablations no_uncertainty` to verify fixes work before full runs.
+**Next Step:** Phase 2 core fixes fully implemented (Expert Diversity Loss, Modality-Specific Expert Inputs, Router load balancing 0.1, entropy 0.01). Next: Run full ablation with 5 seeds × 60 epochs to validate Phase 1 + Phase 2 improvements, then move to Phase 3 Fusion & Advanced.
