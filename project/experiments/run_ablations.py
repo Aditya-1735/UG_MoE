@@ -140,6 +140,9 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                     binary_labels = (labels >= 1).long()
                     outputs = model(graph, binary_labels)
                     loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
+                    # Ensure loss is scalar
+                    if loss.dim() > 0:
+                        loss = loss.mean()
                     test_loss += loss.item()
                     preds = outputs["y_pred"]
                     all_preds.extend(preds.cpu().tolist())
