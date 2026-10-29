@@ -150,7 +150,8 @@ class ExpertRouter(nn.Module):
             aux_loss = self.load_balancing_weight * loss
             
             # Entropy regularization - encourage confident routing
-            entropy = -(sparse_weights * sparse_weights.log().clamp(min=-20)).sum(-1).mean()
+            # Use soft routing weights (before top-k) for entropy to avoid 0*log(0) NaN
+            entropy = -(routing_weights * routing_weights.log().clamp(min=-20)).sum(-1).mean()
             entropy_loss = self.entropy_weight * entropy
             # Store both losses in a dict for the model to access
             aux_loss = {'load_balance': aux_loss, 'entropy': entropy_loss}
