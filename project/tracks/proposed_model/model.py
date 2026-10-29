@@ -251,7 +251,7 @@ class GraphAwareMoE(nn.Module):
         self.aux_losses = {}
         
         # Diversity loss weight (for Phase 2)
-        self.diversity_weight = 0.05
+        self.diversity_weight = 0.01
     
     def set_diversity_weight(self, weight: float):
         """Set the expert diversity loss weight."""
@@ -417,6 +417,8 @@ class GraphAwareMoE(nn.Module):
         if self.training and self.diversity_weight > 0:
             expert_output_list = [expert_outputs[exp_type] for exp_type in self.expert_types]
             expert_outputs_stack = torch.stack(expert_output_list, dim=1)  # [B, num_experts, D]
+            # Add numerical stability: normalize to avoid zero-norm issues
+            expert_outputs_stack = F.normalize(expert_outputs_stack, p=2, dim=-1, eps=1e-8)
             cos_sim = F.cosine_similarity(
                 expert_outputs_stack.unsqueeze(2),  # [B, num_experts, 1, D]
                 expert_outputs_stack.unsqueeze(1),  # [B, 1, num_experts, D]
@@ -425,6 +427,8 @@ class GraphAwareMoE(nn.Module):
             # Mask out diagonal (self-similarity)
             mask = ~torch.eye(self.num_experts, dtype=torch.bool, device=expert_outputs_stack.device)
             diversity_loss = cos_sim.masked_select(mask).mean()
+            # Clamp to avoid extreme values
+            diversity_loss = torch.clamp(diversity_loss, max=0.99)
             # Store for loss computation
             self.aux_losses['diversity_loss'] = self.diversity_weight * diversity_loss
         else:
