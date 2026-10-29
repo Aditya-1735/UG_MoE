@@ -49,6 +49,9 @@ ABLATIONS = {
     "graph_transformer": {
         "dependency_expert_type": "graph_transformer",
         "description": "Graph Transformer instead of GAT in dependency expert"
+    },
+    "full": {
+        "description": "Full Track B with all defaults (uncertainty_guided router, uncertainty enabled)"
     }
 }
 
