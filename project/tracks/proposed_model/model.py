@@ -414,7 +414,8 @@ class GraphAwareMoE(nn.Module):
         
         # Phase 2: Expert Diversity Loss (Orthogonality)
         # Encourage expert outputs to be different from each other
-        if self.training and self.diversity_weight > 0:
+        # Skip when uncertainty is disabled (no_uncertainty ablation) for stability
+        if self.training and self.diversity_weight > 0 and self.use_uncertainty:
             expert_output_list = [expert_outputs[exp_type] for exp_type in self.expert_types]
             expert_outputs_stack = torch.stack(expert_output_list, dim=1)  # [B, num_experts, D]
             # Add numerical stability: normalize to avoid zero-norm issues
