@@ -387,6 +387,8 @@ class UncertaintyGuidedRouter(nn.Module):
         routing_weights = F.softmax(logits, dim=-1)
         
         # Compute auxiliary losses
+        lb_loss = torch.tensor(0.0, device=routing_weights.device)
+        entropy_loss = torch.tensor(0.0, device=routing_weights.device)
         aux_loss = None
         if self.training:
             expert_fraction = routing_weights.mean(dim=0)
@@ -400,7 +402,8 @@ class UncertaintyGuidedRouter(nn.Module):
             aux_loss = {'load_balance': lb_loss, 'entropy': entropy_loss}
         
         if return_uncertainty:
-            return routing_weights, uncertainties
+            # Return both uncertainties and aux_loss for compatibility
+            return routing_weights, {'uncertainties': uncertainties, 'load_balance': lb_loss, 'entropy': entropy_loss}
         return routing_weights, aux_loss
 
 

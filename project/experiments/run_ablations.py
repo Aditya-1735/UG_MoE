@@ -92,7 +92,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
         # Note: epochs is used for training loop, not passed to model
         model = GraphAwareMoE(**model_config).to(device)
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=5e-5, weight_decay=1e-5)
     criterion = torch.nn.CrossEntropyLoss()
     
     best_f1 = 0
@@ -118,13 +118,19 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                 print(f"  DEBUG: Loss components at epoch {epoch}:")
                 for k, v in outputs.items():
                     if isinstance(v, torch.Tensor):
-                        print(f"    {k}: {v.shape} finite={torch.isfinite(v).all().item()} mean={v.mean().item() if v.numel() > 0 else 'empty'}")
+                        if v.dtype.is_floating_point:
+                            print(f"    {k}: {v.shape} finite={torch.isfinite(v).all().item()} mean={v.mean().item() if v.numel() > 0 else 'empty'}")
+                        else:
+                            print(f"    {k}: {v.shape} dtype={v.dtype} (non-float)")
                     elif isinstance(v, (int, float)):
                         print(f"    {k}: {v} finite={np.isfinite(v)}")
                     elif isinstance(v, dict):
                         for sk, sv in v.items():
                             if isinstance(sv, torch.Tensor):
-                                print(f"    {k}.{sk}: {sv.shape} finite={torch.isfinite(sv).all().item()}")
+                                if sv.dtype.is_floating_point:
+                                    print(f"    {k}.{sk}: {sv.shape} finite={torch.isfinite(sv).all().item()}")
+                                else:
+                                    print(f"    {k}.{sk}: {sv.shape} dtype={sv.dtype} (non-float)")
                             else:
                                 print(f"    {k}.{sk}: {sv}")
                 raise RuntimeError(

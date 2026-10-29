@@ -496,16 +496,41 @@ class GraphAwareMoE(nn.Module):
             
             total_kl = torch.stack(kl_losses).mean() if kl_losses else 0
             
+            # Expert diversity loss (Phase 2)
+            diversity_loss = self.aux_losses.get('diversity_loss', 0)
+            
             # Routing losses (load balancing + entropy)
             if isinstance(routing_aux_loss, dict):
+                # Handle both old format (load_balance, entropy) and new format (with uncertainties)
                 routing_lb_loss = routing_aux_loss.get('load_balance', 0)
                 routing_entropy_loss = routing_aux_loss.get('entropy', 0)
             else:
                 routing_lb_loss = routing_aux_loss if routing_aux_loss is not None else 0
                 routing_entropy_loss = 0
             
-            # Expert diversity loss (Phase 2)
-            diversity_loss = self.aux_losses.get('diversity_loss', 0)
+            # Ensure all loss components are scalar
+            for loss_name, loss_val in [('cls_loss', cls_loss), ('total_kl', total_kl), 
+                                         ('routing_lb_loss', routing_lb_loss), 
+                                         ('routing_entropy_loss', routing_entropy_loss),
+                                         ('diversity_loss', diversity_loss)]:
+                if isinstance(loss_val, torch.Tensor) and loss_val.dim() > 0:
+                    print(f"  WARNING: {loss_name} is not scalar: {loss_val.shape}, taking mean")
+                    if loss_name == 'routing_lb_loss' and loss_val.dim() == 2:
+                        # routing_lb_loss shouldn't have batch dim - take mean over batch then experts
+                        loss_val = loss_val.mean()
+                    else:
+                        loss_val = loss_val.mean()
+                # Update local variable
+                if loss_name == 'cls_loss':
+                    cls_loss = loss_val
+                elif loss_name == 'total_kl':
+                    total_kl = loss_val
+                elif loss_name == 'routing_lb_loss':
+                    routing_lb_loss = loss_val
+                elif loss_name == 'routing_entropy_loss':
+                    routing_entropy_loss = loss_val
+                elif loss_name == 'diversity_loss':
+                    diversity_loss = loss_val
             
             # Total loss
             total_loss = cls_loss + 0.1 * total_kl + routing_lb_loss + routing_entropy_loss + diversity_loss
