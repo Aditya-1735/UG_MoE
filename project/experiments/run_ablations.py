@@ -114,6 +114,19 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             if loss.dim() > 0:
                 loss = loss.mean()
             if not torch.isfinite(loss).item():
+                # Diagnose which component is NaN
+                print(f"  DEBUG: Loss components at epoch {epoch}:")
+                for k, v in outputs.items():
+                    if isinstance(v, torch.Tensor):
+                        print(f"    {k}: {v.shape} finite={torch.isfinite(v).all().item()} mean={v.mean().item() if v.numel() > 0 else 'empty'}")
+                    elif isinstance(v, (int, float)):
+                        print(f"    {k}: {v} finite={np.isfinite(v)}")
+                    elif isinstance(v, dict):
+                        for sk, sv in v.items():
+                            if isinstance(sv, torch.Tensor):
+                                print(f"    {k}.{sk}: {sv.shape} finite={torch.isfinite(sv).all().item()}")
+                            else:
+                                print(f"    {k}.{sk}: {sv}")
                 raise RuntimeError(
                     f"Non-finite loss at epoch {epoch}, batch loss={loss.item()}"
                 )
