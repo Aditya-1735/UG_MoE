@@ -1,0 +1,38 @@
+cd ~/AHA_BTP/UG_MoE/project
+
+# Select GPU
+GPU_ID=2
+
+# Verify GPU
+nvidia-smi -i "$GPU_ID" || { echo "Invalid or unavailable GPU"; exit 1; }
+
+# Dedicated experiment directory
+RUN_DIR="experiments/phase1_phase2_no_uncertainty"
+LOG_DIR="$RUN_DIR/logs"
+mkdir -p "$LOG_DIR"
+
+# Unique log filename
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOG="$LOG_DIR/phase1_phase2_no_uncertainty_gpu${GPU_ID}_${TIMESTAMP}.log"
+
+# Start experiment
+nohup python -u experiments/run_ablations.py \
+    --seeds "42,123,456,789,999" \
+    --epochs 60 \
+    --temperature 2.0 \
+    --top_k 3 \
+    --ablations no_uncertainty \
+    > "$LOG" 2>&1 &
+
+# Save PID and latest log path
+echo $! > "$RUN_DIR/phase1_phase2_no_uncertainty.pid"
+echo "$LOG" > "$RUN_DIR/phase1_phase2_no_uncertainty_latest.logpath"
+
+# Display run information
+echo "Started Phase 1 + Phase 2: no_uncertainty"
+echo "GPU: $GPU_ID"
+echo "PID: $(cat "$RUN_DIR/phase1_phase2_no_uncertainty.pid")"
+echo "Log: $LOG"
+
+# Monitor log
+tail -f "$(cat "$RUN_DIR/phase1_phase2_no_uncertainty_latest.logpath")"

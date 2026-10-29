@@ -1,0 +1,19 @@
+source ~/activate_muad.sh
+
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate muad
+
+unalias python 2>/dev/null || true
+unalias python3 2>/dev/null || true
+hash -r
+
+which python
+python --version
+
+export DGLBACKEND=pytorch
+
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib/python3.11/site-packages/nvidia/cuda_nvrtc/lib:$CONDA_PREFIX/lib/python3.11/site-packages/nvidia/cuda_runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+export CUDA_VISIBLE_DEVICES=2
+
+python -c "import torch; print('PyTorch:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'Not available')"
