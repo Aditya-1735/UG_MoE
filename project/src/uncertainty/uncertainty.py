@@ -106,7 +106,9 @@ class UncertaintyBlock(nn.Module):
         This implementation uses variance consistently.
         """
         # KL(N(mu, var) || N(0, I)) = 0.5 * (mu^2 + var - 1 - log(var))
-        kl = 0.5 * (mu ** 2 + var - 1 - var.log())
+        # Clamp variance to avoid log(0) = -inf
+        var_clamped = var.clamp(min=1e-8)
+        kl = 0.5 * (mu ** 2 + var_clamped - 1 - var_clamped.log())
         return kl.mean()
 
 
@@ -201,7 +203,9 @@ class VariationalUncertaintyBlock(nn.Module):
         KL(N(mu, exp(logvar)) || N(0, I)) 
         = 0.5 * sum(mu^2 + exp(logvar) - 1 - logvar)
         """
-        kl = 0.5 * (mu ** 2 + logvar.exp() - 1 - logvar)
+        # Clamp logvar to prevent extreme values
+        logvar_clamped = logvar.clamp(min=-10, max=10)
+        kl = 0.5 * (mu ** 2 + logvar_clamped.exp() - 1 - logvar_clamped)
         return kl.mean()
 
 

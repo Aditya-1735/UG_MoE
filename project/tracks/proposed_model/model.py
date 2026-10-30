@@ -538,8 +538,17 @@ class GraphAwareMoE(nn.Module):
                 elif loss_name == 'diversity_loss':
                     diversity_loss = loss_val
             
-            # Total loss
+            # Total loss - clamp components to prevent NaN
+            total_kl = torch.clamp(total_kl, max=10.0) if isinstance(total_kl, torch.Tensor) else total_kl
+            routing_lb_loss = torch.clamp(routing_lb_loss, max=10.0) if isinstance(routing_lb_loss, torch.Tensor) else routing_lb_loss
+            routing_entropy_loss = torch.clamp(routing_entropy_loss, max=10.0) if isinstance(routing_entropy_loss, torch.Tensor) else routing_entropy_loss
+            diversity_loss = torch.clamp(diversity_loss, max=10.0) if isinstance(diversity_loss, torch.Tensor) else diversity_loss
+            
             total_loss = cls_loss + 0.1 * total_kl + routing_lb_loss + routing_entropy_loss + diversity_loss
+            
+            # Final NaN check
+            if not torch.isfinite(total_loss):
+                total_loss = cls_loss  # Fallback to just classification loss
             
             outputs.update({
                 "loss": total_loss,
