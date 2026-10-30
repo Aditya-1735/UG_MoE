@@ -70,9 +70,13 @@ class UncertaintyBlock(nn.Module):
         mu = self.fc_mu(encoded)      # [B, out_dim]
         var = self.fc_var(encoded)    # [B, out_dim]
         
+        # Clamp variance to prevent numerical issues
+        var = var.clamp(min=1e-8, max=1.0)
+        
         # Attention gating
         mu_attn = self.attention_mu(mu)
         var_attn = self.attention_var(var)
+        var_attn = var_attn.clamp(min=1e-8, max=1.0)
         
         # Reparameterization
         sample = self.reparameterize(mu_attn, var_attn)
@@ -89,7 +93,7 @@ class UncertaintyBlock(nn.Module):
         Note: var is treated as VARIANCE (not log-variance)
         sigma = sqrt(var)
         """
-        std = var.sqrt()  # Treat var as variance
+        std = var.sqrt().clamp(max=10.0)
         eps = torch.randn_like(std)
         return mu + eps * std
     
@@ -200,12 +204,14 @@ class VariationalUncertaintyBlock(nn.Module):
     
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         """z = mu + eps * sqrt(exp(logvar))"""
-        # logvar already clamped in forward
-        std = (0.5 * logvar).exp()
-        # Clamp std to prevent overflow
-        std = std.clamp(max=1e4)
+        # logvar already clamped in forward to [-10, 10]
+        # std = exp(0.5 * logvar) ∈ [exp(-5), exp(5)] ≈ [0.0067, 148]
+        # Clamp std to prevent explosion
+        std = (0.5 * logvar).exp().clamp(max=10.0)
         eps = torch.randn_like(std)
-        return mu + eps * std
+        sample = mu + eps * std
+        # Final safety clamp
+        return sample.clamp(min=-1e4, max=1e4)
     
     def kl_loss(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         """
