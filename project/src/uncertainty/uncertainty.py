@@ -180,9 +180,15 @@ class VariationalUncertaintyBlock(nn.Module):
         mu = self.fc_mu(encoded)           # [B, out_dim]
         logvar = self.fc_logvar(encoded)   # [B, out_dim]
         
+        # Clamp logvar to prevent extreme values
+        logvar = logvar.clamp(min=-10, max=10)
+        
         # Attention gating
         mu_attn = self.attention_mu(mu)
         logvar_attn = self.attention_var(logvar)
+        
+        # Clamp again after attention
+        logvar_attn = logvar_attn.clamp(min=-10, max=10)
         
         # Reparameterization
         sample = self.reparameterize(mu_attn, logvar_attn)
@@ -194,7 +200,10 @@ class VariationalUncertaintyBlock(nn.Module):
     
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         """z = mu + eps * sqrt(exp(logvar))"""
+        # logvar already clamped in forward
         std = (0.5 * logvar).exp()
+        # Clamp std to prevent overflow
+        std = std.clamp(max=1e4)
         eps = torch.randn_like(std)
         return mu + eps * std
     
@@ -203,9 +212,8 @@ class VariationalUncertaintyBlock(nn.Module):
         KL(N(mu, exp(logvar)) || N(0, I)) 
         = 0.5 * sum(mu^2 + exp(logvar) - 1 - logvar)
         """
-        # Clamp logvar to prevent extreme values
-        logvar_clamped = logvar.clamp(min=-10, max=10)
-        kl = 0.5 * (mu ** 2 + logvar_clamped.exp() - 1 - logvar_clamped)
+        # logvar already clamped in forward
+        kl = 0.5 * (mu ** 2 + logvar.exp() - 1 - logvar)
         return kl.mean()
 
 
