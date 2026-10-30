@@ -1,0 +1,110 @@
+nohup: ignoring input
+============================================================
+ABLATION STUDIES - GRAPH-AWARE MoE
+============================================================
+Ablations: ['no_graph', 'no_uncertainty', 'no_fusion', 'single_expert', 'plain_moe', 'graph_transformer', 'full']
+Seeds: 42,123,456,789,999
+Epochs: 60
+Temperature: 2.0
+Top-k: 3
+
+============================================================
+ABLATION: full - Full Track B with all defaults (uncertainty_guided router, uncertainty enabled)
+============================================================
+
+============================================================
+ABLATION: full | Seed: 42
+============================================================
+Config: Full Track B with all defaults (uncertainty_guided router, uncertainty enabled)
+  Epoch  5: Test Loss=0.3077, F1=0.8745, Pre=0.8636, Rec=0.8857
+  Epoch 10: Test Loss=0.2616, F1=0.8934, Pre=0.8296, Rec=0.9679
+  Epoch 15: Test Loss=0.2176, F1=0.9122, Pre=0.9010, Rec=0.9236
+  Epoch 20: Test Loss=0.2028, F1=0.9100, Pre=0.9211, Rec=0.8991
+  Epoch 25: Test Loss=0.2110, F1=0.9127, Pre=0.8696, Rec=0.9603
+  Epoch 30: Test Loss=0.1523, F1=0.9438, Pre=0.9378, Rec=0.9499
+  Epoch 35: Test Loss=0.1533, F1=0.9418, Pre=0.9351, Rec=0.9487
+  Epoch 40: Test Loss=0.1415, F1=0.9493, Pre=0.9487, Rec=0.9499
+  Epoch 45: Test Loss=0.1639, F1=0.9219, Pre=0.9585, Rec=0.8880
+  Epoch 50: Test Loss=0.1417, F1=0.9445, Pre=0.9467, Rec=0.9423
+  Epoch 55: Test Loss=0.1424, F1=0.9459, Pre=0.9341, Rec=0.9580
+  Epoch 60: Test Loss=0.1732, F1=0.9326, Pre=0.9299, Rec=0.9353
+  Run 1/5 (seed=42): Best F1=0.9493 (epoch 40)
+
+============================================================
+ABLATION: full | Seed: 123
+============================================================
+Config: Full Track B with all defaults (uncertainty_guided router, uncertainty enabled)
+  Epoch  5: Test Loss=0.3016, F1=0.8747, Pre=0.8439, Rec=0.9079
+  Epoch 10: Test Loss=0.2358, F1=0.9065, Pre=0.8694, Rec=0.9469
+  Epoch 15: Test Loss=0.2051, F1=0.9232, Pre=0.9012, Rec=0.9464
+  Epoch 20: Test Loss=0.2029, F1=0.9216, Pre=0.8920, Rec=0.9534
+  Epoch 25: Test Loss=0.1821, F1=0.9266, Pre=0.9077, Rec=0.9464
+  Epoch 30: Test Loss=0.1525, F1=0.9423, Pre=0.9423, Rec=0.9423
+  Epoch 35: Test Loss=0.1615, F1=0.9362, Pre=0.9234, Rec=0.9493
+  Epoch 40: Test Loss=0.1404, F1=0.9496, Pre=0.9375, Rec=0.9621
+  Epoch 45: Test Loss=0.1234, F1=0.9562, Pre=0.9453, Rec=0.9673
+  Epoch 50: Test Loss=0.1227, F1=0.9563, Pre=0.9484, Rec=0.9644
+  Epoch 55: Test Loss=0.1207, F1=0.9520, Pre=0.9554, Rec=0.9487
+  Epoch 60: Test Loss=0.1198, F1=0.9594, Pre=0.9487, Rec=0.9703
+  Run 2/5 (seed=123): Best F1=0.9594 (epoch 60)
+
+============================================================
+ABLATION: full | Seed: 456
+============================================================
+Config: Full Track B with all defaults (uncertainty_guided router, uncertainty enabled)
+  Epoch  5: Test Loss=0.3190, F1=0.8638, Pre=0.8658, Rec=0.8618
+  Epoch 10: Test Loss=0.2675, F1=0.8894, Pre=0.8240, Rec=0.9662
+  Epoch 15: Test Loss=0.2314, F1=0.9070, Pre=0.8546, Rec=0.9662
+  Epoch 20: Test Loss=0.1685, F1=0.9363, Pre=0.9298, Rec=0.9429
+  Epoch 25: Test Loss=0.1739, F1=0.9178, Pre=0.9456, Rec=0.8915
+  Epoch 30: Test Loss=0.1468, F1=0.9472, Pre=0.9523, Rec=0.9423
+  Epoch 35: Test Loss=0.1301, F1=0.9504, Pre=0.9457, Rec=0.9551
+  Epoch 40: Test Loss=0.1297, F1=0.9540, Pre=0.9471, Rec=0.9609
+  Epoch 45: Test Loss=0.1298, F1=0.9526, Pre=0.9339, Rec=0.9720
+  Epoch 50: Test Loss=0.1257, F1=0.9531, Pre=0.9592, Rec=0.9469
+  Epoch 55: Test Loss=0.1250, F1=0.9540, Pre=0.9524, Rec=0.9557
+  Epoch 60: Test Loss=0.1248, F1=0.9551, Pre=0.9371, Rec=0.9738
+  Run 3/5 (seed=456): Best F1=0.9551 (epoch 60)
+
+============================================================
+ABLATION: full | Seed: 789
+============================================================
+Config: Full Track B with all defaults (uncertainty_guided router, uncertainty enabled)
+  Epoch  5: Test Loss=0.3016, F1=0.8750, Pre=0.8685, Rec=0.8816
+  Epoch 10: Test Loss=0.2315, F1=0.9041, Pre=0.8527, Rec=0.9621
+  Epoch 15: Test Loss=0.2274, F1=0.8785, Pre=0.9116, Rec=0.8478
+  Epoch 20: Test Loss=0.1756, F1=0.9307, Pre=0.9038, Rec=0.9592
+  Epoch 25: Test Loss=0.1625, F1=0.9382, Pre=0.9252, Rec=0.9516
+  Epoch 30: Test Loss=0.1791, F1=0.9321, Pre=0.9128, Rec=0.9522
+  Epoch 35: Test Loss=0.1518, F1=0.9401, Pre=0.9415, Rec=0.9388
+  Epoch 40: Test Loss=0.1413, F1=0.9473, Pre=0.9507, Rec=0.9440
+  Epoch 45: Test Loss=0.1358, F1=0.9429, Pre=0.9524, Rec=0.9335
+  Epoch 50: Test Loss=0.1459, F1=0.9465, Pre=0.9292, Rec=0.9644
+  Epoch 55: Test Loss=0.1322, F1=0.9528, Pre=0.9455, Rec=0.9603
+  Epoch 60: Test Loss=0.1262, F1=0.9540, Pre=0.9410, Rec=0.9673
+  Run 4/5 (seed=789): Best F1=0.9540 (epoch 60)
+
+============================================================
+ABLATION: full | Seed: 999
+============================================================
+Config: Full Track B with all defaults (uncertainty_guided router, uncertainty enabled)
+  Epoch  5: Test Loss=0.3149, F1=0.8649, Pre=0.7964, Rec=0.9464
+  Epoch 10: Test Loss=0.2504, F1=0.8964, Pre=0.8396, Rec=0.9615
+  Epoch 15: Test Loss=0.2141, F1=0.9166, Pre=0.8790, Rec=0.9574
+  Epoch 20: Test Loss=0.2043, F1=0.9231, Pre=0.9090, Rec=0.9376
+  Epoch 25: Test Loss=0.1813, F1=0.9319, Pre=0.9081, Rec=0.9569
+  Epoch 30: Test Loss=0.1704, F1=0.9322, Pre=0.9114, Rec=0.9539
+  Epoch 35: Test Loss=0.1506, F1=0.9485, Pre=0.9419, Rec=0.9551
+  Epoch 40: Test Loss=0.1412, F1=0.9477, Pre=0.9439, Rec=0.9516
+  Epoch 45: Test Loss=0.1379, F1=0.9488, Pre=0.9369, Rec=0.9609
+  Epoch 50: Test Loss=0.1436, F1=0.9382, Pre=0.9569, Rec=0.9201
+  Epoch 55: Test Loss=0.1465, F1=0.9445, Pre=0.9509, Rec=0.9382
+  Epoch 60: Test Loss=0.1149, F1=0.9565, Pre=0.9579, Rec=0.9551
+  Run 5/5 (seed=999): Best F1=0.9565 (epoch 60)
+
+============================================================
+ABLATION SUMMARY
+============================================================
+full                : Mean F1=0.9549 ± 0.0033  (Max: 0.9594)
+
+Results saved to: experiments/runs/ablations_20261029_181909
