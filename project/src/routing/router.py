@@ -297,6 +297,7 @@ class UncertaintyGuidedRouter(nn.Module):
         dropout: float = 0.1,
         uncertainty_weight: float = 1.0,
         top_k: int = 2,  # Accept for compatibility, not used in this router
+        load_balancing_weight: float = 0.1,
     ):
         super().__init__()
         self.num_experts = num_experts
@@ -305,7 +306,7 @@ class UncertaintyGuidedRouter(nn.Module):
         self.top_k = top_k
         
         # Load balancing and entropy weights
-        self.register_buffer("load_balancing_weight", torch.tensor(0.1))
+        self.register_buffer("load_balancing_weight", torch.tensor(load_balancing_weight))
         self.register_buffer("entropy_weight", torch.tensor(0.01))
         
         # Feature encoder

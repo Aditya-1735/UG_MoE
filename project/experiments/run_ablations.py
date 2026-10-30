@@ -89,13 +89,28 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
         if k != "description":
             config[k] = v
     
+    # Hyperparameter config per ablation type
+    is_full_track_b = (ablation_name == "full")
+    if is_full_track_b:
+        # Original Track B hyperparams (from run_track_b_full.py)
+        lr = 0.001
+        grad_clip = 1.0
+        # Router load balancing - lower for full Track B to allow expert specialization
         model_config = {k: v for k, v in config.items() if k != 'epochs'}
-        model_config['temperature'] = temperature
-        model_config['top_k'] = top_k
-        # Note: epochs is used for training loop, not passed to model
-        model = GraphAwareMoE(**model_config).to(device)
+        model_config['load_balancing_weight'] = 0.01
+    else:
+        # Ablation-tuned hyperparams (for no_uncertainty, etc.)
+        lr = 5e-5
+        grad_clip = 0.5
+        model_config = {k: v for k, v in config.items() if k != 'epochs'}
+        model_config['load_balancing_weight'] = 0.1
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=5e-5, weight_decay=1e-5)
+    model_config['temperature'] = temperature
+    model_config['top_k'] = top_k
+    # Note: epochs is used for training loop, not passed to model
+    model = GraphAwareMoE(**model_config).to(device)
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
     criterion = torch.nn.CrossEntropyLoss()
     
     best_f1 = 0
@@ -143,7 +158,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 model.parameters(),
-                max_norm=0.5,
+                max_norm=grad_clip,
                 error_if_nonfinite=False,
             )
             optimizer.step()

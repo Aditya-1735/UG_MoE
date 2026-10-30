@@ -62,6 +62,7 @@ class GraphAwareMoE(nn.Module):
         temperature: float = 2.0,
         use_graph_routing: bool = True,
         use_uncertainty_routing: bool = True,
+        load_balancing_weight: float = None,  # None = use router default
         
         # Fusion configuration
         fusion_type: str = "confidence",  # "attention", "weighted_concat", "gated", "confidence", "dynamic"
@@ -90,6 +91,7 @@ class GraphAwareMoE(nn.Module):
         self.use_uncertainty = use_uncertainty
         self.top_k = top_k
         self.modality_specific_inputs = modality_specific_inputs
+        self.load_balancing_weight = load_balancing_weight
         
         # Default expert types
         if expert_types is None:
@@ -189,17 +191,21 @@ class GraphAwareMoE(nn.Module):
         # ============================================================
         # 3. Expert Router
         # ============================================================
-        self.router = create_router(
-            router_type=router_type,
-            num_experts=self.num_experts,
-            input_dim=hidden_dim * 3,  # combined modality features
-            hidden_dim=router_hidden_dim,
-            dropout=dropout,
-            top_k=min(top_k, self.num_experts),
-            temperature=temperature,
-            use_graph=use_graph_routing,
-            use_uncertainty=use_uncertainty_routing,
-        )
+        router_kwargs = {
+            "router_type": router_type,
+            "num_experts": self.num_experts,
+            "input_dim": hidden_dim * 3,  # combined modality features
+            "hidden_dim": router_hidden_dim,
+            "dropout": dropout,
+            "top_k": min(top_k, self.num_experts),
+            "temperature": temperature,
+            "use_graph": use_graph_routing,
+            "use_uncertainty": use_uncertainty_routing,
+        }
+        if load_balancing_weight is not None:
+            router_kwargs["load_balancing_weight"] = load_balancing_weight
+        
+        self.router = create_router(**router_kwargs)
         
         # ============================================================
         # 4. Uncertainty Blocks (one per expert)
