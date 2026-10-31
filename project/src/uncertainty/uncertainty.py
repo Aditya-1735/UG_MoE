@@ -181,18 +181,18 @@ class VariationalUncertaintyBlock(nn.Module):
         """
         encoded = self.encoder(x)
         
-        mu = self.fc_mu(encoded)           # [B, out_dim]
+        mu = self.fc_mu(encoded).clamp(min=-10.0, max=10.0)           # [B, out_dim]
         logvar = self.fc_logvar(encoded)   # [B, out_dim]
         
         # Clamp logvar to prevent extreme values
-        logvar = logvar.clamp(min=-10, max=10)
+        logvar = logvar.clamp(min=-10.0, max=10.0)
         
         # Attention gating
-        mu_attn = self.attention_mu(mu)
+        mu_attn = self.attention_mu(mu).clamp(min=-10.0, max=10.0)
         logvar_attn = self.attention_var(logvar)
         
         # Clamp again after attention
-        logvar_attn = logvar_attn.clamp(min=-10, max=10)
+        logvar_attn = logvar_attn.clamp(min=-10.0, max=10.0)
         
         # Reparameterization
         sample = self.reparameterize(mu_attn, logvar_attn)

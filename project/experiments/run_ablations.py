@@ -55,7 +55,7 @@ ABLATIONS = {
     }
 }
 
-def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_base: Path, temperature: float = 2.0, top_k: int = 3, epochs: int = 60):
+def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_base: Path, temperature: float = 2.0, top_k: int = 3, epochs: int = 60, lr_override: float = None):
     """Run single ablation experiment with given seed."""
     print(f"\n{'='*60}")
     print(f"ABLATION: {ablation_name} | Seed: {seed}")
@@ -95,14 +95,14 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     is_full_track_b = (ablation_name == "full")
     if is_full_track_b:
         # Original Track B hyperparams (from run_track_b_full.py)
-        lr = 0.001
+        lr = lr_override if lr_override is not None else 0.001
         grad_clip = 1.0
         # Router load balancing - lower for full Track B to allow expert specialization
         model_config = {k: v for k, v in config.items() if k != 'epochs'}
         model_config['load_balancing_weight'] = 0.01
     else:
         # Ablation-tuned hyperparams (for no_uncertainty, etc.)
-        lr = 5e-5
+        lr = lr_override if lr_override is not None else 5e-5
         grad_clip = 0.5
         model_config = {k: v for k, v in config.items() if k != 'epochs'}
         model_config['load_balancing_weight'] = 0.1
@@ -164,7 +164,8 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                 error_if_nonfinite=False,
             )
             if not torch.isfinite(grad_norm):
-                print(f"  WARNING: Non-finite grad_norm ({grad_norm}) at epoch {epoch}, skipping step")
+                nan_params = [name for name, p in model.named_parameters() if p.grad is not None and not torch.isfinite(p.grad).all()]
+                print(f"  WARNING: Non-finite grad_norm ({grad_norm}) at epoch {epoch}, skipping step. Offending params: {nan_params[:3]}")
                 optimizer.zero_grad()
                 continue
             optimizer.step()
@@ -253,6 +254,7 @@ def main():
     parser.add_argument("--temperature", type=float, default=2.0, help="Router temperature")
     parser.add_argument("--top_k", type=int, default=3, help="Top-k experts to route to")
     parser.add_argument("--epochs", type=int, default=60, help="Number of epochs")
+    parser.add_argument("--lr", type=float, default=None, help="Override learning rate")
     parser.add_argument("--ablations", type=str, default="all", help="Comma-separated list of ablations to run")
     args = parser.parse_args()
     
@@ -265,6 +267,7 @@ def main():
     print(f"Ablations: {list(ABLATIONS.keys())}")
     print(f"Seeds: {args.seeds}")
     print(f"Epochs: {args.epochs}")
+    print(f"LR: {args.lr if args.lr is not None else 'default per ablation'}")
     print(f"Temperature: {args.temperature}")
     print(f"Top-k: {args.top_k}")
     
@@ -291,7 +294,8 @@ def main():
         for i, seed in enumerate(seeds, 1):
             try:
                 result = run_ablation(ablation_name, ablation_config, seed, output_base, 
-                                    temperature=args.temperature, top_k=args.top_k, epochs=args.epochs)
+                                    temperature=args.temperature, top_k=args.top_k, epochs=args.epochs,
+                                    lr_override=args.lr)
                 ablation_results.append(result)
                 print(f"  Run {i}/5 (seed={seed}): Best F1={result['best_f1']:.4f} (epoch {result['best_epoch']})")
             except Exception as e:

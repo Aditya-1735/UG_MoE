@@ -424,19 +424,14 @@ class GraphAwareMoE(nn.Module):
         if self.training and self.diversity_weight > 0 and self.use_uncertainty:
             expert_output_list = [expert_outputs[exp_type] for exp_type in self.expert_types]
             expert_outputs_stack = torch.stack(expert_output_list, dim=1)  # [B, num_experts, D]
-            # Add numerical stability: normalize to avoid zero-norm issues
-            expert_outputs_stack = F.normalize(expert_outputs_stack, p=2, dim=-1, eps=1e-8)
-            cos_sim = F.cosine_similarity(
-                expert_outputs_stack.unsqueeze(2),  # [B, num_experts, 1, D]
-                expert_outputs_stack.unsqueeze(1),  # [B, 1, num_experts, D]
-                dim=-1
-            )  # [B, num_experts, num_experts]
+            # Stable L2 normalization with clamped denominator to avoid 1/eps gradient explosion
+            norms = torch.norm(expert_outputs_stack, p=2, dim=-1, keepdim=True).clamp(min=1e-4)
+            expert_norm = expert_outputs_stack / norms  # [B, num_experts, D]
+            # Gram matrix (cosine similarity via dot product)
+            gram = torch.matmul(expert_norm, expert_norm.transpose(-1, -2))  # [B, num_experts, num_experts]
             # Mask out diagonal (self-similarity)
             mask = ~torch.eye(self.num_experts, dtype=torch.bool, device=expert_outputs_stack.device)
-            diversity_loss = cos_sim.masked_select(mask).mean()
-            # Clamp to avoid extreme values
-            diversity_loss = torch.clamp(diversity_loss, max=0.99)
-            # Store for loss computation
+            diversity_loss = gram.masked_select(mask).mean()
             self.aux_losses['diversity_loss'] = self.diversity_weight * diversity_loss
         else:
             self.aux_losses['diversity_loss'] = 0
@@ -537,12 +532,6 @@ class GraphAwareMoE(nn.Module):
                     routing_entropy_loss = loss_val
                 elif loss_name == 'diversity_loss':
                     diversity_loss = loss_val
-            
-            # Total loss - clamp components to prevent NaN
-            total_kl = torch.clamp(total_kl, max=10.0) if isinstance(total_kl, torch.Tensor) else total_kl
-            routing_lb_loss = torch.clamp(routing_lb_loss, max=10.0) if isinstance(routing_lb_loss, torch.Tensor) else routing_lb_loss
-            routing_entropy_loss = torch.clamp(routing_entropy_loss, max=10.0) if isinstance(routing_entropy_loss, torch.Tensor) else routing_entropy_loss
-            diversity_loss = torch.clamp(diversity_loss, max=10.0) if isinstance(diversity_loss, torch.Tensor) else diversity_loss
             
             total_loss = cls_loss + 0.1 * total_kl + routing_lb_loss + routing_entropy_loss + diversity_loss
             
