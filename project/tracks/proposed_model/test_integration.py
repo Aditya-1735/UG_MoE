@@ -3,15 +3,14 @@ Quick integration test for GraphAwareMoE with real data.
 """
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
-
-import torch
 from pathlib import Path
 
-# Add project root to path
-project_root = os.path.join(os.path.dirname(__file__), "../../..")
+project_root = str(Path(__file__).parent.parent.parent)
 sys.path.insert(0, project_root)
-sys.path.insert(0, os.path.join(project_root, "vendor/muad"))
+sys.path.insert(0, str(Path(project_root) / "vendor/muad"))
+sys.path.insert(0, str(Path(project_root) / "src"))
+
+import torch
 
 from vendor.muad.data.utils import load_data, create_dataloader
 from vendor.muad.data.dataset import ChunkDataset
@@ -21,15 +20,15 @@ def test_graph_aware_moe():
     print("Testing GraphAwareMoE with real data...")
     
     # Load data
-    data_dir = Path("project/preprocessing/muad_compat/output")
+    data_dir = Path(project_root) / "preprocessing/muad_compat/output"
     
     train_data, node_num, edges = load_data(
-        str(Path("project/preprocessing/muad_compat/output/chunk_train.pkl")),
-        str(Path("project/preprocessing/muad_compat/output/metadata.json"))
+        str(data_dir / "chunk_train.pkl"),
+        str(data_dir / "metadata.json")
     )
     test_data, _, _ = load_data(
-        str(Path("project/preprocessing/muad_compat/output/chunk_test.pkl")),
-        str(Path("project/preprocessing/muad_compat/output/metadata.json"))
+        str(data_dir / "chunk_test.pkl"),
+        str(data_dir / "metadata.json")
     )
     
     print(f"Train: {len(train_data)} chunks, Test: {len(test_data)} chunks")
@@ -53,10 +52,10 @@ def test_graph_aware_moe():
     model = model.to(device)
     model.train()
     
-for graph, labels in train_loader:
-    graph = graph.to(device)
-    labels = labels.to(device)
-    outputs = model(graph, labels, return_routing=True)
+    for graph, labels in train_loader:
+        graph = graph.to(device)
+        labels = labels.to(device)
+        outputs = model(graph, labels, return_routing=True)
         print(f"Forward pass successful!")
         print(f"  MMlogit: {outputs['MMlogit'].shape}")
         print(f"  loss: {outputs.get('loss', 'N/A')}")

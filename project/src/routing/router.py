@@ -150,8 +150,9 @@ class ExpertRouter(nn.Module):
             aux_loss = self.load_balancing_weight * loss
             
             # Entropy regularization - encourage confident routing
-            # Use soft routing weights (before top-k) for entropy to avoid 0*log(0) NaN
-            entropy = -(routing_weights * routing_weights.log().clamp(min=-20)).sum(-1).mean()
+            # Use log_softmax for numerical stability (prevents 0 * inf = NaN in backward)
+            log_routing_weights = F.log_softmax(logits, dim=-1)
+            entropy = -(routing_weights * log_routing_weights).sum(-1).mean()
             entropy_loss = self.entropy_weight * entropy
             # Store both losses in a dict for the model to access
             aux_loss = {'load_balance': aux_loss, 'entropy': entropy_loss}
@@ -261,7 +262,8 @@ class GraphAwareRouter(nn.Module):
         h = h.squeeze(1)  # [B, hidden_dim]
         
         # Global routing
-        global_routing = F.softmax(self.global_head(h), dim=-1)  # [B, num_experts]
+        logits = self.global_head(h)
+        global_routing = F.softmax(logits, dim=-1)  # [B, num_experts]
         
         # Compute auxiliary losses
         aux_loss = None
@@ -271,7 +273,8 @@ class GraphAwareRouter(nn.Module):
             lb_loss = self.num_experts * torch.sum(expert_fraction ** 2) - 1.0
             lb_loss = self.load_balancing_weight * lb_loss
             
-            entropy = -(global_routing * global_routing.log().clamp(min=-20)).sum(-1).mean()
+            log_routing = F.log_softmax(logits, dim=-1)
+            entropy = -(global_routing * log_routing).sum(-1).mean()
             entropy_loss = self.entropy_weight * entropy
             
             aux_loss = {'load_balance': lb_loss, 'entropy': entropy_loss}
@@ -382,8 +385,9 @@ class UncertaintyGuidedRouter(nn.Module):
         # Routing logits (penalize high uncertainty experts)
         logits = self.router(combined)  # [B, num_experts]
         
-        # Apply uncertainty penalty
-        logits = logits - self.uncertainty_weight * uncertainties
+        # Apply uncertainty penalty with bounded uncertainties to prevent extreme logit divergence
+        bounded_uncertainties = uncertainties.clamp(max=10.0)
+        logits = logits - self.uncertainty_weight * bounded_uncertainties
         
         routing_weights = F.softmax(logits, dim=-1)
         
@@ -397,7 +401,9 @@ class UncertaintyGuidedRouter(nn.Module):
             lb_loss = self.num_experts * torch.sum(expert_fraction ** 2) - 1.0
             lb_loss = self.load_balancing_weight * lb_loss
             
-            entropy = -(routing_weights * routing_weights.log().clamp(min=-20)).sum(-1).mean()
+            # Exact, numerically stable entropy using log_softmax
+            log_routing_weights = F.log_softmax(logits, dim=-1)
+            entropy = -(routing_weights * log_routing_weights).sum(-1).mean()
             entropy_loss = self.entropy_weight * entropy
             
             aux_loss = {'load_balance': lb_loss, 'entropy': entropy_loss}

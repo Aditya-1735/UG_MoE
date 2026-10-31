@@ -81,6 +81,8 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     test_loader = create_dataloader(test_dataset, batch_size=50, shuffle=False)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type == "cuda":
+        torch.set_float32_matmul_precision('highest')
     config = DEFAULT_CONFIG.copy()
     config['log_dim'] = 14
     
@@ -161,6 +163,10 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                 max_norm=grad_clip,
                 error_if_nonfinite=False,
             )
+            if not torch.isfinite(grad_norm):
+                print(f"  WARNING: Non-finite grad_norm ({grad_norm}) at epoch {epoch}, skipping step")
+                optimizer.zero_grad()
+                continue
             optimizer.step()
             train_loss += loss.item()
         
