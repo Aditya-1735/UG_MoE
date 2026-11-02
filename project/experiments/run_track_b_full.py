@@ -10,6 +10,12 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime
 
+# GPU & FP32 settings for numerical stability
+if torch.cuda.is_available():
+    torch.set_float32_matmul_precision('high')
+    torch.set_default_dtype(torch.float32)
+    torch.backends.cudnn.benchmark = True
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vendor/muad"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -46,7 +52,7 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     train_loader = create_dataloader(train_dataset, batch_size=50, shuffle=True)
     test_loader = create_dataloader(test_dataset, batch_size=50, shuffle=False)
     
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config = DEFAULT_CONFIG.copy()
     config['log_dim'] = 14  # Our regenerated data has 14 templates
     model_config = {k: v for k, v in config.items() if k != 'epochs'}
