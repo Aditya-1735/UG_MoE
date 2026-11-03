@@ -5,6 +5,12 @@ from .temporal_expert import TemporalExpert, TemporalExpertGraph
 from .semantic_expert import SemanticExpert, LogSemanticExpert
 from .dependency_expert import DependencyExpert, GATDependencyExpert, GraphTransformerExpert
 from .cross_modal_expert import CrossModalExpert, CrossModalExpertGraph, CrossAttentionBlock
+from .log_expert import (
+    LogExpert, 
+    LogGraphExpert, 
+    LogContextExpert,
+    create_log_experts,
+)
 
 __all__ = [
     "TemporalExpert",
@@ -17,4 +23,8 @@ __all__ = [
     "CrossModalExpert",
     "CrossModalExpertGraph",
     "CrossAttentionBlock",
+    "LogExpert",
+    "LogGraphExpert",
+    "LogContextExpert",
+    "create_log_experts",
 ]

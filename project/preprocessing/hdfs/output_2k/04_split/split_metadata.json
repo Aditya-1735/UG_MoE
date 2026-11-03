@@ -1,0 +1,8 @@
+{
+  "train_size": 1595,
+  "test_size": 399,
+  "train_normal": 1595,
+  "train_anomaly": 0,
+  "test_normal": 399,
+  "test_anomaly": 0
+}

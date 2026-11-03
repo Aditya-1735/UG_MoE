@@ -1,0 +1,8 @@
+{
+  "num_sequences": 1994,
+  "vocab_size": 43,
+  "max_seq_len": 100,
+  "num_normal": 1994,
+  "num_anomaly": 0,
+  "unmatched_blocks": 0
+}
