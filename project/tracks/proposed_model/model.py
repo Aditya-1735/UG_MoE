@@ -602,6 +602,11 @@ class GraphAwareMoE(nn.Module):
             
             # Routing load balancing loss
             routing_lb_loss = routing_aux_loss if routing_aux_loss is not None else 0
+            # Ensure routing_lb_loss is scalar
+            if isinstance(routing_lb_loss, dict):
+                routing_lb_loss = routing_lb_loss.get('aux_loss', 0)
+            if isinstance(routing_lb_loss, torch.Tensor) and routing_lb_loss.dim() > 0:
+                routing_lb_loss = routing_lb_loss.mean()
             
             # Total loss
             total_loss = cls_loss + 0.1 * total_kl + 0.01 * routing_lb_loss

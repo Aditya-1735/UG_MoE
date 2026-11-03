@@ -6,6 +6,7 @@ Runs 5 seeds × 50 epochs on HDFS dataset.
 import sys
 import json
 import torch
+import dgl
 import numpy as np
 from pathlib import Path
 from datetime import datetime
@@ -195,19 +196,19 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path, config: dic
     model.eval()
     all_preds = []
     all_labels = []
+    
     with torch.no_grad():
         for batch in test_loader:
             template_ids = batch["template_ids"].to(device)
             labels = batch["label"].to(device)
             batch_size = template_ids.shape[0]
+            seq_len = template_ids.shape[1]
             
-            import dgl
-            graphs = []
-            for i in range(batch_size):
-                g = dgl.graph(([], []), num_nodes=1)
-                g.ndata['logs'] = template_ids[i:i+1].view(-1)
-                graphs.append(g)
-            batched_graph = dgl.batch(graphs).to(device)
+            # Create batched graph for log-only mode
+            g = dgl.graph(([], []), num_nodes=template_ids.numel())
+            g.ndata['logs'] = template_ids.view(-1)
+            g.set_batch_num_nodes([seq_len] * template_ids.shape[0])
+            batched_graph = g.to(device)
             
             outputs = model(batched_graph, labels)
             preds = outputs["y_pred"]
@@ -545,20 +546,17 @@ def main():
             
             optimizer.zero_grad()
             
-            # Create batched graph for log-only mode
-            # Model expects graph.ndata['logs'] to be [B*seq_len] flat array
-            import dgl
+            # The HDFSLogDataset returns template_ids as [B, seq_len]
+            # Model expects graph with B*seq_len nodes and ndata['logs'] as flat [B*seq_len]
             batch_size = template_ids.shape[0]
             seq_len = template_ids.shape[1]
             
-            # Create a single graph with B*seq_len nodes
-            # Each node represents one template in the sequence
-            total_nodes = batch_size * seq_len
-            g = dgl.graph(([], []), num_nodes=total_nodes)
-            # Flatten template_ids to [B*seq_len]
-            g.ndata['logs'] = template_ids.view(-1)
-            # Set batch info for the model
-            g.set_batch_num_nodes([seq_len] * batch_size)
+            # Create graph with B*seq_len nodes
+            total_nodes = template_ids.shape[0] * template_ids.shape[1]
+            g = dgl.graph(([], []), num_nodes=template_ids.numel())
+            g.ndata['logs'] = template_ids.reshape(-1)
+            # Set batch info: each sample has seq_len nodes
+            g.set_batch_num_nodes([template_ids.shape[1]] * template_ids.shape[0])
             batched_graph = g.to(device)
             
             outputs = model(batched_graph, labels)
@@ -591,10 +589,9 @@ def main():
                     seq_len = template_ids.shape[1]
                     
                     # Create batched graph for log-only mode
-                    total_nodes = batch_size * seq_len
-                    g = dgl.graph(([], []), num_nodes=total_nodes)
-                    g.ndata['logs'] = template_ids.view(-1)
-                    g.set_batch_num_nodes([seq_len] * batch_size)
+                    g = dgl.graph(([], []), num_nodes=template_ids.numel())
+                    g.ndata['logs'] = template_ids.reshape(-1)
+                    g.set_batch_num_nodes([template_ids.shape[1]] * template_ids.shape[0])
                     batched_graph = g.to(device)
                     
                     outputs = model(batched_graph, labels)
@@ -652,13 +649,13 @@ def main():
             template_ids = batch["template_ids"].to(device)
             labels = batch["label"].to(device)
             batch_size = template_ids.shape[0]
+            seq_len = template_ids.shape[1]
             
-            graphs = []
-            for i in range(batch_size):
-                g = dgl.graph(([], []), num_nodes=1)
-                g.ndata['logs'] = template_ids[i:i+1].view(-1)
-                graphs.append(g)
-            batched_graph = dgl.batch(graphs).to(device)
+            # Create batched graph for log-only mode
+            g = dgl.graph(([], []), num_nodes=template_ids.numel())
+            g.ndata['logs'] = template_ids.view(-1)
+            g.set_batch_num_nodes([seq_len] * template_ids.shape[0])
+            batched_graph = g.to(device)
             
             outputs = model(batched_graph, labels)
             preds = outputs["y_pred"]
