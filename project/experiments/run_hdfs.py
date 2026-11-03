@@ -205,10 +205,10 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path, config: dic
             seq_len = template_ids.shape[1]
             
             # Create batched graph for log-only mode
-            g = dgl.graph(([], []), num_nodes=template_ids.numel())
+            g = dgl.graph(([], []), num_nodes=template_ids.numel(), device=device)
             g.ndata['logs'] = template_ids.view(-1)
             g.set_batch_num_nodes([seq_len] * template_ids.shape[0])
-            batched_graph = g.to(device)
+            batched_graph = g  # Already on device
             
             outputs = model(batched_graph, labels)
             preds = outputs["y_pred"]
@@ -553,11 +553,11 @@ def main():
             
             # Create graph with B*seq_len nodes
             total_nodes = template_ids.shape[0] * template_ids.shape[1]
-            g = dgl.graph(([], []), num_nodes=template_ids.numel())
+            g = dgl.graph(([], []), num_nodes=template_ids.numel(), device=device)
             g.ndata['logs'] = template_ids.reshape(-1)
             # Set batch info: each sample has seq_len nodes
-            g.set_batch_num_nodes([template_ids.shape[1]] * template_ids.shape[0])
-            batched_graph = g.to(device)
+            g.set_batch_num_nodes([seq_len] * batch_size)
+            batched_graph = g  # Already on device
             
             outputs = model(batched_graph, labels)
             loss = outputs["loss"]
@@ -589,10 +589,10 @@ def main():
                     seq_len = template_ids.shape[1]
                     
                     # Create batched graph for log-only mode
-                    g = dgl.graph(([], []), num_nodes=template_ids.numel())
+                    g = dgl.graph(([], []), num_nodes=template_ids.numel(), device=device)
                     g.ndata['logs'] = template_ids.reshape(-1)
-                    g.set_batch_num_nodes([template_ids.shape[1]] * template_ids.shape[0])
-                    batched_graph = g.to(device)
+                    g.set_batch_num_nodes([seq_len] * batch_size)
+                    batched_graph = g  # Already on device
                     
                     outputs = model(batched_graph, labels)
                     loss = outputs.get("loss", criterion(outputs["MMlogit"], labels))
@@ -652,10 +652,10 @@ def main():
             seq_len = template_ids.shape[1]
             
             # Create batched graph for log-only mode
-            g = dgl.graph(([], []), num_nodes=template_ids.numel())
+            g = dgl.graph(([], []), num_nodes=template_ids.numel(), device=device)
             g.ndata['logs'] = template_ids.view(-1)
             g.set_batch_num_nodes([seq_len] * template_ids.shape[0])
-            batched_graph = g.to(device)
+            batched_graph = g  # Already on device
             
             outputs = model(batched_graph, labels)
             preds = outputs["y_pred"]
