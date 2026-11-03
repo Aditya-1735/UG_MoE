@@ -1,0 +1,9 @@
+{
+  "num_sequences": 575061,
+  "vocab_size": 31,
+  "max_seq_len": 100,
+  "num_normal": 558223,
+  "num_anomaly": 16838,
+  "train_size": 460048,
+  "test_size": 115013
+}

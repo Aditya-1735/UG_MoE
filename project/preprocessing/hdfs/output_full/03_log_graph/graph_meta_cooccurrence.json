@@ -1,0 +1,9 @@
+{
+  "graph_type": "cooccurrence",
+  "vocab_size": 31,
+  "window_size": 5,
+  "adjacency_shape": [
+    31,
+    31
+  ]
+}
