@@ -1,5 +1,5 @@
 {
-    "data_dir": "preprocessing/hdfs/output_full",
+    "data_dir": "preprocessing/hdfs/output_full/04_split",
     "log_graph_dir": "preprocessing/hdfs/output_full/03_log_graph",
     "template_vocab_size": 50,
     "max_seq_len": 100,

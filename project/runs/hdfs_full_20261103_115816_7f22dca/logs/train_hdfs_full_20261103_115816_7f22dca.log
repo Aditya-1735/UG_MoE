@@ -1,0 +1,24 @@
+Using device: cuda
+Initialized HDFSLogDataset with 460048 sequences
+Initialized HDFSLogDataset with 115013 sequences
+Model parameters: 918,474
+Training for 50 epochs...
+Epoch  5: Train Loss=0.0061, Acc=0.9987 | Test Loss=0.0029, Acc=0.9993, F1=0.9881, Pre=0.9793, Rec=0.9970
+  -> New best F1: 0.9881 at epoch 5
+Epoch 10: Train Loss=0.0056, Acc=0.9988 | Test Loss=0.0021, Acc=0.9996, F1=0.9925, Pre=0.9970, Rec=0.9881
+  -> New best F1: 0.9925 at epoch 10
+Epoch 15: Train Loss=0.0046, Acc=0.9991 | Test Loss=0.0020, Acc=0.9996, F1=0.9936, Pre=0.9894, Rec=0.9979
+  -> New best F1: 0.9936 at epoch 15
+Epoch 20: Train Loss=0.0031, Acc=0.9993 | Test Loss=0.0021, Acc=0.9996, F1=0.9930, Pre=0.9932, Rec=0.9929
+Epoch 25: Train Loss=0.0071, Acc=0.9986 | Test Loss=0.0026, Acc=0.9996, F1=0.9933, Pre=0.9920, Rec=0.9947
+Epoch 30: Train Loss=0.0076, Acc=0.9985 | Test Loss=0.0049, Acc=0.9993, F1=0.9873, Pre=0.9801, Rec=0.9947
+Epoch 35: Train Loss=0.0045, Acc=0.9991 | Test Loss=0.0023, Acc=0.9995, F1=0.9914, Pre=0.9853, Rec=0.9976
+Epoch 40: Train Loss=0.0067, Acc=0.9987 | Test Loss=0.0020, Acc=0.9995, F1=0.9923, Pre=0.9952, Rec=0.9893
+Epoch 45: Train Loss=0.0049, Acc=0.9991 | Test Loss=0.0021, Acc=0.9997, F1=0.9945, Pre=0.9917, Rec=0.9973
+  -> New best F1: 0.9945 at epoch 45
+Epoch 50: Train Loss=0.0031, Acc=0.9993 | Test Loss=0.0018, Acc=0.9997, F1=0.9942, Pre=0.9947, Rec=0.9938
+
+Training complete!
+Best F1: 0.9945 (epoch 45)
+Final F1: 0.9939, Pre: 0.9949, Rec: 0.9929
+Results saved to: runs/hdfs_full/hdfs_20261103_115936
