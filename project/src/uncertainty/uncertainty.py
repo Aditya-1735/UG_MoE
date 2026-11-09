@@ -62,8 +62,8 @@ class UncertaintyBlock(nn.Module):
             x: [B, in_dim] - input features
             
         Returns:
-            sample: [B, out_dim] - reparameterized sample
-            kl_loss: scalar - KL divergence loss
+            sample: [B, out_dim] - reparameterized sample (or mu during eval)
+            kl_loss: scalar - KL divergence loss (0 during eval)
         """
         encoded = self.encoder(x)  # [B, hidden_dim]
         
@@ -73,6 +73,10 @@ class UncertaintyBlock(nn.Module):
         # Attention gating
         mu_attn = self.attention_mu(mu)
         var_attn = self.attention_var(var)
+        
+        # During evaluation, use mu directly (deterministic) instead of sampling
+        if not self.training:
+            return mu_attn, torch.tensor(0.0, device=mu_attn.device)
         
         # Reparameterization
         sample = self.reparameterize(mu_attn, var_attn)
@@ -181,6 +185,10 @@ class VariationalUncertaintyBlock(nn.Module):
         # Attention gating
         mu_attn = self.attention_mu(mu)
         logvar_attn = self.attention_var(logvar)
+        
+        # During evaluation, use mu directly (deterministic) instead of sampling
+        if not self.training:
+            return mu_attn, torch.tensor(0.0, device=mu_attn.device)
         
         # Reparameterization
         sample = self.reparameterize(mu_attn, logvar_attn)
