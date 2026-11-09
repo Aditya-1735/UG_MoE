@@ -96,6 +96,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     
     best_f1 = 0
     best_epoch = 0
+    nan_batches = 0
     
     for epoch in range(1, epochs + 1):
         model.train()
@@ -106,13 +107,22 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             
             optimizer.zero_grad()
             outputs = model(graph, binary_labels)
+            logits = outputs["MMlogit"]
             loss = outputs["loss"]
-            if not torch.isfinite(loss):
+            
+            # Skip batch if model outputs or loss are non-finite
+            if not torch.isfinite(logits).all() or not torch.isfinite(loss):
+                nan_batches += 1
                 continue
+            
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
             train_loss += loss.item()
+        
+        if nan_batches > 0:
+            print(f"  Warning: {nan_batches} batches skipped due to NaN/Inf loss in epoch {epoch}")
+            nan_batches = 0
         
         avg_train_loss = train_loss / len(train_loader)
         
@@ -183,7 +193,7 @@ def main():
                         help="Base output directory (default: experiments/runs)")
     parser.add_argument("--epochs", type=int, default=50, help="Number of epochs (default: 50)")
     parser.add_argument("--batch-size", type=int, default=50, help="Batch size (default: 50)")
-    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate (default: 0.001)")
+    parser.add_argument("--lr", type=float, default=0.0005, help="Learning rate (default: 0.0005)")
     parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu (default: cuda)")
     args = parser.parse_args()
 
