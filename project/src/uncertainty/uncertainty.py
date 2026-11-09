@@ -62,8 +62,8 @@ class UncertaintyBlock(nn.Module):
             x: [B, in_dim] - input features
             
         Returns:
-            sample: [B, out_dim] - reparameterized sample (or mu during eval)
-            kl_loss: scalar - KL divergence loss (0 during eval)
+            out: [B, out_dim] - deterministic output (mu, no sampling noise)
+            kl_loss: scalar - KL divergence loss used as regularizer
         """
         encoded = self.encoder(x)  # [B, hidden_dim]
         
@@ -74,17 +74,12 @@ class UncertaintyBlock(nn.Module):
         mu_attn = self.attention_mu(mu)
         var_attn = self.attention_var(var)
         
-        # During evaluation, use mu directly (deterministic) instead of sampling
-        if not self.training:
-            return mu_attn, torch.tensor(0.0, device=mu_attn.device)
-        
-        # Reparameterization
-        sample = self.reparameterize(mu_attn, var_attn)
-        
-        # KL loss
+        # Use mu directly (deterministic) - no sampling noise that causes training instability
+        # KL loss is still computed as a regularizer toward N(0, I)
+        out = mu_attn
         kl_loss = self.kl_loss(mu_attn, var_attn)
         
-        return sample, kl_loss
+        return out, kl_loss
     
     def reparameterize(self, mu: torch.Tensor, var: torch.Tensor) -> torch.Tensor:
         """
@@ -175,8 +170,8 @@ class VariationalUncertaintyBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns:
-            sample: [B, out_dim]
-            kl_loss: scalar
+            out: [B, out_dim] - deterministic output (mu, no sampling noise)
+            kl_loss: scalar - KL divergence loss used as regularizer
         """
         encoded = self.encoder(x)
         
@@ -190,17 +185,12 @@ class VariationalUncertaintyBlock(nn.Module):
         mu_attn = self.attention_mu(mu)
         logvar_attn = self.attention_var(logvar)
         
-        # During evaluation, use mu directly (deterministic) instead of sampling
-        if not self.training:
-            return mu_attn, torch.tensor(0.0, device=mu_attn.device)
-        
-        # Reparameterization
-        sample = self.reparameterize(mu_attn, logvar_attn)
-        
-        # KL loss
+        # Use mu directly (deterministic) - no sampling noise that causes training instability
+        # KL loss is still computed as a regularizer toward N(0, I)
+        out = mu_attn
         kl_loss = self.kl_loss(mu_attn, logvar_attn)
         
-        return sample, kl_loss
+        return out, kl_loss
     
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         """z = mu + eps * sqrt(exp(logvar))"""
