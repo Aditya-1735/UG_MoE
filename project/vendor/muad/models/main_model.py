@@ -81,7 +81,7 @@ class MainModel(nn.Module):
         new_log, l_kl_loss = self.log_uncertain_block(log["log_embedding"])
 
         mean_kl_loss = (m_kl_loss + t_kl_loss + l_kl_loss) / 3
-        y_anomaly = (fault_indexs >= 1).long()
+        y_anomaly = (fault_indexs >= 1).long().to(new_trace.device)
 
         criterion = nn.CrossEntropyLoss()
         # Compute confidence loss for each modality
