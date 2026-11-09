@@ -84,6 +84,7 @@ class GraphAwareMoE(nn.Module):
         
         # Training
         dropout: float = 0.1,
+        dependency_expert_type: str = "gat",  # "gat" or "graph_transformer"
         
         # Log-only mode (for HDFS, etc.)
         log_only_mode: bool = False,
@@ -210,7 +211,7 @@ class GraphAwareMoE(nn.Module):
                         in_dim=hidden_dim,
                         hidden_dim=expert_hidden_dim,
                         out_dim=hidden_dim,
-                        expert_type="gat",
+                        expert_type=dependency_expert_type,
                         num_heads=4,
                         num_layers=2,
                         dropout=dropout,
@@ -356,31 +357,34 @@ class GraphAwareMoE(nn.Module):
             traces = graph.ndata["traces"]     # [B*12, 10, 1]
             logs = graph.ndata["logs"]         # [B*12, 14]
             
-            # Encode each modality per node
+            # Encode each modality per node (keep per-node before pooling)
             # Metrics: GRU over time
-            metric_emb = self.metric_encoder(metrics)  # [B*12, hidden_dim]
+            metric_node = self.metric_encoder(metrics)  # [B*12, hidden_dim]
             
             # Traces: GRU over time
-            trace_emb = self.trace_encoder(traces)     # [B*12, hidden_dim]
+            trace_node = self.trace_encoder(traces)     # [B*12, hidden_dim]
             
             # Logs: Linear projection
-            log_emb = self.log_encoder(logs)           # [B*12, hidden_dim]
+            log_node = self.log_encoder(logs)           # [B*12, hidden_dim]
             
             # Apply graph model (GAT + pooling) if available
             if self.graph_model is not None:
-                metric_emb = self.graph_model(graph, metric_emb)  # [B, hidden_dim]
-                trace_emb = self.graph_model(graph, trace_emb)    # [B, hidden_dim]
-                log_emb = self.graph_model(graph, log_emb)        # [B, hidden_dim]
+                metric_emb = self.graph_model(graph, metric_node)  # [B, hidden_dim]
+                trace_emb = self.graph_model(graph, trace_node)    # [B, hidden_dim]
+                log_emb = self.graph_model(graph, log_node)        # [B, hidden_dim]
             else:
                 # Simple pooling over nodes
-                metric_emb = metric_emb.view(B, self.num_nodes, -1).mean(dim=1)
-                trace_emb = trace_emb.view(B, self.num_nodes, -1).mean(dim=1)
-                log_emb = log_emb.view(B, self.num_nodes, -1).mean(dim=1)
+                metric_emb = metric_node.view(B, self.num_nodes, -1).mean(dim=1)
+                trace_emb = trace_node.view(B, self.num_nodes, -1).mean(dim=1)
+                log_emb = log_node.view(B, self.num_nodes, -1).mean(dim=1)
             
             return {
-                "metric": metric_emb,
-                "trace": trace_emb,
-                "log": log_emb,
+                "metric": metric_emb,           # [B, hidden_dim] graph-level
+                "trace": trace_emb,             # [B, hidden_dim] graph-level
+                "log": log_emb,                 # [B, hidden_dim] graph-level
+                "metric_node": metric_node,     # [B*12, hidden_dim] per-node
+                "trace_node": trace_node,       # [B*12, hidden_dim] per-node
+                "log_node": log_node,           # [B*12, hidden_dim] per-node
             }
     
     def forward(
@@ -483,30 +487,14 @@ class GraphAwareMoE(nn.Module):
                 elif exp_type == "semantic":
                     out = expert(graph.ndata["logs"], B)  # [B, D]
                 elif exp_type == "dependency":
-                    # Need graph for GAT - use per-node embeddings from graph
-                    metric_emb = modality_embeddings["metric"]  # [B, hidden_dim]
-                    node_feats = metric_emb.unsqueeze(1).repeat(1, self.num_nodes, 1).view(-1, self.hidden_dim)
-                    out = expert(graph, node_feats)  # [B*12, D] or [B, 12, D]
-                    if out.dim() == 3:
-                        out = out.mean(dim=1)  # [B, D]
-                    else:
-                        # Reshape from [B*12, D] to [B, 12, D] then mean
-                        if out.shape[0] == B * self.num_nodes:
-                            out = out.view(B, self.num_nodes, -1).mean(dim=1)
-                        elif out.shape[0] == B:
-                            out = out  # Already [B, D]
-                        else:
-                            # Try to reshape
-                            out = out.view(B, -1, out.shape[-1]).mean(dim=1)
+                    # Use actual per-node metric embeddings (not broadcast graph-level)
+                    node_feats = modality_embeddings["metric_node"]  # [B*12, hidden_dim]
+                    out = expert(graph, node_feats)  # [B*12, D]
                 elif exp_type == "cross_modal":
-                    # Add per-node embeddings to graph for cross-modal fusion
-                    B = graph.batch_size
-                    metric_node = modality_embeddings["metric"].unsqueeze(1).repeat(1, self.num_nodes, 1).view(-1, self.hidden_dim)
-                    trace_node = modality_embeddings["trace"].unsqueeze(1).repeat(1, self.num_nodes, 1).view(-1, self.hidden_dim)
-                    log_node = modality_embeddings["log"].unsqueeze(1).repeat(1, self.num_nodes, 1).view(-1, self.hidden_dim)
-                    graph.ndata["metric_emb"] = metric_node
-                    graph.ndata["trace_emb"] = trace_node
-                    graph.ndata["log_emb"] = log_node
+                    # Use actual per-node embeddings (not broadcast graph-level)
+                    graph.ndata["metric_emb"] = modality_embeddings["metric_node"]  # [B*12, hidden_dim]
+                    graph.ndata["trace_emb"] = modality_embeddings["trace_node"]    # [B*12, hidden_dim]
+                    graph.ndata["log_emb"] = modality_embeddings["log_node"]        # [B*12, hidden_dim]
                     out = expert(graph)
                     # CrossModalExpertGraph returns dict with fused_embedding [B, D]
                     if isinstance(out, dict):
@@ -541,8 +529,35 @@ class GraphAwareMoE(nn.Module):
             ], dim=-1)  # [B, 3*hidden_dim]
         
         # Get routing weights
+        # Build graph_info: [B, 24*2] flattened edge list per subgraph
+        src, dst = graph.edges()  # [E] global node IDs
+        batch_num_edges = graph.batch_num_edges().tolist()
+        src_split = torch.split(src, batch_num_edges)
+        dst_split = torch.split(dst, batch_num_edges)
+        graph_info_list = []
+        for s, d in zip(src_split, dst_split):
+            edges = torch.stack([s.float(), d.float()], dim=1).flatten()  # [48]
+            graph_info_list.append(edges)
+        graph_info = torch.stack(graph_info_list, dim=0)  # [B, 48]
+
+        # Build per-expert uncertainties tensor [B, num_experts]
+        if self.use_uncertainty and expert_uncertainties:
+            unc_list = []
+            for exp_type in self.expert_types:
+                kl = expert_uncertainties.get(exp_type, 0.0)
+                if not isinstance(kl, torch.Tensor):
+                    kl = torch.tensor(kl, device=routing_features.device, dtype=routing_features.dtype)
+                if kl.dim() == 0:
+                    kl = kl.expand(B)
+                unc_list.append(kl)
+            expert_unc_tensor = torch.stack(unc_list, dim=1)  # [B, num_experts]
+        else:
+            expert_unc_tensor = None
+
         routing_weights, routing_aux_loss = self.router(
             routing_features,
+            graph_info=graph_info,
+            expert_uncertainties=expert_unc_tensor,
             return_uncertainty=True,
         )
         # Handle new return format from router (dict with aux_loss)
@@ -684,6 +699,7 @@ DEFAULT_CONFIG = {
     "use_uncertainty": True,
     "uncertainty_type": "variational",
     "dropout": 0.1,
+    "dependency_expert_type": "gat",
     # Log-only mode parameters
     "log_only_mode": False,
     "template_vocab_size": 50,
