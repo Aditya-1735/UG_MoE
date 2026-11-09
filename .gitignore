@@ -10,3 +10,5 @@ hdfs_dataset/preprocessed/Event_occurrence_matrix.csv
 
 __pycache__/
 *.pyc
+
+SN_dataset
