@@ -93,7 +93,8 @@ class UncertaintyBlock(nn.Module):
         Note: var is treated as VARIANCE (not log-variance)
         sigma = sqrt(var)
         """
-        std = var.sqrt()  # Treat var as variance
+        var = torch.clamp(var, 1e-8, 1e4)
+        std = var.sqrt()
         eps = torch.randn_like(std)
         return mu + eps * std
     
@@ -110,7 +111,7 @@ class UncertaintyBlock(nn.Module):
         This implementation uses variance consistently.
         """
         # KL(N(mu, var) || N(0, I)) = 0.5 * (mu^2 + var - 1 - log(var))
-        kl = 0.5 * (mu ** 2 + var - 1 - var.log())
+        kl = 0.5 * (mu ** 2 + var - 1 - (var + 1e-8).log())
         return kl.mean()
 
 
@@ -182,6 +183,9 @@ class VariationalUncertaintyBlock(nn.Module):
         mu = self.fc_mu(encoded)           # [B, out_dim]
         logvar = self.fc_logvar(encoded)   # [B, out_dim]
         
+        # Clamp logvar to prevent exp() overflow
+        logvar = torch.clamp(logvar, -10, 10)
+        
         # Attention gating
         mu_attn = self.attention_mu(mu)
         logvar_attn = self.attention_var(logvar)
@@ -200,6 +204,7 @@ class VariationalUncertaintyBlock(nn.Module):
     
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         """z = mu + eps * sqrt(exp(logvar))"""
+        logvar = torch.clamp(logvar, -10, 10)
         std = (0.5 * logvar).exp()
         eps = torch.randn_like(std)
         return mu + eps * std
@@ -209,7 +214,8 @@ class VariationalUncertaintyBlock(nn.Module):
         KL(N(mu, exp(logvar)) || N(0, I)) 
         = 0.5 * sum(mu^2 + exp(logvar) - 1 - logvar)
         """
-        kl = 0.5 * (mu ** 2 + logvar.exp() - 1 - logvar)
+        var = torch.clamp(logvar.exp(), 1e-8, 1e4)
+        kl = 0.5 * (mu ** 2 + var - 1 - logvar)
         return kl.mean()
 
 
