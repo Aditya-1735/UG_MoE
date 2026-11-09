@@ -47,10 +47,10 @@ def load_common_data(data_dir: Path, batch_size: int):
     return train_loader, test_loader, len(train_data), len(test_data)
 
 
-def run_track_a(seed, train_loader, test_loader, output_dir, epochs, lr, event_num):
+def run_track_a(seed, train_loader, test_loader, output_dir, epochs, lr, event_num, device):
     """Run MUAD (Track A) with a single seed."""
     seed_everything(seed)
-    device = torch.device("cpu")
+    device = torch.device(device)
 
     model = BaseModel(
         device=device,
@@ -76,10 +76,10 @@ def run_track_a(seed, train_loader, test_loader, output_dir, epochs, lr, event_n
     }
 
 
-def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_size, weight_decay, log_dim):
+def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_size, weight_decay, log_dim, device):
     """Run Graph-Aware MoE (Track B) with a single seed."""
     seed_everything(seed)
-    device = torch.device("cpu")
+    device = torch.device(device)
 
     config = DEFAULT_CONFIG.copy()
     config.pop("epochs", None)
@@ -151,6 +151,7 @@ def main():
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate (default: 0.001)")
     parser.add_argument("--event-num", type=int, default=15, help="Number of event templates (default: 15)")
     parser.add_argument("--log-dim", type=int, default=15, help="Log dim for Track B (default: 15)")
+    parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu (default: cuda)")
     args = parser.parse_args()
 
     seeds = [int(s.strip()) for s in args.seeds.split(",")]
@@ -193,7 +194,7 @@ def main():
         print("\n--- Track A (MUAD Baseline) ---")
         try:
             res_a = run_track_a(seed, train_loader, test_loader, output_base,
-                                args.epochs, args.lr, args.event_num)
+                                args.epochs, args.lr, args.event_num, args.device)
             track_a_results.append(res_a)
             print(f"  Best F1: {res_a['best_f1']:.4f} (epoch {res_a['best_epoch']})")
             print(f"  Final F1: {res_a['final_f1']:.4f}, Pre: {res_a['final_precision']:.4f}, Rec: {res_a['final_recall']:.4f}")
@@ -207,7 +208,7 @@ def main():
         print("\n--- Track B (Graph-Aware MoE) ---")
         try:
             res_b = run_track_b(seed, train_loader, test_loader, output_base,
-                                args.epochs, args.lr, args.batch_size, WEIGHT_DECAY, args.log_dim)
+                                args.epochs, args.lr, args.batch_size, WEIGHT_DECAY, args.log_dim, args.device)
             track_b_results.append(res_b)
             print(f"  Best F1: {res_b['best_f1']:.4f} (epoch {res_b['best_epoch']})")
         except Exception as e:

@@ -53,7 +53,7 @@ ABLATIONS = {
 }
 
 def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_base: Path,
-                 data_dir: Path = None, epochs: int = 50, batch_size: int = 50, lr: float = 0.001):
+                 data_dir: Path = None, epochs: int = 50, batch_size: int = 50, lr: float = 0.001, device: str = "cuda"):
     """Run single ablation experiment with given seed."""
     print(f"\n{'='*60}")
     print(f"ABLATION: {ablation_name} | Seed: {seed}")
@@ -79,7 +79,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     train_loader = create_dataloader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = create_dataloader(test_dataset, batch_size=batch_size, shuffle=False)
     
-    device = torch.device("cpu")
+    device = torch.device(device)
     config = DEFAULT_CONFIG.copy()
     config['log_dim'] = 14
     
@@ -181,6 +181,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=50, help="Number of epochs (default: 50)")
     parser.add_argument("--batch-size", type=int, default=50, help="Batch size (default: 50)")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate (default: 0.001)")
+    parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu (default: cuda)")
     args = parser.parse_args()
 
     seeds = [int(s.strip()) for s in args.seeds.split(",")]
@@ -216,7 +217,7 @@ def main():
             try:
                 result = run_ablation(ablation_name, ablation_config, seed, output_base,
                                       data_dir=data_dir, epochs=args.epochs,
-                                      batch_size=args.batch_size, lr=args.lr)
+                                      batch_size=args.batch_size, lr=args.lr, device=args.device)
                 ablation_results.append(result)
                 print(f"  Run {i}/{len(seeds)} (seed={seed}): Best F1={result['best_f1']:.4f} (epoch {result['best_epoch']})")
             except Exception as e:
