@@ -103,6 +103,10 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
             outputs = model(graph, binary_labels)
             loss = outputs["loss"]
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            if torch.isnan(loss):
+                optimizer.zero_grad()
+                continue
             optimizer.step()
             train_loss += loss.item()
 
