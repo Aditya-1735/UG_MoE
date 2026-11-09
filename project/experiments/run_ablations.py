@@ -116,6 +116,12 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                 continue
             
             loss.backward()
+            # Check gradients for NaN/Inf before clipping and step
+            grad_finite = all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None)
+            if not grad_finite:
+                optimizer.zero_grad()
+                nan_batches += 1
+                continue
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
             train_loss += loss.item()

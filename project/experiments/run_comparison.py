@@ -111,6 +111,12 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
                 continue
 
             loss.backward()
+            # Check gradients for NaN/Inf before clipping and step
+            grad_finite = all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None)
+            if not grad_finite:
+                optimizer.zero_grad()
+                nan_batches += 1
+                continue
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
             train_loss += loss.item()
