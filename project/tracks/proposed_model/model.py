@@ -417,6 +417,12 @@ class GraphAwareMoE(nn.Module):
         # 1. Encode modalities
         modality_embeddings = self.encode_modalities(graph)
         
+        # NaN detection after modality encoding
+        for key, val in modality_embeddings.items():
+            if torch.is_tensor(val) and not torch.isfinite(val).all():
+                print(f"  [NAN SOURCE] encode_modalities '{key}' produced NaN/Inf!")
+                raise RuntimeError(f"NaN/Inf in encode_modalities.{key}")
+        
         # 2. Run experts
         expert_outputs = {}
         expert_uncertainties = {}
@@ -506,6 +512,11 @@ class GraphAwareMoE(nn.Module):
                 elif out.dim() == 2 and out.shape[0] == B * self.num_nodes:
                     out = out.view(B, self.num_nodes, -1).mean(dim=1)
                 
+                # NaN detection after each expert
+                if not torch.isfinite(out).all():
+                    print(f"  [NAN SOURCE] Expert '{exp_type}' produced NaN/Inf output!")
+                    raise RuntimeError(f"NaN/Inf from expert {exp_type}")
+                
                 expert_outputs[exp_type] = out  # [B, hidden_dim]
                 
                 # 3. Uncertainty estimation
@@ -563,6 +574,12 @@ class GraphAwareMoE(nn.Module):
         # Handle new return format from router (dict with aux_loss)
         if isinstance(routing_aux_loss, dict):
             routing_aux_loss = routing_aux_loss.get('aux_loss', 0)
+        
+        # NaN detection after router
+        if not torch.isfinite(routing_weights).all():
+            print(f"  [NAN SOURCE] Router produced NaN/Inf routing_weights!")
+            raise RuntimeError("NaN/Inf from router")
+        
         top_k_indices = torch.topk(routing_weights, min(self.router.top_k, self.num_experts), dim=-1).indices
         
         # 5. Apply routing to expert outputs
@@ -580,8 +597,18 @@ class GraphAwareMoE(nn.Module):
         fusion_inputs = {exp_type: expert_outputs[exp_type] for exp_type in self.expert_types}
         fused, fusion_weights = self.fusion(fusion_inputs, return_weights=True)
         
+        # NaN detection after fusion
+        if not torch.isfinite(fused).all():
+            print(f"  [NAN SOURCE] Fusion produced NaN/Inf output!")
+            raise RuntimeError("NaN/Inf from fusion")
+        
         # 6. Classification
         MMlogit = self.classifier(fused)
+        
+        # NaN detection after classifier
+        if not torch.isfinite(MMlogit).all():
+            print(f"  [NAN SOURCE] Classifier produced NaN/Inf logits!")
+            raise RuntimeError("NaN/Inf from classifier")
         
         # Prepare outputs
         outputs = {
