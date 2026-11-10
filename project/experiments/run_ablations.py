@@ -87,7 +87,6 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     
     device = torch.device(device)
     config = DEFAULT_CONFIG.copy()
-    config['log_dim'] = 15
     
     # Apply ablation config
     for k, v in ablation_config.items():

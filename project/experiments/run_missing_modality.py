@@ -114,7 +114,7 @@ def run_single_experiment(seed: int, output_base: Path):
     # Load full model config
     config = DEFAULT_CONFIG.copy()
     config.pop("epochs", None)
-    config['log_dim'] = 15
+    config['log_dim'] = 14
     model = GraphAwareMoE(**config).to(device)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)

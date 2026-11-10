@@ -48,7 +48,7 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     
     device = torch.device("cpu")
     config = DEFAULT_CONFIG.copy()
-    config['log_dim'] = 15  # recovered_artifact has 15 templates
+    
     model_config = {k: v for k, v in config.items() if k != 'epochs'}
     
     model = GraphAwareMoE(**model_config).to(device)

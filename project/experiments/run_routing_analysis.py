@@ -116,7 +116,7 @@ def run_analysis(seed: int, output_base: Path):
     
     config = DEFAULT_CONFIG.copy()
     config.pop("epochs", None)
-    config['log_dim'] = 15
+    config['log_dim'] = 14
     model = GraphAwareMoE(**config).to(device)
     
     # Train model briefly

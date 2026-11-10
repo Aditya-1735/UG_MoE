@@ -56,7 +56,7 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     # Plain MoE config: no graph routing, no uncertainty routing, simple fusion
     config = DEFAULT_CONFIG.copy()
     config.pop("epochs", None)
-    config['log_dim'] = 15
+    config['log_dim'] = 14
     config['router_type'] = "base"
     config['use_graph_routing'] = False
     config['use_uncertainty_routing'] = False

@@ -89,7 +89,7 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
 
     config = DEFAULT_CONFIG.copy()
     config.pop("epochs", None)
-    config["log_dim"] = log_dim
+    # log_dim uses DEFAULT_CONFIG default (14) which matches actual data
     model = GraphAwareMoE(**config).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -177,7 +177,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=50, help="Batch size (default: 50)")
     parser.add_argument("--lr", type=float, default=0.0005, help="Learning rate (default: 0.0005)")
     parser.add_argument("--event-num", type=int, default=15, help="Number of event templates (default: 15)")
-    parser.add_argument("--log-dim", type=int, default=15, help="Log dim for Track B (default: 15)")
+    parser.add_argument("--log-dim", type=int, default=14, help="Log dim for Track B (default: 14)")
     parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu (default: cuda)")
     args = parser.parse_args()
 
