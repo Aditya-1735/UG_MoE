@@ -1,14 +1,60 @@
-.venv
-raw_data/
-.PROJECT_EXECUTION_MASTER_PLAN_DETAILED.md.swp
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+lib/
+lib64/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-hdfs_dataset/HDFS.log
-hdfs_dataset/preprocessed/Event_traces.csv
-hdfs_dataset/preprocessed/HDFS.npz
-hdfs_dataset/preprocessed/Event_occurrence_matrix.csv
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.venv/
 
-__pycache__/
-*.pyc
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-SN_dataset
+# OS
+.DS_Store
+Thumbs.db
+
+# Experiment outputs
+project/experiments/runs/
+project/checkpoints/
+*.log
+
+# Data files (large binary files, use Git LFS if needed)
+*.pkl
+*.bin
+
+# Jupyter
+.ipynb_checkpoints/
+.ipynb
+
+# Kilo config
+.kilo/
+
+# Temporary
+/tmp/
+temp/
+tmp/
