@@ -230,6 +230,8 @@ class GraphAwareMoE(nn.Module):
                 else:
                     raise ValueError(f"Unknown expert type: {exp_type}")
         
+        self.dependency_expert_type = dependency_expert_type
+        
         # ============================================================
         # 3. Expert Router
         # ============================================================
