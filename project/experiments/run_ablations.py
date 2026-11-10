@@ -69,7 +69,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     seed_everything(seed)
     
     if data_dir is None:
-        data_dir = Path(__file__).parent.parent / "preprocessing/muad_compat/output"
+        data_dir = Path(__file__).parent.parent / "recovered_artifact"
     train_data, node_num, edges = load_data(
         str(data_dir / "chunk_train.pkl"),
         str(data_dir / "metadata.json")
@@ -87,7 +87,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     
     device = torch.device(device)
     config = DEFAULT_CONFIG.copy()
-    config['log_dim'] = 14
+    config['log_dim'] = 15
     
     # Apply ablation config
     for k, v in ablation_config.items():
@@ -138,6 +138,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
         model.eval()
         all_preds = []
         all_labels = []
+        all_probs = []
         test_loss = 0
         with torch.no_grad():
             for graph, labels in test_loader:
@@ -147,17 +148,21 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                 loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
                 test_loss += loss.item()
                 preds = outputs["y_pred"]
+                probs = torch.softmax(outputs["MMlogit"], dim=-1)[:, 1]
                 all_preds.extend(preds.cpu().tolist())
                 all_labels.extend(binary_labels.cpu().tolist())
+                all_probs.extend(probs.cpu().tolist())
         
         avg_test_loss = test_loss / len(test_loader)
         
-        from sklearn.metrics import f1_score, precision_score, recall_score
+        from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
         f1 = f1_score(all_labels, all_preds, average='binary')
         precision = precision_score(all_labels, all_preds, average='binary')
         recall = recall_score(all_labels, all_preds, average='binary')
+        roc_auc = roc_auc_score(all_labels, all_probs)
+        pr_auc = average_precision_score(all_labels, all_probs)
         
-        print(f"  Epoch {epoch:2d}: Train Loss={avg_train_loss:.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}")
+        print(f"  Epoch {epoch:2d}: Train Loss={avg_train_loss:.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}, ROC-AUC={roc_auc:.4f}, PR-AUC={pr_auc:.4f}")
 
         if f1 > best_f1:
             best_f1 = f1
@@ -180,6 +185,8 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     final_f1 = f1_score(all_labels, all_preds, average='binary')
     final_pre = precision_score(all_labels, all_preds, average='binary')
     final_rec = recall_score(all_labels, all_preds, average='binary')
+    final_roc_auc = roc_auc_score(all_labels, all_probs)
+    final_pr_auc = average_precision_score(all_labels, all_probs)
     
     return {
         "ablation": ablation_name,
@@ -188,7 +195,9 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
         "best_epoch": best_epoch,
         "final_f1": final_f1,
         "final_precision": final_pre,
-        "final_recall": final_rec
+        "final_recall": final_rec,
+        "final_roc_auc": final_roc_auc,
+        "final_pr_auc": final_pr_auc
     }
 
 def main():
@@ -286,7 +295,7 @@ def main():
             "lr": args.lr,
             "batch_size": args.batch_size,
             "weight_decay": 1e-5,
-            "event_num": 14,
+            "event_num": 15,
             "seeds": seeds
         },
         "results": all_results

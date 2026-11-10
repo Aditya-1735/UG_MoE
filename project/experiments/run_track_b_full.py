@@ -27,8 +27,8 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     
     seed_everything(seed)
     
-    # Load OUR regenerated data (event_num=14)
-    data_dir = Path(__file__).parent.parent / "preprocessing/muad_compat/output"
+    # Load recovered artifact (event_num=15) — same as Track A for apples-to-apples
+    data_dir = Path(__file__).parent.parent / "recovered_artifact"
     train_data, node_num, edges = load_data(
         str(data_dir / "chunk_train.pkl"),
         str(data_dir / "metadata.json")
@@ -48,7 +48,7 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     
     device = torch.device("cpu")
     config = DEFAULT_CONFIG.copy()
-    config['log_dim'] = 14  # Our regenerated data has 14 templates
+    config['log_dim'] = 15  # recovered_artifact has 15 templates
     model_config = {k: v for k, v in config.items() if k != 'epochs'}
     
     model = GraphAwareMoE(**model_config).to(device)
@@ -95,6 +95,7 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
             test_total = 0
             all_preds = []
             all_labels = []
+            all_probs = []
             
             with torch.no_grad():
                 for graph, labels in test_loader:
@@ -106,23 +107,29 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
                     
                     test_loss += loss.item()
                     preds = outputs["y_pred"]
+                    # Get probabilities for ROC-AUC/PR-AUC (positive class = anomaly)
+                    probs = torch.softmax(outputs["MMlogit"], dim=-1)[:, 1]
                     test_correct += (preds == binary_labels).sum().item()
                     test_total += labels.size(0)
                     
                     all_preds.extend(preds.cpu().tolist())
                     all_labels.extend(binary_labels.cpu().tolist())
+                    all_probs.extend(probs.cpu().tolist())
             
             avg_test_loss = test_loss / len(test_loader)
             test_acc = test_correct / test_total
             
-            from sklearn.metrics import f1_score, precision_score, recall_score
+            from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
             f1 = f1_score(all_labels, all_preds, average='binary')
             precision = precision_score(all_labels, all_preds, average='binary')
             recall = recall_score(all_labels, all_preds, average='binary')
+            roc_auc = roc_auc_score(all_labels, all_probs)
+            pr_auc = average_precision_score(all_labels, all_probs)
             
             print(f"  Epoch {epoch:2d}: Train Loss={avg_train_loss:.4f}, Acc={train_acc:.4f} | "
                   f"Test Loss={avg_test_loss:.4f}, Acc={test_acc:.4f}, "
-                  f"F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}")
+                  f"F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}, "
+                  f"ROC-AUC={roc_auc:.4f}, PR-AUC={pr_auc:.4f}")
             
             epoch_results.append({
                 "epoch": epoch,
@@ -132,7 +139,9 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
                 "test_acc": test_acc,
                 "f1": f1,
                 "precision": precision,
-                "recall": recall
+                "recall": recall,
+                "roc_auc": roc_auc,
+                "pr_auc": pr_auc
             })
             
             if f1 > best_f1:
@@ -161,19 +170,24 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     model.eval()
     all_preds = []
     all_labels = []
+    all_probs = []
     with torch.no_grad():
         for graph, labels in test_loader:
             graph, labels = graph.to(device), labels.to(device)
             binary_labels = (labels >= 1).long()
             outputs = model(graph, binary_labels)
             preds = outputs["y_pred"]
+            probs = torch.softmax(outputs["MMlogit"], dim=-1)[:, 1]
             all_preds.extend(preds.cpu().tolist())
             all_labels.extend(binary_labels.cpu().tolist())
+            all_probs.extend(probs.cpu().tolist())
     
-    from sklearn.metrics import f1_score, precision_score, recall_score
+    from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
     final_f1 = f1_score(all_labels, all_preds, average='binary')
     final_pre = precision_score(all_labels, all_preds, average='binary')
     final_rec = recall_score(all_labels, all_preds, average='binary')
+    final_roc_auc = roc_auc_score(all_labels, all_probs)
+    final_pr_auc = average_precision_score(all_labels, all_probs)
     
     results = {
         "run_id": run_id,
@@ -183,6 +197,8 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
         "final_f1": final_f1,
         "final_precision": final_pre,
         "final_recall": final_rec,
+        "final_roc_auc": final_roc_auc,
+        "final_pr_auc": final_pr_auc,
         "epoch_results": epoch_results
     }
     
@@ -190,7 +206,8 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
         json.dump(results, f, indent=2)
     
     print(f"  Best F1: {best_f1:.4f} (epoch {best_epoch})")
-    print(f"  Final F1: {final_f1:.4f}, Pre: {final_pre:.4f}, Rec: {final_rec:.4f}")
+    print(f"  Final F1: {final_f1:.4f}, Pre: {final_pre:.4f}, Rec: {final_rec:.4f}, "
+          f"ROC-AUC: {final_roc_auc:.4f}, PR-AUC: {final_pr_auc:.4f}")
     
     return results
 
@@ -243,7 +260,7 @@ def main():
             "lr": 0.001,
             "batch_size": 50,
             "weight_decay": 1e-5,
-            "event_num": 14,
+            "event_num": 15,
             "seeds": seeds,
             "router_type": "uncertainty_guided",
             "fusion_type": "confidence",

@@ -128,6 +128,7 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
         model.eval()
         all_preds = []
         all_labels = []
+        all_probs = []
         test_loss = 0.0
         with torch.no_grad():
             for graph, labels in test_loader:
@@ -137,17 +138,21 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
                 loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
                 test_loss += loss.item()
                 preds = outputs["y_pred"]
+                probs = torch.softmax(outputs["MMlogit"], dim=-1)[:, 1]
                 all_preds.extend(preds.cpu().tolist())
                 all_labels.extend(binary_labels.cpu().tolist())
+                all_probs.extend(probs.cpu().tolist())
 
         avg_test_loss = test_loss / len(test_loader)
 
-        from sklearn.metrics import f1_score, precision_score, recall_score
+        from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
         f1 = f1_score(all_labels, all_preds, average="binary")
         precision = precision_score(all_labels, all_preds, average="binary")
         recall = recall_score(all_labels, all_preds, average="binary")
+        roc_auc = roc_auc_score(all_labels, all_probs)
+        pr_auc = average_precision_score(all_labels, all_probs)
 
-        print(f"  Epoch {epoch:2d}: Train Loss={train_loss / len(train_loader):.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}")
+        print(f"  Epoch {epoch:2d}: Train Loss={train_loss / len(train_loader):.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}, ROC-AUC={roc_auc:.4f}, PR-AUC={pr_auc:.4f}")
 
         if f1 > best_f1:
             best_f1 = f1
