@@ -498,7 +498,10 @@ class GraphAwareMoE(nn.Module):
                     # Use actual per-node metric embeddings (not broadcast graph-level)
                     node_feats = modality_embeddings["metric_node"]  # [B*12, hidden_dim]
                     if self.dependency_expert_type == "graph_transformer":
-                        out = expert(node_feats)  # GraphTransformer expects node_features first
+                        # GraphTransformerExpert expects [B, 12, hidden_dim] input
+                        node_feats = node_feats.view(B, self.num_nodes, -1)
+                        out = expert(node_feats, batch_size=B)  # [B, 12, hidden_dim]
+                        out = out.mean(dim=1)  # Pool to [B, hidden_dim]
                     else:
                         out = expert(graph, node_feats)  # GAT expects (graph, node_features)
                 elif exp_type == "cross_modal":
