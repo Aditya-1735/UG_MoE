@@ -135,34 +135,33 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
         
         avg_train_loss = train_loss / len(train_loader)
         
-        if epoch % 5 == 0:
-            model.eval()
-            all_preds = []
-            all_labels = []
-            test_loss = 0
-            with torch.no_grad():
-                for graph, labels in test_loader:
-                    graph, labels = graph.to(device), labels.to(device)
-                    binary_labels = (labels >= 1).long()
-                    outputs = model(graph, binary_labels)
-                    loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
-                    test_loss += loss.item()
-                    preds = outputs["y_pred"]
-                    all_preds.extend(preds.cpu().tolist())
-                    all_labels.extend(binary_labels.cpu().tolist())
-            
-            avg_test_loss = test_loss / len(test_loader)
-            
-            from sklearn.metrics import f1_score, precision_score, recall_score
-            f1 = f1_score(all_labels, all_preds, average='binary')
-            precision = precision_score(all_labels, all_preds, average='binary')
-            recall = recall_score(all_labels, all_preds, average='binary')
-            
-            print(f"  Epoch {epoch:2d}: Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}")
-            
-            if f1 > best_f1:
-                best_f1 = f1
-                best_epoch = epoch
+        model.eval()
+        all_preds = []
+        all_labels = []
+        test_loss = 0
+        with torch.no_grad():
+            for graph, labels in test_loader:
+                graph, labels = graph.to(device), labels.to(device)
+                binary_labels = (labels >= 1).long()
+                outputs = model(graph, binary_labels)
+                loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
+                test_loss += loss.item()
+                preds = outputs["y_pred"]
+                all_preds.extend(preds.cpu().tolist())
+                all_labels.extend(binary_labels.cpu().tolist())
+        
+        avg_test_loss = test_loss / len(test_loader)
+        
+        from sklearn.metrics import f1_score, precision_score, recall_score
+        f1 = f1_score(all_labels, all_preds, average='binary')
+        precision = precision_score(all_labels, all_preds, average='binary')
+        recall = recall_score(all_labels, all_preds, average='binary')
+        
+        print(f"  Epoch {epoch:2d}: Train Loss={avg_train_loss:.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}")
+
+        if f1 > best_f1:
+            best_f1 = f1
+            best_epoch = epoch
     
     # Final eval
     model.eval()

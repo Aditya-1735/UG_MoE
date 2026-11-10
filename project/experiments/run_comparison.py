@@ -125,30 +125,33 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
             print(f"  Warning: {nan_batches} batches skipped due to NaN/Inf loss in epoch {epoch}")
             nan_batches = 0
 
-        if epoch % EVAL_EVERY == 0:
-            model.eval()
-            all_preds = []
-            all_labels = []
-            test_loss = 0.0
-            with torch.no_grad():
-                for graph, labels in test_loader:
-                    graph, labels = graph.to(device), labels.to(device)
-                    binary_labels = (labels >= 1).long()
-                    outputs = model(graph, binary_labels)
-                    loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
-                    test_loss += loss.item()
-                    preds = outputs["y_pred"]
-                    all_preds.extend(preds.cpu().tolist())
-                    all_labels.extend(binary_labels.cpu().tolist())
+        model.eval()
+        all_preds = []
+        all_labels = []
+        test_loss = 0.0
+        with torch.no_grad():
+            for graph, labels in test_loader:
+                graph, labels = graph.to(device), labels.to(device)
+                binary_labels = (labels >= 1).long()
+                outputs = model(graph, binary_labels)
+                loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
+                test_loss += loss.item()
+                preds = outputs["y_pred"]
+                all_preds.extend(preds.cpu().tolist())
+                all_labels.extend(binary_labels.cpu().tolist())
 
-            from sklearn.metrics import f1_score, precision_score, recall_score
-            f1 = f1_score(all_labels, all_preds, average="binary")
-            precision = precision_score(all_labels, all_preds, average="binary")
-            recall = recall_score(all_labels, all_preds, average="binary")
+        avg_test_loss = test_loss / len(test_loader)
 
-            if f1 > best_f1:
-                best_f1 = f1
-                best_epoch = epoch
+        from sklearn.metrics import f1_score, precision_score, recall_score
+        f1 = f1_score(all_labels, all_preds, average="binary")
+        precision = precision_score(all_labels, all_preds, average="binary")
+        recall = recall_score(all_labels, all_preds, average="binary")
+
+        print(f"  Epoch {epoch:2d}: Train Loss={train_loss / len(train_loader):.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}")
+
+        if f1 > best_f1:
+            best_f1 = f1
+            best_epoch = epoch
 
     return {
         "seed": seed,
