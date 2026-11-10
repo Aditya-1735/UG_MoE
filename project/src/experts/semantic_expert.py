@@ -39,6 +39,7 @@ class SemanticExpert(nn.Module):
                 dim_feedforward=hidden_dim,
                 dropout=dropout,
                 batch_first=True,
+                norm_first=True,  # Pre-norm: much more stable than post-norm
             )
             self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
             self.output_dim = embed_dim
@@ -76,6 +77,11 @@ class SemanticExpert(nn.Module):
             if attention_mask is not None:
                 # Transformer expects True for masked positions
                 attn_mask = (attention_mask == 0)
+                # Safety: if all positions are masked for a sequence, unmask position 0
+                # to avoid softmax NaN in backward pass
+                all_masked = attn_mask.all(dim=1)
+                if all_masked.any():
+                    attn_mask[all_masked, 0] = False
             else:
                 attn_mask = None
             x = self.encoder(x, src_key_padding_mask=attn_mask)  # [batch, seq_len, embed_dim]
@@ -120,6 +126,7 @@ class LogSemanticExpert(nn.Module):
             dim_feedforward=hidden_dim,
             dropout=dropout,
             batch_first=True,
+            norm_first=True,  # Pre-norm: much more stable than post-norm
         )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         
@@ -139,6 +146,9 @@ class LogSemanticExpert(nn.Module):
         
         # Project node features
         x = self.node_projection(log_features)  # [batch*12, embed_dim]
+        
+        # Clamp inputs to prevent attention NaN from extreme values
+        x = torch.clamp(x, -10, 10)
         
         # Reshape to [batch, 12, embed_dim]
         x = x.view(batch_size, num_nodes, -1)
