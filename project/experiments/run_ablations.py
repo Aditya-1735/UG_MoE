@@ -106,9 +106,6 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     best_epoch = 0
     nan_batches = 0
     
-    # Enable anomaly detection to find exact NaN source during backward
-    torch.autograd.set_detect_anomaly(True)
-    
     for epoch in range(1, epochs + 1):
         model.train()
         train_loss = 0
