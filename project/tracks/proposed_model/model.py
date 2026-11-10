@@ -710,7 +710,7 @@ DEFAULT_CONFIG = {
     "num_nodes": 12,
     "metric_dim": 7,
     "trace_dim": 1,
-    "log_dim": 14,
+    "log_dim": 15,
     "num_classes": 2,
     "hidden_dim": 64,
     "expert_hidden_dim": 128,

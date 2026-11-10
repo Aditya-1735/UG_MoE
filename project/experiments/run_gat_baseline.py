@@ -42,7 +42,7 @@ class GATBaseline(nn.Module):
     with multimodal node features + MLP classifier.
     """
     
-    def __init__(self, metric_dim=7, trace_dim=1, log_dim=14, hidden_dim=64,
+    def __init__(self, metric_dim=7, trace_dim=1, log_dim=15, hidden_dim=64,
                  num_heads=4, num_layers=2, dropout=0.1, num_classes=2):
         super().__init__()
         if not DGL_AVAILABLE:
@@ -170,7 +170,7 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     
     device = torch.device("cpu")
     model = GATBaseline(
-        metric_dim=7, trace_dim=1, log_dim=14,
+        metric_dim=7, trace_dim=1, log_dim=15,
         hidden_dim=64, num_heads=4, num_layers=2,
         dropout=0.1, num_classes=2,
     ).to(device)
