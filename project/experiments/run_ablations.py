@@ -190,6 +190,8 @@ def main():
     parser = argparse.ArgumentParser(description="Ablation Studies for Graph-Aware MoE")
     parser.add_argument("--seeds", type=str, default="42",
                         help="Comma-separated list of seeds (default: 42 for single-seed test)")
+    parser.add_argument("--ablation", type=str, default=None,
+                        help="Run only one ablation (e.g. no_uncertainty, plain_moe, no_graph)")
     parser.add_argument("--data-dir", type=str, default=None,
                         help="Path to preprocessed data dir (default: preprocessing/muad_compat/output)")
     parser.add_argument("--output-dir", type=str, default=None,
@@ -223,7 +225,16 @@ def main():
 
     all_results = {}
 
-    for ablation_name, ablation_config in ABLATIONS.items():
+    # Filter ablations if --ablation specified
+    ablation_items = list(ABLATIONS.items())
+    if args.ablation:
+        if args.ablation not in ABLATIONS:
+            print(f"ERROR: Unknown ablation '{args.ablation}'. Available: {list(ABLATIONS.keys())}")
+            return
+        ablation_items = [(args.ablation, ABLATIONS[args.ablation])]
+        print(f"Running single ablation: {args.ablation}")
+
+    for ablation_name, ablation_config in ablation_items:
         print(f"\n{'='*60}")
         print(f"ABLATION: {ablation_name} - {ablation_config.get('description', '')}")
         print(f"{'='*60}")
