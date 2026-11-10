@@ -32,8 +32,8 @@ ABLATIONS = {
         "description": "No uncertainty blocks"
     },
     "no_fusion": {
-        "fusion_type": "concat_mlp",
-        "description": "Simple concat+MLP fusion instead of confidence-weighted"
+        "fusion_type": "weighted_concat",
+        "description": "Simple weighted_concat fusion instead of confidence-weighted"
     },
     "single_expert": {
         "expert_types": ["temporal"],
@@ -43,8 +43,8 @@ ABLATIONS = {
         "router_type": "base",
         "use_graph_routing": False,
         "use_uncertainty_routing": False,
-        "fusion_type": "concat_mlp",
-        "description": "Plain MoE: no graph, no uncertainty, simple fusion"
+        "fusion_type": "weighted_concat",
+        "description": "Plain MoE: no graph, no uncertainty, simple weighted_concat fusion"
     },
     "graph_transformer": {
         "description": "Graph Transformer instead of GAT in dependency expert",
