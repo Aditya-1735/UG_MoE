@@ -109,7 +109,7 @@ def main():
     output_base.mkdir(parents=True, exist_ok=True)
     
     # Seeds for 5 runs
-    seeds = [42, 123, 456, 789, 999]
+    seeds = [42, 123]
     all_results = []
     
     for i, seed in enumerate(seeds, 1):

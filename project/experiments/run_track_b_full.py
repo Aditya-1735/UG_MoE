@@ -223,7 +223,7 @@ def main():
     output_base = Path("project/experiments/runs") / f"track_b_full_{timestamp}"
     output_base.mkdir(parents=True, exist_ok=True)
     
-    seeds = [42, 123, 456, 789, 999]
+    seeds = [42, 123]
     all_results = []
     
     for i, seed in enumerate(seeds, 1):

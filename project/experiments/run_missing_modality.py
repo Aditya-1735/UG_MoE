@@ -200,7 +200,7 @@ def main():
     output_base = Path(__file__).parent.parent / "experiments" / "runs" / f"missing_modality_{timestamp}"
     output_base.mkdir(parents=True, exist_ok=True)
     
-    seeds = [42, 123, 456, 789, 999]
+    seeds = [42, 123]
     all_results = []
     
     for seed in seeds:
