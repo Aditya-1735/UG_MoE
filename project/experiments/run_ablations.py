@@ -32,8 +32,8 @@ ABLATIONS = {
         "description": "No uncertainty blocks"
     },
     "no_fusion": {
-        "fusion_type": "weighted_concat",
-        "description": "Simple weighted_concat fusion instead of confidence-weighted"
+        "fusion_type": "concat_mlp",
+        "description": "Simple concat+MLP fusion instead of confidence-weighted"
     },
     "single_expert": {
         "expert_types": ["temporal"],
@@ -43,8 +43,8 @@ ABLATIONS = {
         "router_type": "base",
         "use_graph_routing": False,
         "use_uncertainty_routing": False,
-        "fusion_type": "weighted_concat",
-        "description": "Plain MoE: no graph, no uncertainty, simple weighted_concat fusion"
+        "fusion_type": "concat_mlp",
+        "description": "Plain MoE: no graph, no uncertainty, simple fusion"
     },
     "graph_transformer": {
         "description": "Graph Transformer instead of GAT in dependency expert",
@@ -98,6 +98,9 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     best_epoch = 0
     nan_batches = 0
     
+    # Enable anomaly detection to find exact NaN source during backward
+    torch.autograd.set_detect_anomaly(True)
+    
     for epoch in range(1, epochs + 1):
         model.train()
         train_loss = 0
@@ -116,12 +119,6 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
                 continue
             
             loss.backward()
-            # Check gradients for NaN/Inf before clipping and step
-            grad_finite = all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None)
-            if not grad_finite:
-                optimizer.zero_grad()
-                nan_batches += 1
-                continue
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
             train_loss += loss.item()
@@ -137,21 +134,18 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
             all_preds = []
             all_labels = []
             test_loss = 0
-            valid_loss_batches = 0
             with torch.no_grad():
                 for graph, labels in test_loader:
                     graph, labels = graph.to(device), labels.to(device)
                     binary_labels = (labels >= 1).long()
                     outputs = model(graph, binary_labels)
                     loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
-                    if torch.isfinite(loss):
-                        test_loss += loss.item()
-                        valid_loss_batches += 1
+                    test_loss += loss.item()
                     preds = outputs["y_pred"]
                     all_preds.extend(preds.cpu().tolist())
                     all_labels.extend(binary_labels.cpu().tolist())
             
-            avg_test_loss = test_loss / max(valid_loss_batches, 1)
+            avg_test_loss = test_loss / len(test_loader)
             
             from sklearn.metrics import f1_score, precision_score, recall_score
             f1 = f1_score(all_labels, all_preds, average='binary')
@@ -196,8 +190,6 @@ def main():
     parser = argparse.ArgumentParser(description="Ablation Studies for Graph-Aware MoE")
     parser.add_argument("--seeds", type=str, default="42",
                         help="Comma-separated list of seeds (default: 42 for single-seed test)")
-    parser.add_argument("--ablation", type=str, default=None,
-                        help="Run only one ablation (e.g. no_uncertainty, plain_moe, no_graph)")
     parser.add_argument("--data-dir", type=str, default=None,
                         help="Path to preprocessed data dir (default: preprocessing/muad_compat/output)")
     parser.add_argument("--output-dir", type=str, default=None,
@@ -231,16 +223,7 @@ def main():
 
     all_results = {}
 
-    # Filter ablations if --ablation specified
-    ablation_items = list(ABLATIONS.items())
-    if args.ablation:
-        if args.ablation not in ABLATIONS:
-            print(f"ERROR: Unknown ablation '{args.ablation}'. Available: {list(ABLATIONS.keys())}")
-            return
-        ablation_items = [(args.ablation, ABLATIONS[args.ablation])]
-        print(f"Running single ablation: {args.ablation}")
-
-    for ablation_name, ablation_config in ablation_items:
+    for ablation_name, ablation_config in ABLATIONS.items():
         print(f"\n{'='*60}")
         print(f"ABLATION: {ablation_name} - {ablation_config.get('description', '')}")
         print(f"{'='*60}")
