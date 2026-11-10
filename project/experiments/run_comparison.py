@@ -23,6 +23,12 @@ from vendor.muad.utils.general_utils import seed_everything
 from vendor.muad.training.base_model import BaseModel
 from tracks.proposed_model import GraphAwareMoE, DEFAULT_CONFIG
 
+# Disable Flash SDPA and mem-efficient SDPA — known NaN issues in backward pass
+# with Transformer attention. Forces standard (stable) attention implementation.
+torch.backends.cuda.enable_flash_sdp(False)
+torch.backends.cuda.enable_mem_efficient_sdp(False)
+torch.backends.cuda.enable_math_sdp(True)
+
 EVAL_EVERY = 5
 WEIGHT_DECAY = 1e-5
 
@@ -111,12 +117,6 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
                 continue
 
             loss.backward()
-            # Check gradients for NaN/Inf before clipping and step
-            grad_finite = all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None)
-            if not grad_finite:
-                optimizer.zero_grad()
-                nan_batches += 1
-                continue
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
             train_loss += loss.item()
@@ -130,21 +130,16 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
             all_preds = []
             all_labels = []
             test_loss = 0.0
-            valid_loss_batches = 0
             with torch.no_grad():
                 for graph, labels in test_loader:
                     graph, labels = graph.to(device), labels.to(device)
                     binary_labels = (labels >= 1).long()
                     outputs = model(graph, binary_labels)
                     loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
-                    if torch.isfinite(loss):
-                        test_loss += loss.item()
-                        valid_loss_batches += 1
+                    test_loss += loss.item()
                     preds = outputs["y_pred"]
                     all_preds.extend(preds.cpu().tolist())
                     all_labels.extend(binary_labels.cpu().tolist())
-            
-            avg_test_loss = test_loss / max(valid_loss_batches, 1)
 
             from sklearn.metrics import f1_score, precision_score, recall_score
             f1 = f1_score(all_labels, all_preds, average="binary")

@@ -20,6 +20,12 @@ from vendor.muad.data.dataset import ChunkDataset
 from vendor.muad.utils.general_utils import seed_everything
 from tracks.proposed_model import GraphAwareMoE, DEFAULT_CONFIG
 
+# Disable Flash SDPA and mem-efficient SDPA — known NaN issues in backward pass
+# with Transformer attention. Forces standard (stable) attention implementation.
+torch.backends.cuda.enable_flash_sdp(False)
+torch.backends.cuda.enable_mem_efficient_sdp(False)
+torch.backends.cuda.enable_math_sdp(True)
+
 # Ablation configurations
 ABLATIONS = {
     "no_graph": {
