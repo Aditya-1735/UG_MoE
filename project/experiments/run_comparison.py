@@ -54,11 +54,11 @@ def load_common_data(data_dir: Path, batch_size: int):
 
 
 def run_track_a(seed, train_loader, test_loader, output_dir, epochs, lr, event_num, device):
-    """Run MUAD (Track A) with a single seed."""
+    """Run MUAD (Track A) with a single seed using a manual per-epoch loop."""
     seed_everything(seed)
     device = torch.device(device)
 
-    model = BaseModel(
+    base_model = BaseModel(
         device=device,
         lr=lr,
         epochs=epochs,
@@ -69,16 +69,97 @@ def run_track_a(seed, train_loader, test_loader, output_dir, epochs, lr, event_n
         event_num=event_num,
     )
 
-    best_f1, best_epoch = model.fit(train_loader, test_loader, evaluation_epoch=EVAL_EVERY)
-    final_results = model.evaluate(test_loader)
+    model = base_model.model
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=WEIGHT_DECAY)
+    criterion = torch.nn.CrossEntropyLoss()
+
+    best_f1 = 0.0
+    best_epoch = 0
+    nan_batches = 0
+    epoch_results = []
+
+    for epoch in range(1, epochs + 1):
+        model.train()
+        train_loss = 0.0
+        for graph, labels in train_loader:
+            graph, labels = graph.to(device), labels.to(device)
+            binary_labels = (labels >= 1).long()
+
+            optimizer.zero_grad()
+            outputs = model(graph, labels)
+            logits = outputs["MMlogit"]
+            loss = criterion(logits, binary_labels)
+
+            if not torch.isfinite(logits).all() or not torch.isfinite(loss):
+                nan_batches += 1
+                continue
+
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
+            optimizer.step()
+            train_loss += loss.item()
+
+        if nan_batches > 0:
+            print(f"  Warning: {nan_batches} batches skipped due to NaN/Inf loss in epoch {epoch}")
+            nan_batches = 0
+
+        model.eval()
+        all_preds = []
+        all_labels = []
+        all_probs = []
+        test_loss = 0.0
+        with torch.no_grad():
+            for graph, labels in test_loader:
+                graph, labels = graph.to(device), labels.to(device)
+                binary_labels = (labels >= 1).long()
+                outputs = model(graph, labels)
+                loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
+                test_loss += loss.item()
+                preds = outputs["y_pred"]
+                probs = torch.softmax(outputs["MMlogit"], dim=-1)[:, 1]
+                if isinstance(preds, list):
+                    all_preds.extend(preds)
+                else:
+                    all_preds.extend(preds.cpu().tolist())
+                all_labels.extend(binary_labels.cpu().tolist())
+                all_probs.extend(probs.cpu().tolist())
+
+        avg_test_loss = test_loss / len(test_loader)
+
+        from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
+        f1 = f1_score(all_labels, all_preds, average="binary")
+        precision = precision_score(all_labels, all_preds, average="binary")
+        recall = recall_score(all_labels, all_preds, average="binary")
+        roc_auc = roc_auc_score(all_labels, all_probs)
+        pr_auc = average_precision_score(all_labels, all_probs)
+
+        print(f"  Epoch {epoch:2d}: Train Loss={train_loss / len(train_loader):.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}, ROC-AUC={roc_auc:.4f}, PR-AUC={pr_auc:.4f}")
+
+        epoch_results.append({
+            "epoch": epoch,
+            "train_loss": train_loss / len(train_loader),
+            "test_loss": avg_test_loss,
+            "f1": f1,
+            "precision": precision,
+            "recall": recall,
+            "roc_auc": roc_auc,
+            "pr_auc": pr_auc,
+        })
+
+        if f1 > best_f1:
+            best_f1 = f1
+            best_epoch = epoch
 
     return {
         "seed": seed,
         "best_f1": best_f1,
         "best_epoch": best_epoch,
-        "final_f1": final_results["F1"],
-        "final_precision": final_results["Pre"],
-        "final_recall": final_results["Rec"],
+        "final_f1": f1,
+        "final_precision": precision,
+        "final_recall": recall,
+        "final_roc_auc": roc_auc,
+        "final_pr_auc": pr_auc,
+        "epoch_results": epoch_results,
     }
 
 
@@ -89,7 +170,7 @@ def run_track_b(seed, train_loader, test_loader, output_dir, epochs, lr, batch_s
 
     config = DEFAULT_CONFIG.copy()
     config.pop("epochs", None)
-    # log_dim uses DEFAULT_CONFIG default (14) which matches actual data
+    # log_dim uses DEFAULT_CONFIG default (15) which matches actual data
     model = GraphAwareMoE(**config).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -201,7 +282,7 @@ def main():
     print(f"Data: {data_dir} (event_num={args.event_num})")
     print(f"Seeds: {seeds} ({len(seeds)} seed(s))")
     print(f"Epochs: {args.epochs}, Batch: {args.batch_size}, LR: {args.lr}, Weight decay: {WEIGHT_DECAY}")
-    print(f"Eval every {EVAL_EVERY} epochs")
+    print(f"Eval every epoch (per-epoch logging)")
     print()
 
     # Load shared data once
