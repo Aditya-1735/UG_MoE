@@ -87,6 +87,9 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     
     device = torch.device(device)
     config = DEFAULT_CONFIG.copy()
+    # Set log_dim dynamically from actual data shape to avoid dimension mismatch
+    sample_chunk = train_data[list(train_data.keys())[0]]
+    config['log_dim'] = sample_chunk['logs'].shape[-1]
     
     # Apply ablation config
     for k, v in ablation_config.items():

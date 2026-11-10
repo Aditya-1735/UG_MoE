@@ -48,7 +48,8 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     
     device = torch.device("cpu")
     config = DEFAULT_CONFIG.copy()
-    
+    # Set log_dim dynamically from actual data shape
+    config['log_dim'] = train_data[list(train_data.keys())[0]]['logs'].shape[-1]
     model_config = {k: v for k, v in config.items() if k != 'epochs'}
     
     model = GraphAwareMoE(**model_config).to(device)
