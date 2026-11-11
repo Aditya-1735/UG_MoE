@@ -30,9 +30,7 @@ def mask_modality(graph, modality):
     """Return a copy of graph with the specified modality zeroed out."""
     import copy
     import dgl
-    g = dgl.batch([dgl.DGLGraph(graph.subgraph([i])) for i in range(graph.batch_size)])
     g = graph.clone()
-    
     if modality == "metrics":
         g.ndata["metrics"] = torch.zeros_like(g.ndata["metrics"])
     elif modality == "traces":
