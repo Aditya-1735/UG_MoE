@@ -626,6 +626,7 @@ class GraphAwareMoE(nn.Module):
             "routing_weights": routing_weights,
             "top_k_indices": top_k_indices,
             "fusion_weights": fusion_weights,
+            "expert_uncertainties": expert_uncertainties,
         }
         
         # Compute losses if labels provided
