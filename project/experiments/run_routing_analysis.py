@@ -126,6 +126,7 @@ def run_analysis(seed: int, output_base: Path):
     print("  Training model for routing analysis...")
     for epoch in range(1, 31):  # Shorter training for analysis
         model.train()
+        train_loss = 0.0
         for graph, labels in train_loader:
             graph, labels = graph.to(device), labels.to(device)
             binary_labels = (labels >= 1).long()
@@ -136,6 +137,37 @@ def run_analysis(seed: int, output_base: Path):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             optimizer.step()
+            train_loss += loss.item()
+        
+        # Evaluate every 5 epochs
+        if epoch % 5 == 0:
+            model.eval()
+            all_preds = []
+            all_labels = []
+            all_probs = []
+            test_loss = 0.0
+            with torch.no_grad():
+                for graph, labels in test_loader:
+                    graph, labels = graph.to(device), labels.to(device)
+                    binary_labels = (labels >= 1).long()
+                    outputs = model(graph, binary_labels)
+                    loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
+                    test_loss += loss.item()
+                    probs = torch.softmax(outputs["MMlogit"], dim=-1)[:, 1]
+                    preds = outputs["y_pred"]
+                    all_preds.extend(preds.cpu().tolist())
+                    all_labels.extend(binary_labels.cpu().tolist())
+                    all_probs.extend(probs.cpu().tolist())
+            
+            avg_test_loss = test_loss / len(test_loader)
+            from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
+            f1 = f1_score(all_labels, all_preds, average='binary')
+            precision = precision_score(all_labels, all_preds, average='binary')
+            recall = recall_score(all_labels, all_preds, average='binary')
+            roc_auc = roc_auc_score(all_labels, all_probs)
+            pr_auc = average_precision_score(all_labels, all_probs)
+            
+            print(f"  Epoch {epoch:2d}: Train Loss={train_loss/len(train_loader):.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}, ROC-AUC={roc_auc:.4f}, PR-AUC={pr_auc:.4f}")
     
     # Collect routing weights from test set
     print("  Collecting routing weights...")
