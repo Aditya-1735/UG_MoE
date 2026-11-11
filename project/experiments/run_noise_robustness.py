@@ -6,6 +6,7 @@ performance degradation.
 """
 import sys
 import json
+import argparse
 import torch
 import numpy as np
 from pathlib import Path
@@ -88,7 +89,7 @@ def evaluate_model(model, test_loader, device):
     }
 
 
-def run_single_experiment(seed: int, output_base: Path):
+def run_single_experiment(seed: int, output_base: Path, skip_training: bool = False, checkpoint_path: str = None):
     """Run noise robustness experiment with given seed."""
     print(f"\n{'='*60}")
     print(f"NOISE ROBUSTNESS - Seed: {seed}")
@@ -124,40 +125,50 @@ def run_single_experiment(seed: int, output_base: Path):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     criterion = torch.nn.CrossEntropyLoss()
     
-    # Train full model first
-    print("  Training full model (no noise)...")
-    best_f1 = 0
-    for epoch in range(1, 51):
-        model.train()
-        for graph, labels in train_loader:
-            graph, labels = graph.to(device), labels.to(device)
-            binary_labels = (labels >= 1).long()
+    # Train full model first (unless skip_training)
+    if skip_training:
+        if checkpoint_path is None:
+            print("  ERROR: --checkpoint required with --skip-training")
+            return None
+        print(f"  Loading checkpoint from {checkpoint_path}...")
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint)
+        print(f"  Checkpoint loaded successfully.")
+    else:
+        # Train full model first
+        print("  Training full model (no noise)...")
+        best_f1 = 0
+        for epoch in range(1, 51):
+            model.train()
+            for graph, labels in train_loader:
+                graph, labels = graph.to(device), labels.to(device)
+                binary_labels = (labels >= 1).long()
+                
+                optimizer.zero_grad()
+                outputs = model(graph, binary_labels)
+                loss = outputs["loss"]
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
+                optimizer.step()
             
-            optimizer.zero_grad()
-            outputs = model(graph, binary_labels)
-            loss = outputs["loss"]
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
-            optimizer.step()
-        
-        if epoch % 10 == 0:
-            model.eval()
-            all_preds = []
-            all_labels = []
-            with torch.no_grad():
-                for graph, labels in test_loader:
-                    graph, labels = graph.to(device), labels.to(device)
-                    binary_labels = (labels >= 1).long()
-                    outputs = model(graph, binary_labels)
-                    preds = outputs["y_pred"]
-                    all_preds.extend(preds.cpu().tolist())
-                    all_labels.extend(binary_labels.cpu().tolist())
-            
-            from sklearn.metrics import f1_score
-            f1 = f1_score(all_labels, all_preds, average='binary')
-            if f1 > best_f1:
-                best_f1 = f1
-            print(f"    Epoch {epoch:2d}: F1={f1:.4f}")
+            if epoch % 10 == 0:
+                model.eval()
+                all_preds = []
+                all_labels = []
+                with torch.no_grad():
+                    for graph, labels in test_loader:
+                        graph, labels = graph.to(device), labels.to(device)
+                        binary_labels = (labels >= 1).long()
+                        outputs = model(graph, binary_labels)
+                        preds = outputs["y_pred"]
+                        all_preds.extend(preds.cpu().tolist())
+                        all_labels.extend(binary_labels.cpu().tolist())
+                
+                from sklearn.metrics import f1_score
+                f1 = f1_score(all_labels, all_preds, average='binary')
+                if f1 > best_f1:
+                    best_f1 = f1
+                print(f"    Epoch {epoch:2d}: F1={f1:.4f}")
     
     # Evaluate on clean test data
     clean_metrics = evaluate_model(model, test_loader, device)
@@ -197,25 +208,42 @@ def run_single_experiment(seed: int, output_base: Path):
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Noise Robustness Experiments")
+    parser.add_argument("--seeds", type=str, default="42,123",
+                        help="Comma-separated list of seeds")
+    parser.add_argument("--epochs", type=int, default=50, help="Number of epochs (default: 50)")
+    parser.add_argument("--batch-size", type=int, default=50, help="Batch size (default: 50)")
+    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate (default: 0.001)")
+    parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu (default: cuda)")
+    parser.add_argument("--skip-training", action="store_true",
+                        help="Skip training, load model from checkpoint instead")
+    parser.add_argument("--checkpoint", type=str, default=None,
+                        help="Path to checkpoint .pth file (required with --skip-training)")
+    args = parser.parse_args()
+
+    seeds = [int(s.strip()) for s in args.seeds.split(",")]
+
     print("="*60)
     print("NOISE ROBUSTNESS EXPERIMENTS")
     print("="*60)
-    print("Config: hidden_dim=64, epochs=50, lr=0.001, batch=50")
-    print("Data: recovered_artifact (event_num=15)")
-    print("Seeds: 42, 123, 456, 789, 999")
+    print(f"Config: hidden_dim=64, epochs={args.epochs}, lr={args.lr}, batch={args.batch_size}")
+    print(f"Data: recovered_artifact (event_num=15)")
+    print(f"Seeds: {seeds}")
     print("Noise levels: 0.01, 0.05, 0.1, 0.2, 0.5")
     print("Modalities: metrics, traces, logs")
+    if args.skip_training:
+        print(f"Skip training: True, checkpoint: {args.checkpoint}")
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_base = Path(__file__).parent.parent / "experiments" / "runs" / f"noise_robustness_{timestamp}"
     output_base.mkdir(parents=True, exist_ok=True)
     
-    seeds = [42, 123]
     all_results = []
     
     for seed in seeds:
         try:
-            results = run_single_experiment(seed, output_base)
+            results = run_single_experiment(seed, output_base, skip_training=args.skip_training, checkpoint_path=args.checkpoint)
             all_results.append(results)
         except Exception as e:
             print(f"  ERROR for seed {seed}: {e}")
