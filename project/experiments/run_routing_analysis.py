@@ -44,36 +44,14 @@ def collect_routing_weights(model, test_loader, device):
             binary_labels = (labels >= 1).long()
             
             # Forward pass to get routing weights
-            # We need to intercept the router output
-            B = graph.batch_size
+            outputs = model(graph, binary_labels, return_routing=True, return_expert_outputs=True)
             
-            # Encode modalities
-            modality_embeddings = model.encode_modalities(graph)
-            
-            # Build routing features
-            metric_emb = modality_embeddings["metric"]
-            trace_emb = modality_embeddings["trace"]
-            log_emb = modality_embeddings["log"]
-            routing_features = torch.cat([metric_emb, trace_emb, log_emb], dim=-1)
-            
-            # Get routing weights
-            graph_info = model._build_graph_info(graph)
-            expert_uncertainties = model._get_expert_uncertainties(modality_embeddings)
-            
-            routing_weights, _ = model.router(
-                routing_features,
-                graph_info=graph_info,
-                expert_uncertainties=expert_uncertainties,
-                return_uncertainty=True,
-            )
+            routing_weights = outputs.get("routing_weights", None)
+            if routing_weights is None:
+                continue
             
             all_routing_weights.append(routing_weights.cpu().numpy())
-            all_preds.extend(model.classifier(
-                model.fusion(
-                    {k: model.expert_outputs[k] for k in model.expert_types},
-                    return_weights=False,
-                )[0]
-            ).argmax(dim=-1).cpu().numpy())
+            all_preds.extend(outputs["y_pred"].cpu().numpy())
             all_labels.extend(binary_labels.cpu().numpy())
     
     routing_weights = np.vstack(all_routing_weights)  # [N, num_experts]
