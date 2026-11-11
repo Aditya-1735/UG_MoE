@@ -45,14 +45,32 @@ def collect_uncertainty_and_fusion(model, test_loader, device):
             
             outputs = model(graph, binary_labels, return_routing=True, return_expert_outputs=True)
             
-            # Collect fusion weights if available
-            fusion_weights = outputs.get("fusion_weights", None)
-            if fusion_weights is not None and isinstance(fusion_weights, dict):
+            # Debug: print available output keys on first batch
+            if len(all_fusion_weights) == 0 and len(all_uncertainties) == 0:
+                print(f"  [DEBUG] Output keys: {list(outputs.keys())}")
+                if "fusion_weights" in outputs:
+                    print(f"  [DEBUG] fusion_weights type: {type(outputs['fusion_weights'])}")
+                if "expert_uncertainties" in outputs:
+                    print(f"  [DEBUG] expert_uncertainties type: {type(outputs['expert_uncertainties'])}")
+            
+            # Try multiple key names for fusion weights
+            fusion_weights = None
+            for key in ["fusion_weights", "fusion_weights_dict", "fusion"]:
+                if key in outputs and isinstance(outputs[key], dict):
+                    fusion_weights = outputs[key]
+                    break
+            
+            if fusion_weights is not None:
                 all_fusion_weights.append({k: v.cpu().numpy() for k, v in fusion_weights.items()})
             
-            # Collect expert uncertainties if available
-            expert_uncs = outputs.get("expert_uncertainties", None)
-            if expert_uncs is not None and isinstance(expert_uncs, dict):
+            # Try multiple key names for expert uncertainties
+            expert_uncs = None
+            for key in ["expert_uncertainties", "uncertainties", "kl_losses", "uncertainty_losses"]:
+                if key in outputs and isinstance(outputs[key], dict):
+                    expert_uncs = outputs[key]
+                    break
+            
+            if expert_uncs is not None:
                 all_uncertainties.append({k: v.cpu().numpy() for k, v in expert_uncs.items()})
             
             all_preds.extend(outputs["y_pred"].cpu().numpy())
