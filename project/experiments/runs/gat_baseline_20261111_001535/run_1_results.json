@@ -1,0 +1,12 @@
+{
+  "run_id": 1,
+  "seed": 42,
+  "best_f1": 0.9858402351055303,
+  "best_epoch": 50,
+  "final_f1": 0.9858402351055303,
+  "final_precision": 0.9798194370685077,
+  "final_recall": 0.9919354838709677,
+  "final_roc_auc": 0.9948784722222221,
+  "final_pr_auc": 0.9987631886736712,
+  "checkpoint": "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/baseline_gat.pth"
+}

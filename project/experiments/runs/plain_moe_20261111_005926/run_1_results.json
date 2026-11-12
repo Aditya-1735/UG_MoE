@@ -1,0 +1,12 @@
+{
+  "run_id": 1,
+  "seed": 42,
+  "best_f1": 0.9922231161169214,
+  "best_epoch": 50,
+  "final_f1": 0.9922231161169214,
+  "final_precision": 0.9898341359015517,
+  "final_recall": 0.9946236559139785,
+  "final_roc_auc": 0.9944108422939067,
+  "final_pr_auc": 0.9983503563060679,
+  "checkpoint": "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/plain_moe.pth"
+}

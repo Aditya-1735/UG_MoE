@@ -1,0 +1,123 @@
+nohup: ignoring input
+============================================================
+NOISE ROBUSTNESS EXPERIMENTS
+============================================================
+Config: hidden_dim=64, epochs=50, lr=0.0005, batch=50
+Data: recovered_artifact (event_num=15)
+Seeds: [42, 123]
+Noise levels: 0.01, 0.05, 0.1, 0.2, 0.5
+Modalities: metrics, traces, logs
+
+============================================================
+NOISE ROBUSTNESS - Seed: 42
+============================================================
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+  Training full model (no noise)...
+    Epoch 10: F1=0.9868
+    Epoch 20: F1=0.9903
+    Epoch 30: F1=0.9892
+    Epoch 40: F1=0.9898
+    Epoch 50: F1=0.9903
+  Clean model: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=metrics, level=0.01
+    Level 0.01: F1=0.9901, ROC-AUC=0.9936, PR-AUC=0.9984
+  Testing noise: modality=metrics, level=0.05
+    Level 0.05: F1=0.9906, ROC-AUC=0.9930, PR-AUC=0.9982
+  Testing noise: modality=metrics, level=0.1
+    Level 0.1: F1=0.9895, ROC-AUC=0.9930, PR-AUC=0.9982
+  Testing noise: modality=metrics, level=0.2
+    Level 0.2: F1=0.9898, ROC-AUC=0.9911, PR-AUC=0.9976
+  Testing noise: modality=metrics, level=0.5
+    Level 0.5: F1=0.9832, ROC-AUC=0.9780, PR-AUC=0.9937
+  Testing noise: modality=traces, level=0.01
+    Level 0.01: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=traces, level=0.05
+    Level 0.05: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=traces, level=0.1
+    Level 0.1: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=traces, level=0.2
+    Level 0.2: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=traces, level=0.5
+    Level 0.5: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=logs, level=0.01
+    Level 0.01: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=logs, level=0.05
+    Level 0.05: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=logs, level=0.1
+    Level 0.1: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=logs, level=0.2
+    Level 0.2: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing noise: modality=logs, level=0.5
+    Level 0.5: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+
+============================================================
+NOISE ROBUSTNESS - Seed: 123
+============================================================
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+  Training full model (no noise)...
+    Epoch 10: F1=0.9850
+    Epoch 20: F1=0.9851
+    Epoch 30: F1=0.9851
+    Epoch 40: F1=0.9889
+    Epoch 50: F1=0.9925
+  Clean model: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=metrics, level=0.01
+    Level 0.01: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=metrics, level=0.05
+    Level 0.05: F1=0.9928, ROC-AUC=0.9971, PR-AUC=0.9992
+  Testing noise: modality=metrics, level=0.1
+    Level 0.1: F1=0.9933, ROC-AUC=0.9970, PR-AUC=0.9991
+  Testing noise: modality=metrics, level=0.2
+    Level 0.2: F1=0.9925, ROC-AUC=0.9967, PR-AUC=0.9990
+  Testing noise: modality=metrics, level=0.5
+    Level 0.5: F1=0.9851, ROC-AUC=0.9928, PR-AUC=0.9983
+  Testing noise: modality=traces, level=0.01
+    Level 0.01: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=traces, level=0.05
+    Level 0.05: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=traces, level=0.1
+    Level 0.1: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=traces, level=0.2
+    Level 0.2: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=traces, level=0.5
+    Level 0.5: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=logs, level=0.01
+    Level 0.01: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=logs, level=0.05
+    Level 0.05: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=logs, level=0.1
+    Level 0.1: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=logs, level=0.2
+    Level 0.2: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing noise: modality=logs, level=0.5
+    Level 0.5: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+
+============================================================
+SUMMARY - NOISE ROBUSTNESS EXPERIMENTS
+============================================================
+Clean model F1: 0.9903, 0.9925
+
+Modality=metrics:
+  Level 0.01: Mean F1=0.9913 ± 0.0012
+  Level 0.05: Mean F1=0.9917 ± 0.0011
+  Level 0.1: Mean F1=0.9914 ± 0.0019
+  Level 0.2: Mean F1=0.9912 ± 0.0013
+  Level 0.5: Mean F1=0.9842 ± 0.0009
+
+Modality=traces:
+  Level 0.01: Mean F1=0.9914 ± 0.0011
+  Level 0.05: Mean F1=0.9914 ± 0.0011
+  Level 0.1: Mean F1=0.9914 ± 0.0011
+  Level 0.2: Mean F1=0.9914 ± 0.0011
+  Level 0.5: Mean F1=0.9914 ± 0.0011
+
+Modality=logs:
+  Level 0.01: Mean F1=0.9914 ± 0.0011
+  Level 0.05: Mean F1=0.9914 ± 0.0011
+  Level 0.1: Mean F1=0.9914 ± 0.0011
+  Level 0.2: Mean F1=0.9914 ± 0.0011
+  Level 0.5: Mean F1=0.9914 ± 0.0011
+
+Results saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/runs/noise_robustness_20261111_141641

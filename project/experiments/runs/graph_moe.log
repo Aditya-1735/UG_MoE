@@ -1,0 +1,51 @@
+nohup: ignoring input
+============================================================
+GRAPH-MOE BASELINE - FULL EXPERIMENTS
+============================================================
+Config: hidden_dim=64, epochs=50, lr=0.001, batch=50, weight_decay=1e-5
+Data: recovered_artifact (event_num=15)
+Graph-MoE: GAT-based graph-centric MoE with expert routing
+5 runs with seeds: 42, 123, 456, 789, 999
+
+============================================================
+GRAPH-MOE - RUN 1/5 - Seed: 42
+============================================================
+  Epoch  5: Train Loss=0.1295, Test Loss=0.1136, F1=0.9781, Pre=0.9714, Rec=0.9849, ROC-AUC=0.9887, PR-AUC=0.9977
+  Epoch 10: Train Loss=0.1058, Test Loss=0.0982, F1=0.9795, Pre=0.9848, Rec=0.9742, ROC-AUC=0.9906, PR-AUC=0.9981
+  Epoch 15: Train Loss=0.0982, Test Loss=0.0838, F1=0.9820, Pre=0.9807, Rec=0.9833, ROC-AUC=0.9925, PR-AUC=0.9985
+  Epoch 20: Train Loss=0.0988, Test Loss=0.0787, F1=0.9828, Pre=0.9807, Rec=0.9849, ROC-AUC=0.9937, PR-AUC=0.9987
+  Epoch 25: Train Loss=0.0860, Test Loss=0.0782, F1=0.9816, Pre=0.9864, Rec=0.9769, ROC-AUC=0.9938, PR-AUC=0.9987
+  Epoch 30: Train Loss=0.0771, Test Loss=0.0702, F1=0.9837, Pre=0.9787, Rec=0.9887, ROC-AUC=0.9958, PR-AUC=0.9992
+  Epoch 35: Train Loss=0.0730, Test Loss=0.0725, F1=0.9838, Pre=0.9860, Rec=0.9817, ROC-AUC=0.9945, PR-AUC=0.9989
+  Epoch 40: Train Loss=0.0639, Test Loss=0.0673, F1=0.9848, Pre=0.9793, Rec=0.9903, ROC-AUC=0.9957, PR-AUC=0.9992
+  Epoch 45: Train Loss=0.0565, Test Loss=0.0584, F1=0.9861, Pre=0.9834, Rec=0.9887, ROC-AUC=0.9961, PR-AUC=0.9992
+  Epoch 50: Train Loss=0.0515, Test Loss=0.0639, F1=0.9866, Pre=0.9840, Rec=0.9892, ROC-AUC=0.9974, PR-AUC=0.9995
+  Best F1: 0.9866 (epoch 50)
+  Final F1: 0.9866, Pre: 0.9840, Rec: 0.9892, ROC-AUC: 0.9974, PR-AUC: 0.9995
+  Checkpoint saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/graph_moe.pth
+
+============================================================
+GRAPH-MOE - RUN 2/5 - Seed: 123
+============================================================
+  Epoch  5: Train Loss=0.1276, Test Loss=0.0995, F1=0.9801, Pre=0.9811, Rec=0.9790, ROC-AUC=0.9889, PR-AUC=0.9977
+  Epoch 10: Train Loss=0.1100, Test Loss=0.1061, F1=0.9764, Pre=0.9863, Rec=0.9667, ROC-AUC=0.9902, PR-AUC=0.9980
+  Epoch 15: Train Loss=0.1050, Test Loss=0.0876, F1=0.9803, Pre=0.9817, Rec=0.9790, ROC-AUC=0.9921, PR-AUC=0.9984
+  Epoch 20: Train Loss=0.0883, Test Loss=0.0770, F1=0.9827, Pre=0.9865, Rec=0.9790, ROC-AUC=0.9939, PR-AUC=0.9988
+  Epoch 25: Train Loss=0.0872, Test Loss=0.0765, F1=0.9829, Pre=0.9761, Rec=0.9898, ROC-AUC=0.9953, PR-AUC=0.9991
+  Epoch 30: Train Loss=0.0647, Test Loss=0.0743, F1=0.9866, Pre=0.9834, Rec=0.9898, ROC-AUC=0.9942, PR-AUC=0.9988
+  Epoch 35: Train Loss=0.0669, Test Loss=0.0655, F1=0.9863, Pre=0.9866, Rec=0.9860, ROC-AUC=0.9958, PR-AUC=0.9992
+  Epoch 40: Train Loss=0.0524, Test Loss=0.0609, F1=0.9873, Pre=0.9887, Rec=0.9860, ROC-AUC=0.9961, PR-AUC=0.9992
+  Epoch 45: Train Loss=0.0625, Test Loss=0.0741, F1=0.9857, Pre=0.9876, Rec=0.9839, ROC-AUC=0.9959, PR-AUC=0.9992
+  Epoch 50: Train Loss=0.0503, Test Loss=0.0842, F1=0.9874, Pre=0.9824, Rec=0.9925, ROC-AUC=0.9959, PR-AUC=0.9992
+  Best F1: 0.9874 (epoch 50)
+  Final F1: 0.9874, Pre: 0.9824, Rec: 0.9925, ROC-AUC: 0.9959, PR-AUC: 0.9992
+  Checkpoint saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/graph_moe.pth
+
+============================================================
+SUMMARY - GRAPH-MOE BASELINE
+============================================================
+Successful runs: 2/5
+Best F1s: ['0.9866', '0.9874']
+Mean F1: 0.9870 ± 0.0004
+
+Results saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/runs/graph_moe_20261111_024736
