@@ -1,0 +1,42 @@
+{
+  "experiment": "gat_baseline",
+  "timestamp": "20261111_001535",
+  "config": {
+    "hidden_dim": 64,
+    "epochs": 50,
+    "lr": 0.001,
+    "batch_size": 50,
+    "weight_decay": 1e-05,
+    "event_num": 15,
+    "seeds": [
+      42,
+      123
+    ]
+  },
+  "results": [
+    {
+      "run_id": 1,
+      "seed": 42,
+      "best_f1": 0.9858402351055303,
+      "best_epoch": 50,
+      "final_f1": 0.9858402351055303,
+      "final_precision": 0.9798194370685077,
+      "final_recall": 0.9919354838709677,
+      "final_roc_auc": 0.9948784722222221,
+      "final_pr_auc": 0.9987631886736712,
+      "checkpoint": "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/baseline_gat.pth"
+    },
+    {
+      "run_id": 2,
+      "seed": 123,
+      "best_f1": 0.9876873661670236,
+      "best_epoch": 40,
+      "final_f1": 0.9848320693391116,
+      "final_precision": 0.99235807860262,
+      "final_recall": 0.9774193548387097,
+      "final_roc_auc": 0.9953307011648747,
+      "final_pr_auc": 0.999015128920937,
+      "checkpoint": "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/baseline_gat.pth"
+    }
+  ]
+}

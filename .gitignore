@@ -39,9 +39,9 @@ env/
 Thumbs.db
 
 # Experiment outputs
-project/experiments/runs/
+# project/experiments/runs/
 project/checkpoints/
-*.log
+# *.log
 
 # Data files (large binary files, use Git LFS if needed)
 *.pkl

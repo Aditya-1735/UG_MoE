@@ -1,0 +1,59 @@
+{
+  "experiment": "routing_analysis",
+  "timestamp": "20261111_182019",
+  "config": {
+    "hidden_dim": 64,
+    "epochs": 30,
+    "lr": 0.001,
+    "batch_size": 50,
+    "event_num": 15,
+    "seeds": [
+      42,
+      123
+    ],
+    "experts": [
+      "temporal",
+      "semantic",
+      "dependency",
+      "cross_modal"
+    ]
+  },
+  "results": [
+    {
+      "seed": 42,
+      "avg_routing_weights": {
+        "temporal": 0.25530385971069336,
+        "semantic": 0.20136630535125732,
+        "dependency": 0.16148951649665833,
+        "cross_modal": 0.3818402886390686
+      },
+      "std_routing_weights": {
+        "temporal": 0.0035618231631815434,
+        "semantic": 0.005074759945273399,
+        "dependency": 0.0038385484367609024,
+        "cross_modal": 0.012468497268855572
+      },
+      "routing_entropy_mean": 1.3330072164535522,
+      "routing_entropy_std": 0.007669168524444103,
+      "plot_path": "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/runs/routing_analysis_20261111_182019/routing_analysis_seed42.png"
+    },
+    {
+      "seed": 123,
+      "avg_routing_weights": {
+        "temporal": 0.27643337845802307,
+        "semantic": 0.248998761177063,
+        "dependency": 0.2847341299057007,
+        "cross_modal": 0.18983323872089386
+      },
+      "std_routing_weights": {
+        "temporal": 0.0029047750867903233,
+        "semantic": 0.001892914529889822,
+        "dependency": 0.00270306458696723,
+        "cross_modal": 0.0037152378354221582
+      },
+      "routing_entropy_mean": 1.3746588230133057,
+      "routing_entropy_std": 0.0016966996481642127,
+      "plot_path": "/DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/runs/routing_analysis_20261111_182019/routing_analysis_seed123.png"
+    }
+  ]
+}

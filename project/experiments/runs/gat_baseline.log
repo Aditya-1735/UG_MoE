@@ -1,0 +1,50 @@
+nohup: ignoring input
+============================================================
+GAT BASELINE - FULL EXPERIMENTS
+============================================================
+Config: hidden_dim=64, epochs=50, lr=0.001, batch=50, weight_decay=1e-5
+Data: recovered_artifact (event_num=15)
+5 runs with seeds: 42, 123, 456, 789, 999
+
+============================================================
+GAT BASELINE - RUN 1/5 - Seed: 42
+============================================================
+  Epoch  5: Train Loss=0.1970, Test Loss=0.1630, F1=0.9682, Pre=0.9550, Rec=0.9817, ROC-AUC=0.9725, PR-AUC=0.9938
+  Epoch 10: Train Loss=0.1554, Test Loss=0.1608, F1=0.9579, Pre=0.9734, Rec=0.9430, ROC-AUC=0.9762, PR-AUC=0.9948
+  Epoch 15: Train Loss=0.1092, Test Loss=0.1061, F1=0.9767, Pre=0.9836, Rec=0.9699, ROC-AUC=0.9861, PR-AUC=0.9967
+  Epoch 20: Train Loss=0.1149, Test Loss=0.1043, F1=0.9769, Pre=0.9654, Rec=0.9887, ROC-AUC=0.9918, PR-AUC=0.9983
+  Epoch 25: Train Loss=0.0862, Test Loss=0.0816, F1=0.9829, Pre=0.9787, Rec=0.9871, ROC-AUC=0.9943, PR-AUC=0.9988
+  Epoch 30: Train Loss=0.0749, Test Loss=0.0704, F1=0.9839, Pre=0.9849, Rec=0.9828, ROC-AUC=0.9951, PR-AUC=0.9990
+  Epoch 35: Train Loss=0.0629, Test Loss=0.0809, F1=0.9845, Pre=0.9813, Rec=0.9876, ROC-AUC=0.9953, PR-AUC=0.9990
+  Epoch 40: Train Loss=0.0642, Test Loss=0.0701, F1=0.9834, Pre=0.9813, Rec=0.9855, ROC-AUC=0.9953, PR-AUC=0.9991
+  Epoch 45: Train Loss=0.0486, Test Loss=0.0906, F1=0.9840, Pre=0.9923, Rec=0.9758, ROC-AUC=0.9942, PR-AUC=0.9987
+  Epoch 50: Train Loss=0.0585, Test Loss=0.0943, F1=0.9858, Pre=0.9798, Rec=0.9919, ROC-AUC=0.9949, PR-AUC=0.9988
+  Best F1: 0.9858 (epoch 50)
+  Final F1: 0.9858, Pre: 0.9798, Rec: 0.9919, ROC-AUC: 0.9949, PR-AUC: 0.9988
+  Checkpoint saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/baseline_gat.pth
+
+============================================================
+GAT BASELINE - RUN 2/5 - Seed: 123
+============================================================
+  Epoch  5: Train Loss=0.1450, Test Loss=0.1222, F1=0.9750, Pre=0.9638, Rec=0.9866, ROC-AUC=0.9852, PR-AUC=0.9969
+  Epoch 10: Train Loss=0.1275, Test Loss=0.0949, F1=0.9804, Pre=0.9786, Rec=0.9823, ROC-AUC=0.9899, PR-AUC=0.9979
+  Epoch 15: Train Loss=0.1118, Test Loss=0.0935, F1=0.9794, Pre=0.9745, Rec=0.9844, ROC-AUC=0.9917, PR-AUC=0.9983
+  Epoch 20: Train Loss=0.0989, Test Loss=0.1164, F1=0.9732, Pre=0.9593, Rec=0.9876, ROC-AUC=0.9854, PR-AUC=0.9967
+  Epoch 25: Train Loss=0.0983, Test Loss=0.0852, F1=0.9826, Pre=0.9776, Rec=0.9876, ROC-AUC=0.9929, PR-AUC=0.9985
+  Epoch 30: Train Loss=0.0676, Test Loss=0.0585, F1=0.9874, Pre=0.9871, Rec=0.9876, ROC-AUC=0.9963, PR-AUC=0.9992
+  Epoch 35: Train Loss=0.0638, Test Loss=0.0779, F1=0.9815, Pre=0.9912, Rec=0.9720, ROC-AUC=0.9938, PR-AUC=0.9985
+  Epoch 40: Train Loss=0.0638, Test Loss=0.0664, F1=0.9877, Pre=0.9835, Rec=0.9919, ROC-AUC=0.9962, PR-AUC=0.9992
+  Epoch 45: Train Loss=0.0495, Test Loss=0.0570, F1=0.9874, Pre=0.9866, Rec=0.9882, ROC-AUC=0.9960, PR-AUC=0.9990
+  Epoch 50: Train Loss=0.0543, Test Loss=0.0798, F1=0.9848, Pre=0.9924, Rec=0.9774, ROC-AUC=0.9953, PR-AUC=0.9990
+  Best F1: 0.9877 (epoch 40)
+  Final F1: 0.9848, Pre: 0.9924, Rec: 0.9774, ROC-AUC: 0.9953, PR-AUC: 0.9990
+  Checkpoint saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/baseline_gat.pth
+
+============================================================
+SUMMARY - GAT BASELINE
+============================================================
+Successful runs: 2/5
+Best F1s: ['0.9858', '0.9877']
+Mean F1: 0.9868 ± 0.0009
+
+Results saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/runs/gat_baseline_20261111_001535

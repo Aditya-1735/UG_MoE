@@ -1,0 +1,68 @@
+nohup: ignoring input
+============================================================
+MISSING-MODALITY EXPERIMENTS
+============================================================
+Config: hidden_dim=64, epochs=50, lr=0.0005, batch=50
+Data: recovered_artifact (event_num=15)
+Seeds: [42, 123]
+Modalities tested: metrics, traces, logs (each dropped individually)
+
+============================================================
+MISSING-MODALITY - Seed: 42
+============================================================
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+  Training full model (all modalities)...
+    Epoch 10: F1=0.9868
+    Epoch 20: F1=0.9903
+    Epoch 30: F1=0.9892
+    Epoch 40: F1=0.9898
+    Epoch 50: F1=0.9903
+  Full model: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing missing modality: metrics
+    Missing metrics: F1=0.9064, ROC-AUC=0.5000, PR-AUC=0.8289
+  Testing missing modality: traces
+    Missing traces: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+  Testing missing modality: logs
+    Missing logs: F1=0.9903, ROC-AUC=0.9935, PR-AUC=0.9983
+
+============================================================
+MISSING-MODALITY - Seed: 123
+============================================================
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+  Training full model (all modalities)...
+    Epoch 10: F1=0.9850
+    Epoch 20: F1=0.9851
+    Epoch 30: F1=0.9851
+    Epoch 40: F1=0.9889
+    Epoch 50: F1=0.9925
+  Full model: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing missing modality: metrics
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/sklearn/metrics/_classification.py:1879: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+    Missing metrics: F1=0.0000, ROC-AUC=0.5000, PR-AUC=0.8289
+  Testing missing modality: traces
+    Missing traces: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+  Testing missing modality: logs
+    Missing logs: F1=0.9925, ROC-AUC=0.9972, PR-AUC=0.9992
+
+============================================================
+SUMMARY - MISSING-MODALITY EXPERIMENTS
+============================================================
+Full model F1: 0.9903, 0.9925
+Full model ROC-AUC: 0.9935, 0.9972
+
+Missing metrics:
+  F1: 0.9064, 0.0000
+  Mean F1: 0.4532 ± 0.4532
+
+Missing traces:
+  F1: 0.9903, 0.9925
+  Mean F1: 0.9914 ± 0.0011
+
+Missing logs:
+  F1: 0.9903, 0.9925
+  Mean F1: 0.9914 ± 0.0011
+
+Results saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/runs/missing_modality_20261111_110025

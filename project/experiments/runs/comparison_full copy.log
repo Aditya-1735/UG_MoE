@@ -1,0 +1,152 @@
+nohup: ignoring input
+======================================================================
+TRACK A vs TRACK B - APPLES-TO-APPLES COMPARISON
+======================================================================
+Data: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/recovered_artifact (event_num=15)
+Seeds: [42, 123] (2 seed(s))
+Epochs: 50, Batch: 50, LR: 0.0005, Weight decay: 1e-05
+Eval every 5 epochs
+
+Train chunks: 3366, Test chunks: 2244
+
+======================================================================
+SEED 42
+======================================================================
+
+--- Track A (MUAD Baseline) ---
+  Best F1: 0.9914 (epoch 30)
+  Final F1: 0.9911, Pre: 0.9914, Rec: 0.9909
+
+--- Track B (Graph-Aware MoE) ---
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+  Epoch  1: Train Loss=0.3340, Test Loss=0.2439, F1=0.9443, Pre=0.9037, Rec=0.9887, ROC-AUC=0.9488, PR-AUC=0.9879
+  Epoch  2: Train Loss=0.1983, Test Loss=0.1831, F1=0.9594, Pre=0.9592, Rec=0.9597, ROC-AUC=0.9670, PR-AUC=0.9926
+  Epoch  3: Train Loss=0.1482, Test Loss=0.1648, F1=0.9702, Pre=0.9510, Rec=0.9903, ROC-AUC=0.9732, PR-AUC=0.9930
+  Epoch  4: Train Loss=0.1221, Test Loss=0.1012, F1=0.9817, Pre=0.9812, Rec=0.9823, ROC-AUC=0.9877, PR-AUC=0.9973
+  Epoch  5: Train Loss=0.1064, Test Loss=0.0885, F1=0.9831, Pre=0.9792, Rec=0.9871, ROC-AUC=0.9914, PR-AUC=0.9982
+  Epoch  6: Train Loss=0.1035, Test Loss=0.0908, F1=0.9846, Pre=0.9865, Rec=0.9828, ROC-AUC=0.9911, PR-AUC=0.9981
+  Epoch  7: Train Loss=0.1049, Test Loss=0.0796, F1=0.9851, Pre=0.9902, Rec=0.9801, ROC-AUC=0.9896, PR-AUC=0.9972
+  Epoch  8: Train Loss=0.1013, Test Loss=0.0883, F1=0.9820, Pre=0.9822, Rec=0.9817, ROC-AUC=0.9902, PR-AUC=0.9976
+  Epoch  9: Train Loss=0.0730, Test Loss=0.0745, F1=0.9860, Pre=0.9850, Rec=0.9871, ROC-AUC=0.9933, PR-AUC=0.9986
+  Epoch 10: Train Loss=0.0766, Test Loss=0.0878, F1=0.9877, Pre=0.9840, Rec=0.9914, ROC-AUC=0.9926, PR-AUC=0.9983
+  Epoch 11: Train Loss=0.0836, Test Loss=0.0717, F1=0.9871, Pre=0.9881, Rec=0.9860, ROC-AUC=0.9927, PR-AUC=0.9982
+  Epoch 12: Train Loss=0.0716, Test Loss=0.0655, F1=0.9876, Pre=0.9903, Rec=0.9849, ROC-AUC=0.9948, PR-AUC=0.9989
+  Epoch 13: Train Loss=0.0797, Test Loss=0.0654, F1=0.9881, Pre=0.9903, Rec=0.9860, ROC-AUC=0.9941, PR-AUC=0.9987
+  Epoch 14: Train Loss=0.0713, Test Loss=0.0889, F1=0.9848, Pre=0.9772, Rec=0.9925, ROC-AUC=0.9915, PR-AUC=0.9978
+  Epoch 15: Train Loss=0.0698, Test Loss=0.0841, F1=0.9863, Pre=0.9855, Rec=0.9871, ROC-AUC=0.9904, PR-AUC=0.9977
+  Epoch 16: Train Loss=0.0714, Test Loss=0.0674, F1=0.9887, Pre=0.9930, Rec=0.9844, ROC-AUC=0.9943, PR-AUC=0.9986
+  Epoch 17: Train Loss=0.0637, Test Loss=0.0614, F1=0.9890, Pre=0.9903, Rec=0.9876, ROC-AUC=0.9936, PR-AUC=0.9983
+  Epoch 18: Train Loss=0.0634, Test Loss=0.0708, F1=0.9885, Pre=0.9851, Rec=0.9919, ROC-AUC=0.9943, PR-AUC=0.9986
+  Epoch 19: Train Loss=0.0628, Test Loss=0.0587, F1=0.9887, Pre=0.9908, Rec=0.9866, ROC-AUC=0.9957, PR-AUC=0.9991
+  Epoch 20: Train Loss=0.0742, Test Loss=0.0955, F1=0.9853, Pre=0.9798, Rec=0.9909, ROC-AUC=0.9935, PR-AUC=0.9987
+  Epoch 21: Train Loss=0.0700, Test Loss=0.0595, F1=0.9887, Pre=0.9935, Rec=0.9839, ROC-AUC=0.9959, PR-AUC=0.9991
+  Epoch 22: Train Loss=0.0640, Test Loss=0.0718, F1=0.9867, Pre=0.9951, Rec=0.9785, ROC-AUC=0.9946, PR-AUC=0.9988
+  Epoch 23: Train Loss=0.0705, Test Loss=0.0602, F1=0.9885, Pre=0.9851, Rec=0.9919, ROC-AUC=0.9958, PR-AUC=0.9991
+  Epoch 24: Train Loss=0.0635, Test Loss=0.0962, F1=0.9820, Pre=0.9956, Rec=0.9688, ROC-AUC=0.9936, PR-AUC=0.9985
+  Epoch 25: Train Loss=0.0688, Test Loss=0.0716, F1=0.9906, Pre=0.9888, Rec=0.9925, ROC-AUC=0.9927, PR-AUC=0.9982
+  Epoch 26: Train Loss=0.0560, Test Loss=0.0708, F1=0.9879, Pre=0.9897, Rec=0.9860, ROC-AUC=0.9955, PR-AUC=0.9990
+  Epoch 27: Train Loss=0.0589, Test Loss=0.0561, F1=0.9895, Pre=0.9882, Rec=0.9909, ROC-AUC=0.9953, PR-AUC=0.9990
+  Epoch 28: Train Loss=0.0584, Test Loss=0.0730, F1=0.9824, Pre=0.9907, Rec=0.9742, ROC-AUC=0.9951, PR-AUC=0.9990
+  Epoch 29: Train Loss=0.0553, Test Loss=0.0755, F1=0.9859, Pre=0.9956, Rec=0.9763, ROC-AUC=0.9953, PR-AUC=0.9991
+  Epoch 30: Train Loss=0.0534, Test Loss=0.1314, F1=0.9763, Pre=0.9884, Rec=0.9645, ROC-AUC=0.9890, PR-AUC=0.9975
+  Epoch 31: Train Loss=0.0465, Test Loss=0.0541, F1=0.9908, Pre=0.9924, Rec=0.9892, ROC-AUC=0.9955, PR-AUC=0.9990
+  Epoch 32: Train Loss=0.0518, Test Loss=0.0738, F1=0.9879, Pre=0.9919, Rec=0.9839, ROC-AUC=0.9948, PR-AUC=0.9989
+  Epoch 33: Train Loss=0.0543, Test Loss=0.0837, F1=0.9893, Pre=0.9846, Rec=0.9941, ROC-AUC=0.9951, PR-AUC=0.9989
+  Epoch 34: Train Loss=0.0553, Test Loss=0.0675, F1=0.9897, Pre=0.9935, Rec=0.9860, ROC-AUC=0.9940, PR-AUC=0.9987
+  Epoch 35: Train Loss=0.0424, Test Loss=0.0739, F1=0.9898, Pre=0.9877, Rec=0.9919, ROC-AUC=0.9953, PR-AUC=0.9989
+  Epoch 36: Train Loss=0.0433, Test Loss=0.0596, F1=0.9914, Pre=0.9909, Rec=0.9919, ROC-AUC=0.9970, PR-AUC=0.9994
+  Epoch 37: Train Loss=0.0563, Test Loss=0.0702, F1=0.9880, Pre=0.9809, Rec=0.9952, ROC-AUC=0.9966, PR-AUC=0.9993
+  Epoch 38: Train Loss=0.0696, Test Loss=0.0610, F1=0.9874, Pre=0.9850, Rec=0.9898, ROC-AUC=0.9954, PR-AUC=0.9990
+  Epoch 39: Train Loss=0.0509, Test Loss=0.0873, F1=0.9843, Pre=0.9913, Rec=0.9774, ROC-AUC=0.9936, PR-AUC=0.9983
+  Epoch 40: Train Loss=0.0482, Test Loss=0.0623, F1=0.9887, Pre=0.9935, Rec=0.9839, ROC-AUC=0.9958, PR-AUC=0.9991
+  Epoch 41: Train Loss=0.0407, Test Loss=0.0549, F1=0.9917, Pre=0.9935, Rec=0.9898, ROC-AUC=0.9963, PR-AUC=0.9991
+  Epoch 42: Train Loss=0.0425, Test Loss=0.0782, F1=0.9851, Pre=0.9934, Rec=0.9769, ROC-AUC=0.9964, PR-AUC=0.9993
+  Epoch 43: Train Loss=0.0440, Test Loss=0.0532, F1=0.9909, Pre=0.9898, Rec=0.9919, ROC-AUC=0.9962, PR-AUC=0.9991
+  Epoch 44: Train Loss=0.0326, Test Loss=0.0679, F1=0.9886, Pre=0.9940, Rec=0.9833, ROC-AUC=0.9961, PR-AUC=0.9991
+  Epoch 45: Train Loss=0.0470, Test Loss=0.0544, F1=0.9914, Pre=0.9903, Rec=0.9925, ROC-AUC=0.9962, PR-AUC=0.9991
+  Epoch 46: Train Loss=0.0318, Test Loss=0.0704, F1=0.9884, Pre=0.9951, Rec=0.9817, ROC-AUC=0.9937, PR-AUC=0.9986
+  Epoch 47: Train Loss=0.0319, Test Loss=0.0736, F1=0.9906, Pre=0.9914, Rec=0.9898, ROC-AUC=0.9940, PR-AUC=0.9985
+  Epoch 48: Train Loss=0.0414, Test Loss=0.0665, F1=0.9903, Pre=0.9940, Rec=0.9866, ROC-AUC=0.9948, PR-AUC=0.9988
+  Epoch 49: Train Loss=0.0380, Test Loss=0.0837, F1=0.9898, Pre=0.9903, Rec=0.9892, ROC-AUC=0.9953, PR-AUC=0.9988
+  Epoch 50: Train Loss=0.0374, Test Loss=0.0691, F1=0.9914, Pre=0.9882, Rec=0.9946, ROC-AUC=0.9947, PR-AUC=0.9987
+  Best F1: 0.9917 (epoch 41)
+======================================================================
+SEED 123
+======================================================================
+
+--- Track A (MUAD Baseline) ---
+  Best F1: 0.9914 (epoch 50)
+  Final F1: 0.9914, Pre: 0.9882, Rec: 0.9946
+
+--- Track B (Graph-Aware MoE) ---
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+  Epoch  1: Train Loss=0.3534, Test Loss=0.2898, F1=0.9199, Pre=0.9635, Rec=0.8801, ROC-AUC=0.9257, PR-AUC=0.9813
+  Epoch  2: Train Loss=0.2075, Test Loss=0.1876, F1=0.9614, Pre=0.9464, Rec=0.9769, ROC-AUC=0.9674, PR-AUC=0.9929
+  Epoch  3: Train Loss=0.1767, Test Loss=0.1549, F1=0.9749, Pre=0.9672, Rec=0.9828, ROC-AUC=0.9736, PR-AUC=0.9929
+  Epoch  4: Train Loss=0.1376, Test Loss=0.1239, F1=0.9786, Pre=0.9719, Rec=0.9855, ROC-AUC=0.9807, PR-AUC=0.9950
+  Epoch  5: Train Loss=0.1218, Test Loss=0.1033, F1=0.9806, Pre=0.9806, Rec=0.9806, ROC-AUC=0.9876, PR-AUC=0.9973
+  Epoch  6: Train Loss=0.1100, Test Loss=0.0960, F1=0.9829, Pre=0.9766, Rec=0.9892, ROC-AUC=0.9898, PR-AUC=0.9977
+  Epoch  7: Train Loss=0.0935, Test Loss=0.1015, F1=0.9819, Pre=0.9864, Rec=0.9774, ROC-AUC=0.9897, PR-AUC=0.9977
+  Epoch  8: Train Loss=0.0918, Test Loss=0.0836, F1=0.9850, Pre=0.9803, Rec=0.9898, ROC-AUC=0.9917, PR-AUC=0.9981
+  Epoch  9: Train Loss=0.0885, Test Loss=0.0707, F1=0.9865, Pre=0.9897, Rec=0.9833, ROC-AUC=0.9947, PR-AUC=0.9990
+  Epoch 10: Train Loss=0.0863, Test Loss=0.0713, F1=0.9884, Pre=0.9898, Rec=0.9871, ROC-AUC=0.9916, PR-AUC=0.9978
+  Epoch 11: Train Loss=0.0789, Test Loss=0.0964, F1=0.9848, Pre=0.9777, Rec=0.9919, ROC-AUC=0.9940, PR-AUC=0.9988
+  Epoch 12: Train Loss=0.0831, Test Loss=0.0755, F1=0.9855, Pre=0.9839, Rec=0.9871, ROC-AUC=0.9944, PR-AUC=0.9988
+  Epoch 13: Train Loss=0.0761, Test Loss=0.0716, F1=0.9855, Pre=0.9819, Rec=0.9892, ROC-AUC=0.9955, PR-AUC=0.9991
+  Epoch 14: Train Loss=0.0685, Test Loss=0.0667, F1=0.9854, Pre=0.9908, Rec=0.9801, ROC-AUC=0.9958, PR-AUC=0.9992
+  Epoch 15: Train Loss=0.0750, Test Loss=0.0705, F1=0.9884, Pre=0.9892, Rec=0.9876, ROC-AUC=0.9941, PR-AUC=0.9988
+  Epoch 16: Train Loss=0.0752, Test Loss=0.0681, F1=0.9892, Pre=0.9914, Rec=0.9871, ROC-AUC=0.9959, PR-AUC=0.9992
+  Epoch 17: Train Loss=0.0707, Test Loss=0.1080, F1=0.9753, Pre=0.9972, Rec=0.9543, ROC-AUC=0.9940, PR-AUC=0.9988
+  Epoch 18: Train Loss=0.0755, Test Loss=0.0667, F1=0.9879, Pre=0.9882, Rec=0.9876, ROC-AUC=0.9956, PR-AUC=0.9991
+  Epoch 19: Train Loss=0.0714, Test Loss=0.0769, F1=0.9874, Pre=0.9871, Rec=0.9876, ROC-AUC=0.9931, PR-AUC=0.9984
+  Epoch 20: Train Loss=0.0704, Test Loss=0.0638, F1=0.9884, Pre=0.9913, Rec=0.9855, ROC-AUC=0.9971, PR-AUC=0.9994
+  Epoch 21: Train Loss=0.0717, Test Loss=0.0562, F1=0.9896, Pre=0.9861, Rec=0.9930, ROC-AUC=0.9966, PR-AUC=0.9993
+  Epoch 22: Train Loss=0.0620, Test Loss=0.0764, F1=0.9885, Pre=0.9845, Rec=0.9925, ROC-AUC=0.9955, PR-AUC=0.9990
+  Epoch 23: Train Loss=0.0623, Test Loss=0.0631, F1=0.9887, Pre=0.9877, Rec=0.9898, ROC-AUC=0.9944, PR-AUC=0.9987
+  Epoch 24: Train Loss=0.0702, Test Loss=0.0910, F1=0.9874, Pre=0.9830, Rec=0.9919, ROC-AUC=0.9957, PR-AUC=0.9991
+  Epoch 25: Train Loss=0.0656, Test Loss=0.0516, F1=0.9909, Pre=0.9893, Rec=0.9925, ROC-AUC=0.9974, PR-AUC=0.9995
+  Epoch 26: Train Loss=0.0554, Test Loss=0.0544, F1=0.9917, Pre=0.9903, Rec=0.9930, ROC-AUC=0.9967, PR-AUC=0.9993
+  Epoch 27: Train Loss=0.0515, Test Loss=0.0634, F1=0.9895, Pre=0.9924, Rec=0.9866, ROC-AUC=0.9972, PR-AUC=0.9995
+  Epoch 28: Train Loss=0.0623, Test Loss=0.0593, F1=0.9888, Pre=0.9845, Rec=0.9930, ROC-AUC=0.9972, PR-AUC=0.9994
+  Epoch 29: Train Loss=0.0549, Test Loss=0.0688, F1=0.9887, Pre=0.9892, Rec=0.9882, ROC-AUC=0.9953, PR-AUC=0.9990
+  Epoch 30: Train Loss=0.0565, Test Loss=0.0743, F1=0.9868, Pre=0.9876, Rec=0.9860, ROC-AUC=0.9950, PR-AUC=0.9989
+  Epoch 31: Train Loss=0.0514, Test Loss=0.0708, F1=0.9887, Pre=0.9898, Rec=0.9876, ROC-AUC=0.9962, PR-AUC=0.9992
+  Epoch 32: Train Loss=0.0435, Test Loss=0.0561, F1=0.9892, Pre=0.9924, Rec=0.9860, ROC-AUC=0.9973, PR-AUC=0.9994
+  Epoch 33: Train Loss=0.0460, Test Loss=0.0571, F1=0.9887, Pre=0.9935, Rec=0.9839, ROC-AUC=0.9975, PR-AUC=0.9995
+  Epoch 34: Train Loss=0.0445, Test Loss=0.0816, F1=0.9884, Pre=0.9913, Rec=0.9855, ROC-AUC=0.9960, PR-AUC=0.9992
+  Epoch 35: Train Loss=0.0586, Test Loss=0.0638, F1=0.9901, Pre=0.9887, Rec=0.9914, ROC-AUC=0.9961, PR-AUC=0.9992
+  Epoch 36: Train Loss=0.0563, Test Loss=0.0633, F1=0.9898, Pre=0.9887, Rec=0.9909, ROC-AUC=0.9965, PR-AUC=0.9993
+  Epoch 37: Train Loss=0.0427, Test Loss=0.0662, F1=0.9896, Pre=0.9861, Rec=0.9930, ROC-AUC=0.9964, PR-AUC=0.9992
+  Epoch 38: Train Loss=0.0486, Test Loss=0.0676, F1=0.9911, Pre=0.9919, Rec=0.9903, ROC-AUC=0.9942, PR-AUC=0.9985
+  Epoch 39: Train Loss=0.0445, Test Loss=0.0649, F1=0.9911, Pre=0.9930, Rec=0.9892, ROC-AUC=0.9964, PR-AUC=0.9992
+  Epoch 40: Train Loss=0.0550, Test Loss=0.0652, F1=0.9890, Pre=0.9871, Rec=0.9909, ROC-AUC=0.9934, PR-AUC=0.9984
+  Epoch 41: Train Loss=0.0482, Test Loss=0.0577, F1=0.9897, Pre=0.9940, Rec=0.9855, ROC-AUC=0.9975, PR-AUC=0.9995
+  Epoch 42: Train Loss=0.0491, Test Loss=0.0573, F1=0.9887, Pre=0.9935, Rec=0.9839, ROC-AUC=0.9971, PR-AUC=0.9994
+  Epoch 43: Train Loss=0.0529, Test Loss=0.0854, F1=0.9859, Pre=0.9940, Rec=0.9780, ROC-AUC=0.9971, PR-AUC=0.9994
+  Epoch 44: Train Loss=0.0362, Test Loss=0.0595, F1=0.9916, Pre=0.9941, Rec=0.9892, ROC-AUC=0.9977, PR-AUC=0.9996
+  Epoch 45: Train Loss=0.0354, Test Loss=0.0747, F1=0.9897, Pre=0.9935, Rec=0.9860, ROC-AUC=0.9975, PR-AUC=0.9995
+  Epoch 46: Train Loss=0.0427, Test Loss=0.0704, F1=0.9892, Pre=0.9903, Rec=0.9882, ROC-AUC=0.9971, PR-AUC=0.9994
+  Epoch 47: Train Loss=0.0479, Test Loss=0.0675, F1=0.9904, Pre=0.9851, Rec=0.9957, ROC-AUC=0.9970, PR-AUC=0.9994
+  Epoch 48: Train Loss=0.0360, Test Loss=0.0845, F1=0.9838, Pre=0.9902, Rec=0.9774, ROC-AUC=0.9944, PR-AUC=0.9989
+  Epoch 49: Train Loss=0.0405, Test Loss=0.0563, F1=0.9914, Pre=0.9893, Rec=0.9935, ROC-AUC=0.9978, PR-AUC=0.9996
+  Epoch 50: Train Loss=0.0355, Test Loss=0.0773, F1=0.9886, Pre=0.9951, Rec=0.9823, ROC-AUC=0.9972, PR-AUC=0.9994
+  Best F1: 0.9917 (epoch 26)
+
+======================================================================
+SUMMARY - TRACK A vs TRACK B
+======================================================================
+
+Track A (MUAD):      Mean F1 = 0.9914 +/- 0.0000
+Track B (Graph MoE): Mean F1 = 0.9917 +/- 0.0000
+Improvement:         +0.0003 (+0.03%)
+Paired t-test:       t=662.1043, p=0.000962
+Significant (p<0.05): YES
+
+Per-seed comparison:
+Seed     Track A    Track B    Diff      
+42       0.9914     0.9917     +0.0003
+123      0.9914     0.9917     +0.0003
+
+Results saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/runs/comparison_20261110_170440

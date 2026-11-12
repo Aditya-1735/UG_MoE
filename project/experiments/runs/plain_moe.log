@@ -1,0 +1,55 @@
+nohup: ignoring input
+============================================================
+PLAIN MoE BASELINE - FULL EXPERIMENTS
+============================================================
+Config: hidden_dim=64, epochs=50, lr=0.001, batch=50, weight_decay=1e-5
+Data: recovered_artifact (event_num=15)
+Plain MoE: no graph routing, no uncertainty, weighted_concat fusion
+5 runs with seeds: 42, 123, 456, 789, 999
+
+============================================================
+PLAIN MoE - RUN 1/5 - Seed: 42
+============================================================
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+  Epoch  5: Train Loss=0.1270, Test Loss=0.1553, F1=0.9735, Pre=0.9598, Rec=0.9876, ROC-AUC=0.9773, PR-AUC=0.9947
+  Epoch 10: Train Loss=0.0685, Test Loss=0.0669, F1=0.9866, Pre=0.9855, Rec=0.9876, ROC-AUC=0.9947, PR-AUC=0.9989
+  Epoch 15: Train Loss=0.0606, Test Loss=0.0791, F1=0.9842, Pre=0.9808, Rec=0.9876, ROC-AUC=0.9919, PR-AUC=0.9977
+  Epoch 20: Train Loss=0.0537, Test Loss=0.0601, F1=0.9894, Pre=0.9967, Rec=0.9823, ROC-AUC=0.9954, PR-AUC=0.9991
+  Epoch 25: Train Loss=0.0457, Test Loss=0.0691, F1=0.9892, Pre=0.9898, Rec=0.9887, ROC-AUC=0.9924, PR-AUC=0.9964
+  Epoch 30: Train Loss=0.0364, Test Loss=0.0583, F1=0.9906, Pre=0.9909, Rec=0.9903, ROC-AUC=0.9975, PR-AUC=0.9995
+  Epoch 35: Train Loss=0.0305, Test Loss=0.0663, F1=0.9895, Pre=0.9940, Rec=0.9849, ROC-AUC=0.9964, PR-AUC=0.9993
+  Epoch 40: Train Loss=0.0309, Test Loss=0.0657, F1=0.9904, Pre=0.9861, Rec=0.9946, ROC-AUC=0.9965, PR-AUC=0.9992
+  Epoch 45: Train Loss=0.0233, Test Loss=0.0735, F1=0.9914, Pre=0.9893, Rec=0.9935, ROC-AUC=0.9945, PR-AUC=0.9985
+  Epoch 50: Train Loss=0.0151, Test Loss=0.0556, F1=0.9922, Pre=0.9898, Rec=0.9946, ROC-AUC=0.9944, PR-AUC=0.9984
+  Best F1: 0.9922 (epoch 50)
+  Final F1: 0.9922, Pre: 0.9898, Rec: 0.9946, ROC-AUC: 0.9944, PR-AUC: 0.9984
+  Checkpoint saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/plain_moe.pth
+
+============================================================
+PLAIN MoE - RUN 2/5 - Seed: 123
+============================================================
+/DATA/ayanava_2511ai61/miniconda3/envs/muad/lib/python3.11/site-packages/torch/nn/modules/transformer.py:286: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(f"enable_nested_tensor is True, but self.use_nested_tensor is False because {why_not_sparsity_fast_path}")
+  Epoch  5: Train Loss=0.1088, Test Loss=0.0951, F1=0.9813, Pre=0.9745, Rec=0.9882, ROC-AUC=0.9917, PR-AUC=0.9982
+  Epoch 10: Train Loss=0.0828, Test Loss=0.0726, F1=0.9848, Pre=0.9913, Rec=0.9785, ROC-AUC=0.9941, PR-AUC=0.9987
+  Epoch 15: Train Loss=0.0714, Test Loss=0.0702, F1=0.9862, Pre=0.9913, Rec=0.9812, ROC-AUC=0.9943, PR-AUC=0.9988
+  Epoch 20: Train Loss=0.0652, Test Loss=0.0796, F1=0.9857, Pre=0.9871, Rec=0.9844, ROC-AUC=0.9938, PR-AUC=0.9985
+  Epoch 25: Train Loss=0.0520, Test Loss=0.0525, F1=0.9903, Pre=0.9919, Rec=0.9887, ROC-AUC=0.9973, PR-AUC=0.9994
+  Epoch 30: Train Loss=0.0343, Test Loss=0.0531, F1=0.9893, Pre=0.9877, Rec=0.9909, ROC-AUC=0.9978, PR-AUC=0.9995
+  Epoch 35: Train Loss=0.0275, Test Loss=0.1026, F1=0.9851, Pre=0.9951, Rec=0.9753, ROC-AUC=0.9972, PR-AUC=0.9994
+  Epoch 40: Train Loss=0.0248, Test Loss=0.1028, F1=0.9851, Pre=0.9929, Rec=0.9774, ROC-AUC=0.9957, PR-AUC=0.9992
+  Epoch 45: Train Loss=0.0218, Test Loss=0.0767, F1=0.9892, Pre=0.9940, Rec=0.9844, ROC-AUC=0.9978, PR-AUC=0.9995
+  Epoch 50: Train Loss=0.0179, Test Loss=0.0668, F1=0.9909, Pre=0.9882, Rec=0.9935, ROC-AUC=0.9973, PR-AUC=0.9994
+  Best F1: 0.9909 (epoch 50)
+  Final F1: 0.9909, Pre: 0.9882, Rec: 0.9935, ROC-AUC: 0.9973, PR-AUC: 0.9994
+  Checkpoint saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/checkpoints/plain_moe.pth
+
+============================================================
+SUMMARY - PLAIN MoE BASELINE
+============================================================
+Successful runs: 2/5
+Best F1s: ['0.9922', '0.9909']
+Mean F1: 0.9916 ± 0.0007
+
+Results saved to: /DATA/ayanava_2511ai61/AHA_BTP/UG_MoE/project/experiments/runs/plain_moe_20261111_005926
