@@ -58,3 +58,8 @@ project/checkpoints/
 /tmp/
 temp/
 tmp/
+
+
+hdfs_dataset/
+raw_data/
+SN_dataset/
