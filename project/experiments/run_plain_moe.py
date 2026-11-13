@@ -36,14 +36,17 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     
     # Load recovered artifact (same as Track A/B for apples-to-apples)
     data_dir = Path(__file__).parent.parent / "recovered_artifact"
-    train_data, node_num, edges = load_data(
+    train_data, node_num, edges, metadata = load_data(
         str(data_dir / "chunk_train.pkl"),
         str(data_dir / "metadata.json")
     )
-    test_data, _, _ = load_data(
+    test_data, _, _, _ = load_data(
         str(data_dir / "chunk_test.pkl"),
         str(data_dir / "metadata.json")
     )
+    
+    print(f"  Train: {len(train_data)} chunks, Test: {len(test_data)} chunks")
+    print(f"  Data dims: log_dim={metadata['event_num']}, metric_dim={metadata['metric_num']}, num_nodes={metadata['node_num']}")
     
     train_dataset = ChunkDataset(train_data, list(train_data.keys()), node_num, edges)
     test_dataset = ChunkDataset(test_data, list(test_data.keys()), node_num, edges)
@@ -56,7 +59,7 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     # Plain MoE config: no graph routing, no uncertainty routing, simple fusion
     config = DEFAULT_CONFIG.copy()
     config.pop("epochs", None)
-    config['log_dim'] = 15
+    config['log_dim'] = metadata["event_num"]
     config['router_type'] = "base"
     config['use_graph_routing'] = False
     config['use_uncertainty_routing'] = False
