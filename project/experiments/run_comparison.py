@@ -35,11 +35,11 @@ WEIGHT_DECAY = 1e-5
 
 def load_common_data(data_dir: Path, batch_size: int):
     """Load train/test data once, shared by both models."""
-    train_data, node_num, edges = load_data(
+    train_data, node_num, edges, metadata = load_data(
         str(data_dir / "chunk_train.pkl"),
         str(data_dir / "metadata.json")
     )
-    test_data, _, _ = load_data(
+    test_data, _, _, _ = load_data(
         str(data_dir / "chunk_test.pkl"),
         str(data_dir / "metadata.json")
     )
@@ -50,7 +50,7 @@ def load_common_data(data_dir: Path, batch_size: int):
     train_loader = create_dataloader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = create_dataloader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    return train_loader, test_loader, len(train_data), len(test_data)
+    return train_loader, test_loader, len(train_data), len(test_data), metadata
 
 
 def run_track_a(seed, train_loader, test_loader, output_dir, epochs, lr, event_num, device):
@@ -286,8 +286,9 @@ def main():
     print()
 
     # Load shared data once
-    train_loader, test_loader, n_train, n_test = load_common_data(data_dir, args.batch_size)
+    train_loader, test_loader, n_train, n_test, metadata = load_common_data(data_dir, args.batch_size)
     print(f"Train chunks: {n_train}, Test chunks: {n_test}")
+    print(f"  Data dims: log_dim={metadata['event_num']}, metric_dim={metadata['metric_num']}, num_nodes={metadata['node_num']}")
     print()
 
     track_a_results = []
@@ -316,7 +317,7 @@ def main():
         print("\n--- Track B (Graph-Aware MoE) ---")
         try:
             res_b = run_track_b(seed, train_loader, test_loader, output_base,
-                                args.epochs, args.lr, args.batch_size, WEIGHT_DECAY, args.log_dim, args.device)
+                                args.epochs, args.lr, args.batch_size, WEIGHT_DECAY, metadata["event_num"], args.device)
             track_b_results.append(res_b)
             print(f"  Best F1: {res_b['best_f1']:.4f} (epoch {res_b['best_epoch']})")
         except Exception as e:

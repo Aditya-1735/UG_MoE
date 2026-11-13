@@ -29,7 +29,7 @@ def load_data(data_path, metadata_path):
 
     metadata = read_json(metadata_path)
     node_num, edges_tup = metadata["node_num"], tuple(metadata["edges"])
-    return data, node_num, edges_tup
+    return data, node_num, edges_tup, metadata
 
 
 def create_dataloader(dataset, batch_size=50, shuffle=True):

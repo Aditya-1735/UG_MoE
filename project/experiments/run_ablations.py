@@ -70,14 +70,16 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     
     if data_dir is None:
         data_dir = Path(__file__).parent.parent / "recovered_artifact"
-    train_data, node_num, edges = load_data(
+    train_data, node_num, edges, metadata = load_data(
         str(data_dir / "chunk_train.pkl"),
         str(data_dir / "metadata.json")
     )
-    test_data, _, _ = load_data(
+    test_data, _, _, _ = load_data(
         str(data_dir / "chunk_test.pkl"),
         str(data_dir / "metadata.json")
     )
+    
+    print(f"  Data dims: log_dim={metadata['event_num']}, metric_dim={metadata['metric_num']}, num_nodes={metadata['node_num']}")
     
     train_dataset = ChunkDataset(train_data, list(train_data.keys()), node_num, edges)
     test_dataset = ChunkDataset(test_data, list(test_data.keys()), node_num, edges)
@@ -87,9 +89,7 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
     
     device = torch.device(device)
     config = DEFAULT_CONFIG.copy()
-    # Set log_dim dynamically from actual data shape to avoid dimension mismatch
-    sample_chunk = train_data[list(train_data.keys())[0]]
-    config['log_dim'] = sample_chunk['logs'].shape[-1]
+    config['log_dim'] = metadata["event_num"]
     
     # Apply ablation config
     for k, v in ablation_config.items():
