@@ -62,4 +62,6 @@ tmp/
 
 hdfs_dataset/
 raw_data/
-# SN_dataset/
+# SN_dataset/hdfs/HDFS.log
+hdfs/preprocessed/*.csv
+hdfs/preprocessed/*.npz
