@@ -29,25 +29,27 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
     # Set seed for reproducibility
     seed_everything(seed)
     
-    # Load RECOVERED artifact (commit 6031ccf)
+    # Load recovered artifact (same as Track B for apples-to-apples)
     data_dir = Path(__file__).parent.parent / "recovered_artifact"
-    train_data, node_num, edges = load_data(
+    train_data, node_num, edges, metadata = load_data(
         str(data_dir / "chunk_train.pkl"),
         str(data_dir / "metadata.json")
     )
-    test_data, _, _ = load_data(
+    test_data, _, _, _ = load_data(
         str(data_dir / "chunk_test.pkl"),
         str(data_dir / "metadata.json")
     )
     
-    # Datasets
+    print(f"  Train: {len(train_data)} chunks, Test: {len(test_data)} chunks")
+    print(f"  Data dims: log_dim={metadata['event_num']}, metric_dim={metadata['metric_num']}, num_nodes={metadata['node_num']}")
+    
     train_dataset = ChunkDataset(train_data, list(train_data.keys()), node_num, edges)
     test_dataset = ChunkDataset(test_data, list(test_data.keys()), node_num, edges)
     
     train_loader = create_dataloader(train_dataset, batch_size=50, shuffle=True)
     test_loader = create_dataloader(test_dataset, batch_size=50, shuffle=False)
     
-    # Model - commit 6031ccf config
+    # Model
     device = torch.device("cpu")
     model = BaseModel(
         device=device,
@@ -57,7 +59,7 @@ def run_single_experiment(run_id: int, seed: int, output_base: Path):
         result_dir=str(output_base / f"run_{run_id}"),
         hash_id=f"faithful_full_run{run_id}",
         hidden_dim=[64, 64],
-        event_num=15  # Recovered artifact has 15 templates
+        event_num=metadata["event_num"],
     )
     
     # Training
