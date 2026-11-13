@@ -44,7 +44,7 @@ project/checkpoints/
 # *.log
 
 # Data files (large binary files, use Git LFS if needed)
-*.pkl
+# *.pkl
 *.bin
 
 # Jupyter
@@ -62,4 +62,4 @@ tmp/
 
 hdfs_dataset/
 raw_data/
-SN_dataset/
+# SN_dataset/
