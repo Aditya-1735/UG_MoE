@@ -110,10 +110,21 @@ def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_ba
         model.train()
         train_loss = 0
         for graph, labels in train_loader:
-            graph, labels = graph.to(device), labels.to(device)
-            binary_labels = (labels >= 1).long()
-            
-            optimizer.zero_grad()
+        graph, labels = graph.to(device), labels.to(device)
+        binary_labels = (labels >= 1).long()
+        
+        # Expand log and trace features to match time dimension
+        B = graph.batch_size
+        N = graph.batch_num_nodes()[0]
+        T = graph.ndata["metrics"].shape[1] // N
+        
+        # Expand log embeddings: [B*12, 14] -> [B*120, 14]
+        graph.ndata["logs"] = graph.ndata["logs"].unsqueeze(1).expand(-1, T, -1).view(-1, graph.ndata["logs"].shape[-1])
+        
+        # Expand trace embeddings: [B*12, 1] -> [B*120, 1]
+        graph.ndata["traces"] = graph.ndata["traces"].unsqueeze(1).expand(-1, T, -1).view(-1, 1)
+        
+        optimizer.zero_grad()
             outputs = model(graph, binary_labels)
             logits = outputs["MMlogit"]
             loss = outputs["loss"]
