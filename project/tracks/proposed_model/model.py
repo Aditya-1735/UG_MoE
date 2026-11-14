@@ -579,6 +579,14 @@ class GraphAwareMoE(nn.Module):
             expert_uncertainties=expert_unc_tensor,
             return_uncertainty=True,
         )
+        # Ensure routing_weights has shape [B, num_experts]
+        if routing_weights.dim() == 1:
+            routing_weights = routing_weights.view(B, -1)
+        elif routing_weights.dim() == 2:
+            if routing_weights.shape[1] == 1:
+                routing_weights = routing_weights.view(B, -1)
+            elif routing_weights.shape[1] != self.num_experts:
+                routing_weights = routing_weights.view(B, self.num_experts)
         # Handle new return format from router (dict with aux_loss)
         if isinstance(routing_aux_loss, dict):
             routing_aux_loss = routing_aux_loss.get('aux_loss', 0)
