@@ -493,7 +493,16 @@ class GraphAwareMoE(nn.Module):
                         out = out.get("metric_embedding", out.get("trace_embedding", list(out.values())[0]))
                         # out is already [B, D], no reshaping needed
                 elif exp_type == "semantic":
-                    out = expert(graph.ndata["logs"], B)  # [B, D]
+                    # LogSemanticExpert expects input of shape [B*12, log_dim]
+                    # Ensure log_node has correct shape
+                    log_node = modality_embeddings["log"]
+                    if log_node.shape[-1] != self.log_dim:
+                        if log_node.shape[-1] < self.log_dim:
+                            padding = torch.zeros(log_node.shape[0], self.log_dim - log_node.shape[-1], device=log_node.device)
+                            log_node = torch.cat([log_node, padding], dim=1)
+                        else:
+                            log_node = log_node[:, :self.log_dim]
+                    out = expert(graph, log_node)  # [B, D]
                 elif exp_type == "dependency":
                     # Use actual per-node metric embeddings (not broadcast graph-level)
                     node_feats = modality_embeddings["metric_node"]  # [B*12, hidden_dim]
