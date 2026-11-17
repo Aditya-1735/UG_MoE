@@ -1,0 +1,321 @@
+# MUAD vs. UG-MoE: what is wrong with MUAD's numbers, and what our model actually shows
+
+Status: 2026-11-17. All results are **single seed (42)**. Differences below about 1 macro-F1 point are
+treated as noise. Every claim below points to the paper text, a line of code, or a run directory, so it
+can be checked. Things not yet shown are listed in §6.
+
+---
+
+## 0. Summary
+
+1. **MUAD's reported F1 ≈ 0.99 on SN comes from its evaluation protocol, not from the detection
+   problem.** The paper splits stride-1 windows (neighbours share 9 of 10 seconds) **at random** into
+   train and test. In the shipped data, **83.9% of test windows have a near-identical training window.**
+   The test set is also **83% anomalous**, so predicting "anomalous" for everything already gets F1 0.906.
+2. **MUAD's code has defects that matter for a fair evaluation:** it picks the best epoch **on the test
+   set**, it **samples random noise at test time** (non-deterministic predictions), and its **KL term is
+   mathematically wrong** (it does not regularize towards the prior it claims). Its shipped log features
+   are ~6·10⁻¹⁰ in size, so **logs have no effect** on MUAD at all.
+3. **We reproduce MUAD's number under its own protocol** (0.988 vs. the paper's 0.993). So the gap to
+   the paper is caused by the protocol, not by a broken reproduction.
+4. **On a leak-free protocol**, which we apply identically to every model:
+   - On MUAD's own data: UG-MoE and MUAD **tie** (macro-F1 0.933 vs 0.932).
+   - On SN rebuilt from the raw Eadro data (harder, includes fault-free runs): **UG-MoE v2 0.987
+     vs. MUAD 0.922 macro-F1 (+6.5 points)**, with recall 0.973 vs 0.857. It uses 166k parameters
+     (MUAD: 240k).
+5. **Honest limit:** on SN the full UG-MoE v2 is level with its own "plain" variant (experts + router,
+   no graph or uncertainty: 0.986). So the gain over MUAD currently comes from the **mixture-of-experts
+   architecture**. The uncertainty components still have to show their value where the plan says they
+   should: robustness to missing or noisy modalities (round 8, running) and the TT dataset (round 7,
+   running).
+
+---
+
+## 1. Where MUAD's "F1 > 0.99" comes from: the paper's own protocol
+
+### 1.1 What the paper says (MUAD paper, §IV-A "Experimental Setup")
+
+> "We randomly selected 60% of the data from each of the three datasets for training and used the
+> remaining 40% for testing, ensuring that the ratio of normal to abnormal samples remains consistent
+> between the training and testing sets."
+
+> "Sliding window length = **10**, stride = **1**."
+
+> "Dataset C is the SN dataset from Eadro [11] … 7 metrics sampled every 1 s, 126,384 traces, and
+> **15 log templates**."
+
+The setup describes **no validation set** and **no rule for choosing the reported epoch** (only "120
+epochs per training stage").
+
+### 1.2 Our `recovered_artifact` is exactly that split
+
+- `project/recovered_artifact/` (from the MUAD repository) has `event_num = 15` (= "15 log
+  templates"), and **3,366 train / 2,244 test windows = exactly 60 / 40**.
+- The windows were produced by Eadro's preprocessing (`project/vendor/eadro/codes/preprocess/align.py`):
+  `intervals = [(s, s+9) for s in range(start, end-9)]` (stride 1), then `np.random.shuffle(chunk_idx)`
+  (random split).
+
+### 1.3 Why a random split of stride-1 windows leaks
+
+Window *t* covers seconds *t … t+9* and window *t+1* covers *t+1 … t+10*: they share 9 of 10 seconds.
+Randomly assigning windows to train and test therefore puts near-copies of most test windows into training.
+
+**Measured** (`project/experiments/common.py`, `reconstruct_runs`). Consecutive windows can be chained
+because window *t+1*'s first 9 metric steps equal window *t*'s last 9. This recovers the original
+**4 fault-injection runs** (1,402 / 1,402 / 1,404 / 1,402 windows; every chunk covered, no ambiguity).
+Then: **1,882 of 2,244 test windows (83.9%) have a training window as their immediate, 1-second-shifted
+neighbour.** The model is mostly tested on data it has already seen.
+
+### 1.4 The test set is imbalanced, so F1 alone says little
+
+Test labels: 384 normal, 1,860 anomalous (**83% anomalous**). A constant "anomalous" predictor gets
+precision 0.83, recall 1.0, **F1 = 0.906**, without looking at the data. The paper reports only the
+anomaly-class F1, precision and recall (§IV-A-3).
+
+**The paper's own ablation shows this** (Table III, Dataset C):
+
+| Variant | F1 | Recall | Precision |
+|---|---|---|---|
+| Only Log | 0.9064 | **1.000** | **0.8289** |
+| Only Metric | 0.9903 | 0.9925 | 0.9882 |
+| MUAD (all three) | 0.9928 | 0.9941 | 0.9914 |
+
+"Only Log" has recall exactly 1.0 and precision equal to the anomalous share of the test set: it
+predicts "anomalous" for every window. "Only Metric" alone gives 0.9903. So of MUAD's 0.9928 on SN,
+about 0.906 is free from the imbalance, almost everything else comes from the metrics, and logs and
+traces add 0.0025.
+
+---
+
+## 2. Defects in MUAD's code
+
+We use MUAD's code **unchanged** (`project/vendor/muad`), so these defects affect our MUAD numbers
+too. We did not fix them: Track A is a faithful reproduction.
+
+### 2.1 The best epoch is chosen on the test set
+`project/vendor/muad/training/base_model.py`, lines 86–91:
+```python
+if epoch % evaluation_epoch == 0 and test_loader:
+    test_results = self.evaluate(test_loader)
+    if test_results["F1"] > best_f1:
+        best_f1 = test_results["F1"]
+        best_state = copy.deepcopy(self.model.state_dict())
+```
+The reported F1 is the **maximum test F1 over epochs**, which is optimistic by construction. In our earlier
+ablation runs, which used the same rule, the last-epoch F1 was 0.3–1.1 points below the "best" F1 chosen this way. Early stopping
+(lines 76–80) watches the **training** loss, so there is no held-out signal at all.
+
+### 2.2 Predictions are random at test time
+`project/vendor/muad/models/main_model.py`, lines 28 and 31–34:
+```python
+new_sample = self.reparametrize(mu_attn, var_attn)   # called in forward(), also in eval()
+def reparametrize(self, mu, var):
+    std = var.sqrt(); eps = torch.randn_like(std)
+    return mu + eps * std
+```
+There is no `if self.training` check, so every evaluation draws fresh noise. **Evidence:** the same MUAD
+checkpoint gave test F1 0.9884 in one evaluation and 0.9882 in another (`runs/robustness_muad_20261117_113500`
+vs. the comparison run). In a probabilistic encoder, test-time predictions should use the mean μ.
+
+### 2.3 The KL term is the wrong formula
+`main_model.py`, lines 17–18 and 36–37:
+```python
+self.fc_var = nn.Sequential(nn.Linear(128, 64), nn.Sigmoid())       # var in (0, 1): a variance
+def kl_loss(self, mu, var):
+    return -0.5 * torch.mean(torch.sum(1 + var - mu ** 2 - var.exp(), dim=-1))
+```
+- The standard KL to N(0, I) is −½ Σ(1 + **log σ²** − μ² − **σ²**). It needs the *log*-variance in the
+  2nd term and the variance in the last.
+- MUAD passes the **variance** where the log-variance belongs (the sampler, `var.sqrt()`, confirms that
+  `var` is a variance). The term becomes −½ Σ(1 + σ² − μ² − e^{σ²}).
+- With f(v) = 1 + v − eᵛ: f(0) = 0 and f′(v) = 1 − eᵛ < 0 for v > 0. So this "KL" is ≥ 0 and is
+  **minimized at σ² = 0, μ = 0**: it pushes the variance to zero. The true KL is minimized at **σ² = 1**.
+- So MUAD's "uncertainty" regularizer does not do what the paper describes. It pulls the model towards
+  zero variance, the opposite of the intended prior.
+
+### 2.4 The noise is large compared with the signal it is added to (derived from the code)
+Both μ and σ² are a sigmoid output (in (0, 1)), multiplied element-wise by a softmax over 64 dimensions
+(`SimpleAttention`, `graph_model.py` lines 41–44: `return x * softmax(x W + b)`). The softmax weights sum
+to 1, so with spread-out attention each μ entry is about 0.5/64 ≈ 0.008. σ² is about the same size,
+which gives a standard deviation of √0.008 ≈ 0.09. **In that regime the noise is about ten times the
+mean**, and §2.2 shows this noise is also added at test time. This is a back-of-envelope estimate from the
+code, not a measurement on a trained checkpoint. Measuring it on the round 5 checkpoint takes one short
+script (we can add it if the supervisor wants it).
+
+### 2.5 The shipped log features are numerically invisible
+Descriptive statistics of `recovered_artifact/chunk_train.pkl`: **every log value lies in
+[0, 6.06·10⁻¹⁰]** (mean 5.9·10⁻¹⁰, std 9.4·10⁻¹¹). A linear layer with weights around 0.1 turns this into
+about 10⁻¹¹, effectively zero. MUAD's code does not normalize it.
+
+**Evidence that MUAD ignores logs and traces** (MUAD's own trained checkpoint, test set, perturbed
+at test time; `runs/robustness_muad_20261117_113500`):
+
+| Perturbation at test time | MUAD F1 | MUAD macro-F1 |
+|---|---|---|
+| Clean | 0.9884 | 0.9663 |
+| Remove logs | 0.9884 (identical) | 0.9663 |
+| Remove traces | 0.9884 (identical) | 0.9663 |
+| Noise on logs / traces, up to 2× std | unchanged (±0.0003) | unchanged |
+| Remove metrics | 0.9064 (= all-anomalous) | 0.4532 |
+
+So MUAD, as published, is a **metrics-only detector** on SN. Its confidence-aware fusion has nothing
+to fuse. (The old UG-MoE behaved the same before our fixes, so this is a data problem as much as a
+model problem. That's why we added normalization for every model, §3.)
+
+### 2.6 Other differences to know (not defects, but relevant)
+- MUAD's loss is `CE + 0.6·confidence_loss + KL` (`main_model.py:111`). We train MUAD with exactly this
+  loss.
+- **Hyperparameters:** the paper uses lr 1e-3 and 120 epochs. Our shared protocol uses lr 5e-4, at most
+  50 epochs, early stopping (patience 15), the same for every model. MUAD's selected epochs (e.g. 32 in
+  round 4) are below the limit, so it is not obviously short of training budget. Still, a reviewer could
+  raise this, and one MUAD run at the paper's lr and epochs would settle it.
+
+---
+
+## 3. What we changed in the evaluation (identical for every model)
+
+| Change | Why | Where |
+|---|---|---|
+| **Run-level split**: whole fault-injection runs go to train / val / test | Removes the 83.9% near-duplicate leak (§1.3). Plan §13: "do not randomly split rows belonging to the same time window". | `common.load_splits(split="run")`, `assign_pipeline_runs` |
+| **Validation split, select on val macro-F1, test evaluated once** | Removes test-set selection (§2.1). Plan §6 S14: "best checkpoint based on validation F1 or PR-AUC". Macro-F1 because the trivial predictor wins anomaly-F1 on anomaly-heavy validation sets (§6). | `common.train_and_select`, `_selection_key` |
+| **Z-score normalization fitted on the training split only** | Makes the 10⁻¹⁰ log features visible (§2.5). Plan Step 5. | `common.fit_normalizer` |
+| **Report macro-F1, normal-class F1, PR-AUC, ROC-AUC and a trivial baseline row** | F1 alone hides imbalance (§1.4). | `common.compute_metrics`, `trivial_baseline_metrics` |
+| **Rebuilt SN and TT from the raw Zenodo data** | Adds the fault-free runs MUAD's data left out (realistic class balance), records run and time for every window, MD5-checked downloads. | `project/data_pipeline/` |
+| **Deterministic evaluation** for our models | §2.2 | `ug_moe_v2.py` line 208 (`... if self.training else mu`) |
+
+MUAD itself is **not modified**. It only receives the same data, split and selection rule as every
+other model.
+
+---
+
+## 4. Results
+
+### 4.1 Reproducing MUAD's protocol (leaky random split, `recovered_artifact`)
+
+| | MUAD test F1 |
+|---|---|
+| MUAD paper, Dataset C | 0.9928 |
+| Ours, same split, epoch chosen on validation (`runs/comparison_20261117_104222`) | **0.9882** (macro-F1 0.9654) |
+
+Our MUAD reproduces the paper (−0.5 points, consistent with choosing on validation instead of test).
+
+### 4.2 Same data, leak-free run split (round 4, `runs/round4_runsplit/`)
+Train runs 0–1, val run 2, test run 3. Test 83% anomalous, so the trivial predictor gets F1 0.908.
+
+| Model | Params | Test F1 | F1 normal | Macro-F1 | PR-AUC |
+|---|---|---|---|---|---|
+| Trivial "all anomalous" | — | 0.9077 | 0 | 0.4538 | 0.8310 |
+| UG-MoE (legacy) | 4.4M | 0.9767 | 0.8898 | **0.9332** | **0.9984** |
+| MUAD | 0.24M | 0.9767 | 0.8880 | 0.9324 | 0.9934 |
+| Plain MoE (legacy) | 4.2M | 0.9688 | 0.8560 | 0.9124 | 0.9957 |
+
+Removing the leak costs MUAD only 1.2 F1 points. Its normal-class F1 of 0.888, however, shows that it
+misclassifies about 1 in 9 normal windows, which F1 hides. UG-MoE and MUAD tie.
+
+### 4.3 SN rebuilt from raw (rounds 5 and 6, `runs/round5_sn/`, `runs/round6_v2_sn/`)
+7 runs (4 fault + 3 fault-free). Train = 2 fault runs + 1 fault-free; val and test = 1 fault + 1
+fault-free run each (about 59% normal). Trivial F1 0.579 / macro-F1 0.289.
+
+| Model | Params | Test F1 | Recall | F1 normal | **Macro-F1** | PR-AUC |
+|---|---|---|---|---|---|---|
+| Trivial | — | 0.5787 | 1.0000 | 0 | 0.2893 | 0.4071 |
+| **UG-MoE v2 (full)** | 166k | **0.9842** | 0.9732 | **0.9894** | **0.9868** | **0.9984** |
+| UG-MoE v2 plain (experts + router only) | — | 0.9834 | 0.9740 | 0.9888 | 0.9861 | 0.9972 |
+| UG-MoE (legacy) | 4.4M | 0.9813 | 0.9775 | 0.9873 | 0.9843 | 0.9980 |
+| Graph-MoE | 0.32M | 0.9681 | 0.9576 | 0.9785 | 0.9733 | 0.9936 |
+| Plain MoE (legacy) | 4.2M | 0.9624 | 0.9307 | 0.9756 | 0.9690 | 0.9955 |
+| GAT | 0.30M | 0.9579 | 0.9351 | 0.9722 | 0.9650 | 0.9940 |
+| **MUAD** | 0.24M | 0.9041 | **0.8571** | 0.9397 | **0.9219** | 0.9691 |
+
+**MUAD is the weakest of all trained models here.** Its main weakness is recall: it misses 14% of
+anomalous windows, against 2.7% for UG-MoE v2. On this data the logs are Drain3 template counts, not
+MUAD's Hawkes intensities, so MUAD is not on its home features. We think the gap comes from MUAD's
+noisy, mis-regularized probabilistic encoder (§2.2–2.4) combined with the harder test run. That is a
+hypothesis, not a measured cause.
+
+### 4.4 UG-MoE v2, adding one component at a time (plan §12; round 6, SN)
+
+| Step | Adds | Test macro-F1 | Recall |
+|---|---|---|---|
+| plain | experts + learned router | 0.9861 | 0.9740 |
+| graph | + graph-aware routing, dependency (GAT) expert | 0.9672 | 0.9307 |
+| prob | + probabilistic representation (μ, σ², KL) | 0.9475 | 0.9030 |
+| ug_routing | + uncertainty-guided routing | 0.9459 | 0.8944 |
+| **full** | + uncertainty-aware adaptive fusion | **0.9868** | 0.9732 |
+
+Validation macro-F1 is about 0.98 for **every** step. The middle steps fit the data as well as the
+others, but generalize worse to the unseen test run. Adaptive fusion recovers the loss completely. On SN
+the components only help **together**, and the full model is not better than "plain" on clean data.
+
+---
+
+## 5. Why UG-MoE is better than MUAD, and how far the evidence goes
+
+**Supported by the results:**
+1. **Higher accuracy on realistic data:** +6.5 macro-F1 over MUAD on rebuilt SN (§4.3), mostly
+   from recall (0.973 vs 0.857). With one seed, but far above the 1-point noise threshold.
+2. **Never worse than MUAD** on any leak-free setting so far (tie on MUAD's own data, §4.2).
+3. **Smaller:** 166k parameters vs 240k for MUAD, and 25× smaller than our earlier 4.4M model with
+   the same accuracy.
+
+**Supported by the design (verified in the code, `project/tracks/proposed_model/ug_moe_v2.py`):**
+1. **Correct probabilistic head.** Experts predict a mean and a **log**-variance. The KL is the
+   standard formula `0.5·(μ² + σ² − 1 − log σ²)` (line 209), unlike MUAD's (§2.3).
+2. **Deterministic evaluation:** sampling only in training, μ at test time (line 208), unlike MUAD (§2.2).
+3. **Specialized experts** (temporal GRU, cross-service attention, dependency GAT, cross-modal attention),
+   shared by all modalities, with **one router per modality**. The router sees the modality's features, a
+   graph-context vector and each expert's predicted uncertainty. MUAD has one fixed encoder per modality.
+4. **Fusion weighted by predicted uncertainty** at modality level, which is what plan §6 asks for.
+5. All models get normalized inputs, so logs and traces are actually visible (§2.5).
+
+**Not yet supported, so don't claim it yet:**
+- That the *uncertainty* components (probabilistic representation, uncertainty routing) improve accuracy:
+  on SN the full model equals "plain" (§4.4).
+- Robustness to missing or noisy modalities (plan Exp. D/E), the main argument for those
+  components: **round 8 running** (UG-MoE v2 vs MUAD on SN).
+- TT results: **round 7 running**.
+
+---
+
+## 6. Caveats and corrections we made along the way
+
+- **Single seed.** No standard deviation and no significance test yet. Final paper runs will use 5 seeds.
+- **TT round 5 was void.** TT has only 2 fault-free runs, and the first split put none in validation.
+  Validation was then 84.8% anomalous, the trivial predictor scored **0.918 validation F1**, and
+  selecting on anomaly-F1 picked degenerate "all anomalous" epochs for 4 of 5 models. Fixed by selecting
+  on macro-F1 and cutting each TT fault-free run chronologically into train / val / test segments.
+  Rerun = round 7.
+- **The "GAT / Graph-MoE collapse" seen in round 4** may partly be the same selection effect
+  (validation run 83% anomalous, selected at epochs 4 and 2). On rebuilt SN both work well (§4.3).
+- **Split caveats (TT only, deferred):** fault-free test segments come from the same runs as fault-free
+  training segments; there is no gap at the cuts (adjacent windows share no seconds). For SN and TT:
+  fault-free runs were recorded after the fault runs; Drain3 templates are mined over all runs
+  (label-free). Planned before the final runs: a 60-second gap at cuts and templates mined on training
+  runs only.
+- **Residual artifact caveat:** Eadro z-scored metrics and traces per run over the whole run before
+  windowing (a mild, label-free normalization leak in `recovered_artifact` that we can't undo). The
+  rebuilt data does not have it: raw values, normalized with training statistics only.
+
+---
+
+## 7. How to check any number here
+
+All runs are on the GPU server under `project/experiments/runs/<name>/`. Each has `summary.json`,
+`split.json` (exact window ids per split), `normalization.json` and one `<model>_seed42.json` with the
+full per-epoch validation history.
+
+```bash
+cd project
+# leaky reproduction of the paper's protocol
+python experiments/run_comparison.py --seeds 42 --device cuda --split random
+# leak-free, MUAD's data
+python experiments/run_baselines.py --device cuda --models ug_moe,muad,plain_moe
+# rebuilt SN
+python -m data_pipeline.fetch_eadro && python -m data_pipeline.build_eadro --system SN
+python experiments/run_baselines.py --device cuda --data-dir datasets/eadro/processed/SN_w10_s1 \
+  --models muad,ug_moe2:plain,ug_moe2:full
+```
+
+Code references: leakage measurement and split, `project/experiments/common.py`; MUAD,
+`project/vendor/muad/models/main_model.py` and `training/base_model.py`; UG-MoE v2,
+`project/tracks/proposed_model/ug_moe_v2.py`; detailed log of every round, `PROJECT_STATUS.md` §4.

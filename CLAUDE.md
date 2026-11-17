@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Research code for **UG-MoE**: a Graph-Aware Mixture-of-Experts (MoE) for multimodal anomaly detection in microservice systems (metrics + traces + logs). It extends the vendored **MUAD** baseline (`project/vendor/muad`) and is compared against it. The two models are called **Track A** (MUAD, faithful reproduction) and **Track B** (`GraphAwareMoE`, the proposed model). Eadro (`project/vendor/eadro`) is vendored for the SN (SocialNetwork) dataset format.
 
-The repo root holds only the reference documents (`7. UG-MoE_Implementation_Guide.md`, the MUAD paper as PDF + markdown, the proposal PDF), `README.md`, `PROJECT_STATUS.md` and this file. The opencode-era planning/forensics markdown files and paper draft were deleted on 2026-11-17 (they are in git history before that date); don't recreate parallel planning docs, update `PROJECT_STATUS.md` instead. **All code lives under `project/`.**
+The repo root holds only the reference documents (`7. UG-MoE_Implementation_Guide.md`, the MUAD paper as PDF + markdown, the proposal PDF), `README.md`, `PROJECT_STATUS.md`, `MUAD_vs_UG-MoE.md` (evidence brief for the supervisor; update its result tables when new rounds land) and this file. The opencode-era planning/forensics markdown files and paper draft were deleted on 2026-11-17 (they are in git history before that date); don't recreate parallel planning docs, update `PROJECT_STATUS.md` instead. **All code lives under `project/`.**
 
 ## Running things
 
