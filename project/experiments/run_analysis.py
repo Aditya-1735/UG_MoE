@@ -29,7 +29,7 @@ import numpy as np
 import torch
 
 from common import compute_metrics, configure_torch, load_splits, seed_everything, to_binary
-from registry import add_common_args, get_model
+from registry import add_common_args, get_model, model_tag
 from run_robustness import channel_std, drop_modalities, gaussian_noise, random_mask
 
 MODS = ("metric", "trace", "log")                 # model-side names (ug_moe_v2.MODALITIES)
@@ -212,7 +212,7 @@ def main():
     configure_torch()
     device = torch.device(args.device)
     seed = int(args.seeds.split(",")[0])
-    tag = args.model.replace(":", "_")
+    tag = model_tag(args.model)
     out_dir = Path(args.output_dir) / f"analysis_{tag}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     out_dir.mkdir(parents=True, exist_ok=True)
     loaders = load_splits(Path(args.data_dir), args.batch_size, args.val_ratio, args.split_seed,

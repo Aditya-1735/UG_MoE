@@ -29,7 +29,7 @@ from pathlib import Path
 import torch
 
 from common import configure_torch, evaluate, load_splits, seed_everything, train_and_select
-from registry import add_common_args, get_model
+from registry import add_common_args, get_model, model_tag
 
 MODALITIES = ("metrics", "traces", "logs")
 MASK_RATES = (0.1, 0.2, 0.4, 0.6)
@@ -112,7 +112,7 @@ def main():
     configure_torch()
     device = torch.device(args.device)
     seed = int(args.seeds.split(",")[0])  # robustness is run on a single trained model
-    tag = args.model.replace(":", "_")
+    tag = model_tag(args.model)
 
     out_dir = Path(args.output_dir) / f"robustness_{tag}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     out_dir.mkdir(parents=True, exist_ok=True)

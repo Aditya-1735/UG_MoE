@@ -22,6 +22,8 @@ Modality subsets (implementation guide section 8C, trained modality ablation):
                  Modalities NOT in <mods> are set to 0 for every batch, in training AND evaluation.
                  With the default train-split z-score this equals the training mean, i.e. "absent".
 """
+import ast
+import re
 import json
 import traceback
 from pathlib import Path
@@ -114,6 +116,11 @@ def _restrict_modalities(forward_fn, keep):
     return fwd
 
 
+def model_tag(name: str) -> str:
+    """File-name-safe version of a registry name (':', '#', ',' -> '_')."""
+    return re.sub(r"[:#,]", "_", name)
+
+
 def get_model(name: str):
     """Return (builder, forward_fn) for a registry name, incl. 'abl:<ablation>' and '<name>@<mods>'."""
     if "@" in name:
@@ -124,6 +131,17 @@ def get_model(name: str):
             raise KeyError(f"Bad modality subset '{mods}' in '{name}'; use '+'-joined {MODALITY_NAMES}")
         builder, fwd = get_model(base)
         return builder, _restrict_modalities(fwd, keep)
+    if "#" in name:   # hyperparameter overrides for v2 (plan 8H): 'ug_moe2:full#hidden_dim=32,lambda_kl=0.1'
+        base, kv = name.split("#", 1)
+        if not base.startswith(("ug_moe2:", "abl2:")):
+            raise KeyError(f"'#' overrides are only supported for ug_moe2:<step> / abl2:<name>, got '{name}'")
+        extra = {}
+        for pair in kv.split(","):
+            k, v = pair.split("=", 1)
+            extra[k] = v if k == "experts" else ast.literal_eval(v)
+        kind, key = base.split(":", 1)
+        cfg = (INCREMENTAL_STEPS if kind == "ug_moe2" else ABLATIONS_V2)[key]
+        return (lambda md: _ug_moe2(md, {**cfg, **extra})), default_forward
     if name.startswith("ug_moe2:"):
         step = name.split(":", 1)[1]
         if step not in INCREMENTAL_STEPS:
@@ -150,7 +168,7 @@ def run_suite(names: List[str], seeds: List[int], loaders: Dict, device, args, o
     for seed in seeds:
         for name in names:
             builder, fwd = get_model(name)
-            tag = name.replace(":", "_")
+            tag = model_tag(name)
             print(f"\n--- {name} | seed {seed} ---")
             try:
                 seed_everything(seed)

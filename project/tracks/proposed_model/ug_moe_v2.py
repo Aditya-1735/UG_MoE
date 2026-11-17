@@ -101,6 +101,7 @@ class UGMoEv2(nn.Module):
         routing_temperature: float = 1.0,
         lambda_kl: float = 0.01,
         lb_weight: float = 0.0,
+        experts: Optional[str] = None,
         **_unused,
     ):
         super().__init__()
@@ -122,6 +123,10 @@ class UGMoEv2(nn.Module):
 
         # 2. experts (shared across modalities)
         names = list(EXPERTS) if use_moe else ["temporal"]
+        if experts is not None and use_moe:      # plan 8H "number of experts": '-'-joined subset of EXPERTS
+            names = [n for n in EXPERTS if n in experts.split("-")]
+            if not names:
+                raise ValueError(f"experts='{experts}' selects none of {EXPERTS}")
         if not use_graph:
             names = [n for n in names if n != "dependency"]
         self.expert_names = names
