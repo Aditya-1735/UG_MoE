@@ -43,7 +43,13 @@ All migrated scripts share the same CLI (`registry.add_common_args`: `--seeds` (
 
 ## Architecture
 
-### Model (`project/tracks/proposed_model/model.py`, `GraphAwareMoE`)
+### UG-MoE v2 (`project/tracks/proposed_model/ug_moe_v2.py`, `UGMoEv2`): the plan-faithful rewrite
+
+Implements the guide's pseudocode (§11): per-modality encoders; 4 experts shared across modalities (temporal GRU, semantic cross-service attention, dependency GAT, cross-modal attention), each predicting a mean and log-variance; **one router per modality** whose input is the pooled modality features, a GAT graph-context vector and each expert's predicted uncertainty; mixture moments give μ_v / σ²_v (sampled in training, μ at eval); fusion over the 3 modalities is weighted by `[μ_v, mean log σ²_v]`; loss = CE + `lambda_kl`·KL (load-balancing optional, `lb_weight=0` by default). About 166k parameters. Switches map one-to-one to the §8B ablations (`ABLATIONS_V2`) and to the §12 incremental order (`INCREMENTAL_STEPS`: plain → graph → prob → ug_routing → full). Registry names: `ug_moe2`, `ug_moe2:<step>`, `abl2:<name>`. `forward(..., return_details=True)` returns routing weights, fusion weights and uncertainties for analysis.
+
+### Legacy model (`project/tracks/proposed_model/model.py`, `GraphAwareMoE`, registry `ug_moe` / `abl:*`)
+
+Kept only to reproduce earlier results; its defects are documented in `PROJECT_STATUS.md` §3.1–3.3. Don't build on it.
 
 Forward pass, in order: `encode_modalities` → per-expert outputs → (optional) per-expert uncertainty block → router → fusion → classifier.
 

@@ -11,7 +11,11 @@ Names:
               weighted_concat fusion
   gat         GAT baseline (tracks/baselines/gat_baseline.py)
   graph_moe   Graph-MoE baseline (tracks/baselines/graph_moe.py)
-  abl:<name>  ug_moe with the overrides in ABLATIONS[<name>]
+  abl:<name>  ug_moe with the overrides in ABLATIONS[<name>]  (legacy model, PROJECT_STATUS 3.7)
+  ug_moe2           UG-MoE v2, the plan-faithful rewrite (tracks/proposed_model/ug_moe_v2.py), full model
+  ug_moe2:<step>    plan section 12 incremental order: plain -> graph -> prob -> ug_routing -> full
+  abl2:<name>       ug_moe2 minus one component (plan section 8B): no_graph, no_moe, no_dynamic_routing,
+                    no_uncertainty_routing, no_probabilistic, no_adaptive_fusion
 
 Modality subsets (implementation guide section 8C, trained modality ablation):
   <name>@<mods>  e.g. muad@traces, gat@traces+logs, abl:plain_moe@metrics+logs
@@ -28,7 +32,7 @@ import torch
 import common  # noqa: F401  (sets up sys.path)
 from common import default_forward, seed_everything, summarize, to_binary, train_and_select
 from tracks.baselines import GATBaseline, GraphMoE
-from tracks.proposed_model import DEFAULT_CONFIG, GraphAwareMoE
+from tracks.proposed_model import ABLATIONS_V2, DEFAULT_CONFIG, INCREMENTAL_STEPS, GraphAwareMoE, UGMoEv2
 from vendor.muad.models.main_model import MainModel
 
 # NOTE (PROJECT_STATUS.md section 3.7): with the current model these overrides do NOT isolate the
@@ -70,6 +74,11 @@ def _ug_moe(metadata, overrides=None):
     return GraphAwareMoE(**config)
 
 
+def _ug_moe2(metadata, overrides=None):
+    return UGMoEv2(metric_dim=metadata["metric_num"], trace_dim=metadata.get("trace_dim", 1),
+                   log_dim=metadata["event_num"], num_nodes=metadata["node_num"], **(overrides or {}))
+
+
 def _binary_logits_forward(model, graph, labels):
     """For baselines that expect binary labels and return {'logits', 'loss'}."""
     out = model(graph, to_binary(labels))
@@ -87,6 +96,7 @@ MODELS: Dict[str, Tuple[Callable, Callable]] = {
     "plain_moe": (lambda md: _ug_moe(md, PLAIN_MOE_OVERRIDES), default_forward),
     "gat": (lambda md: GATBaseline(**_dims(md)), _binary_logits_forward),
     "graph_moe": (lambda md: GraphMoE(**_dims(md)), _binary_logits_forward),
+    "ug_moe2": (lambda md: _ug_moe2(md), default_forward),
 }
 
 
@@ -114,6 +124,16 @@ def get_model(name: str):
             raise KeyError(f"Bad modality subset '{mods}' in '{name}'; use '+'-joined {MODALITY_NAMES}")
         builder, fwd = get_model(base)
         return builder, _restrict_modalities(fwd, keep)
+    if name.startswith("ug_moe2:"):
+        step = name.split(":", 1)[1]
+        if step not in INCREMENTAL_STEPS:
+            raise KeyError(f"Unknown ug_moe2 step '{step}'. Options: {list(INCREMENTAL_STEPS)}")
+        return (lambda md: _ug_moe2(md, INCREMENTAL_STEPS[step])), default_forward
+    if name.startswith("abl2:"):
+        abl = name.split(":", 1)[1]
+        if abl not in ABLATIONS_V2:
+            raise KeyError(f"Unknown v2 ablation '{abl}'. Options: {list(ABLATIONS_V2)}")
+        return (lambda md: _ug_moe2(md, ABLATIONS_V2[abl])), default_forward
     if name.startswith("abl:"):
         abl = name.split(":", 1)[1]
         if abl not in ABLATIONS:
