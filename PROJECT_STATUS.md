@@ -11,7 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
-| 2026-11-17 | **Round 8 (robustness, SN)**, server, seed 42 (§4): UG-MoE v2 beats MUAD under masking and noise (p = 0.4 masking: 0.856 vs 0.716 F1; metric noise σ = 1: 0.964 vs 0.856), with about half the relative drop. Both collapse to trivial without metrics. | ✅ |
+| 2026-11-17 | **Round 8 (robustness, SN)**, server, seed 42 (§4): UG-MoE v2 beats MUAD under masking and noise (p = 0.4 masking: 0.856 vs 0.716 F1; metric noise σ = 1: 0.964 vs 0.856), with about half the relative drop. Both collapse to trivial without metrics. **Attribution over the §12 steps:** full ≈ plain on clean data, but **full beats plain by +10.7 / +13.4 F1 at 20 / 40% masking**, and plain is no better than MUAD there. The robustness comes from the probabilistic representation plus adaptive fusion. | ✅ |
 | 2026-11-17 | **Round 5 (rebuilt SN / TT)**, server, seed 42 (§4): SN macro-F1 legacy UG-MoE 0.984 > Graph-MoE 0.973 > plain MoE 0.969 > GAT 0.965 > MUAD 0.922. TT: 4 of 5 models collapsed to "all anomalous" because of the selection bug above; results void. | ✅ (TT void) |
 | 2026-11-17 | **Phase 0.1:** uncertainty blocks (`src/uncertainty/uncertainty.py`) now sample with reparameterization only in `train()` mode and return deterministic μ in `eval()`. Variance / log-variance clamps restored. Working-copy `model.py` semantic-expert fix (`expert(graph.ndata["logs"], B)`) kept. Fixes §3.6. | ❌ pending |
 | 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ❌ pending |
@@ -334,7 +334,28 @@ are simply invisible on the test runs is now measured: `evaluate` reports per-fa
 **Reading:**
 - **UG-MoE v2 is more robust than MUAD under every perturbation except dropping a whole modality:** higher absolute F1 everywhere, and a relative drop about half MUAD's under masking (p ≤ 0.4) and metric noise (σ ≤ 1).
 - **Both models fail completely without metrics** (trivial predictor). Traces and logs are now used a little (dropping them costs 0.3–0.8 points; before normalization exactly 0), but neither model can fall back on them. So uncertainty-aware fusion does not give graceful degradation for a missing *dominant* modality. That is the plan's Exp. D claim, and it is not met by either model. The standard remedy is modality dropout during training, which would be a deviation (rule 7), so it needs a proposal first.
-- Whether the robustness gain comes from the *uncertainty* components or from the MoE architecture needs the same test on `ug_moe2:plain` (next run).
+- **Attribution (all §12 steps, same checkpoints as round 6, `runs/round8_rob_sn_<step>/`).** The masks
+  and noise come from the same condition seeds for every model, so the comparison is paired. Test F1
+  (relative drop):
+
+| Model | Clean | Mask 10% | Mask 20% | Mask 40% | Mask 60% | Drop logs | Noise all σ=1 | Noise all σ=2 |
+|---|---|---|---|---|---|---|---|---|
+| MUAD | 0.904 | 0.857 (5.2%) | 0.809 (10.5%) | 0.716 (20.8%) | 0.662 (26.8%) | 0.897 | 0.841 | 0.699 |
+| v2 plain | 0.983 | 0.905 (7.9%) | 0.824 (16.2%) | 0.722 (26.6%) | 0.669 (32.0%) | 0.939 (4.6%) | 0.942 | **0.835** |
+| + graph | 0.960 | 0.907 (5.5%) | 0.826 (14.0%) | 0.709 (26.2%) | 0.647 (32.6%) | 0.891 | 0.839 | 0.635 |
+| + prob | 0.936 | 0.915 (2.3%) | 0.875 (6.6%) | 0.767 (18.1%) | 0.677 (27.7%) | 0.922 | 0.920 | 0.801 |
+| + ug_routing | 0.934 | 0.860 (8.0%) | 0.815 (12.8%) | 0.734 (21.4%) | 0.680 (27.2%) | 0.874 | 0.916 | 0.812 |
+| **full** | **0.984** | **0.962 (2.3%)** | **0.931 (5.5%)** | **0.856 (13.0%)** | **0.748 (24.0%)** | **0.981 (0.3%)** | **0.960** | 0.790 |
+
+  **This is the evidence for the "UG" components.** On clean data full ≈ plain (0.984 vs 0.983). But
+  with 20% / 40% of observations missing, **full beats plain by +10.7 / +13.4 F1 points**, and plain is no
+  better than MUAD there. The **probabilistic representation** is the step that first makes the model
+  robust (relative drop at 20% masking: 16.2% → 6.6%). **Adaptive fusion** then restores clean accuracy and
+  gives the best absolute robustness. Full also barely notices missing logs (−0.3% vs −4.6% for plain).
+  Exception: under extreme noise on all modalities (σ = 2 × std), plain is better (0.835 vs 0.790), so
+  claim robustness to *missing* data and moderate noise, not to extreme noise. Graph-aware routing on
+  its own makes the model *more* fragile to noise (σ = 2: 0.635). Single seed; confirm with 5 seeds in
+  the final runs.
 
 #### Round 4: leak-free run-level split on `recovered_artifact` (seed 42, 2026-11-17)
 

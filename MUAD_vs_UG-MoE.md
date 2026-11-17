@@ -25,11 +25,11 @@ can be checked. Things not yet shown are listed in §6.
      (MUAD: 240k).
 5. **Honest limit:** on SN the full UG-MoE v2 is level with its own "plain" variant (experts + router,
    no graph or uncertainty: 0.986). So the gain over MUAD currently comes from the **mixture-of-experts
-   architecture**. The uncertainty components still have to show their own value.
-   **Robustness (round 8): UG-MoE v2 degrades about half as much as MUAD under masking and noise**
-   (e.g. 40% masking: 0.856 vs 0.716 F1). Whether that comes from the uncertainty components is being
-   checked against the "plain" variant. Both models still fail completely without metrics. TT
-   (round 7) is running.
+   architecture**. The uncertainty components show their value under
+   **missing data**: UG-MoE v2 degrades about half as much as MUAD (40% masking: 0.856 vs 0.716 F1), and
+   **the plain variant does not** (0.722, no better than MUAD). So the robustness comes from the
+   probabilistic representation plus uncertainty-aware fusion (§4.6). Both models still fail completely
+   without metrics. TT (round 7) is running.
 
 ---
 
@@ -272,8 +272,27 @@ zero; noise = Gaussian with σ = level × the training standard deviation per ch
 - **Both models fail without metrics.** Traces and logs now contribute a little (they had no effect
   before normalization, §2.5), but neither model can detect anomalies from them alone. Graceful
   degradation when the dominant modality is missing is **not achieved by either model**.
-- Still open: does the robustness gain come from the uncertainty components or from the MoE
-  architecture? The same test on the "plain" variant answers it.
+### 4.6 Where the robustness comes from: the same test on every incremental step (round 8)
+Same checkpoints as §4.4. The masks and noise are drawn from the same random seeds for every model, so
+each column compares the models on identical perturbations. Test F1 (relative drop):
+
+| Model | Clean | Mask 20% | Mask 40% | Mask 60% | Drop logs |
+|---|---|---|---|---|---|
+| MUAD | 0.904 | 0.809 (10.5%) | 0.716 (20.8%) | 0.662 (26.8%) | 0.897 |
+| v2 plain (experts + router) | 0.983 | 0.824 (16.2%) | 0.722 (26.6%) | 0.669 (32.0%) | 0.939 (4.6%) |
+| + graph | 0.960 | 0.826 (14.0%) | 0.709 (26.2%) | 0.647 (32.6%) | 0.891 |
+| + probabilistic representation | 0.936 | 0.875 (6.6%) | 0.767 (18.1%) | 0.677 (27.7%) | 0.922 |
+| + uncertainty-guided routing | 0.934 | 0.815 (12.8%) | 0.734 (21.4%) | 0.680 (27.2%) | 0.874 |
+| **full (+ adaptive fusion)** | **0.984** | **0.931 (5.5%)** | **0.856 (13.0%)** | **0.748 (24.0%)** | **0.981 (0.3%)** |
+
+- **On clean data full ≈ plain, but with 20% / 40% of observations missing, full is +10.7 / +13.4 F1
+  points better.** The plain MoE is no more robust than MUAD. So the robustness gain over MUAD comes from
+  the **uncertainty components**, not from having experts.
+- The **probabilistic representation** is the step that first makes the model robust (relative drop at
+  20% masking falls from 16.2% to 6.6%). **Uncertainty-aware adaptive fusion** then restores the clean
+  accuracy and gives the best absolute robustness. With it the model also barely notices missing logs.
+- Limit: under extreme noise on *all* modalities (σ = 2 × std), plain is better (0.835 vs 0.790). The
+  claim is robustness to **missing data and moderate noise**.
 
 ---
 
@@ -283,7 +302,9 @@ zero; noise = Gaussian with σ = level × the training standard deviation per ch
 1. **Higher accuracy on realistic data:** +6.5 macro-F1 over MUAD on rebuilt SN (§4.3), mostly
    from recall (0.973 vs 0.857). With one seed, but far above the 1-point noise threshold.
 2. **Never worse than MUAD** on any leak-free setting so far (tie on MUAD's own data, §4.2).
-3. **Smaller:** 166k parameters vs 240k for MUAD, and 25× smaller than our earlier 4.4M model with
+3. **More robust to missing and noisy data** (§4.5), and this comes from the uncertainty components
+   (§4.6: +10.7 / +13.4 F1 over the plain variant at 20 / 40% masking).
+4. **Smaller:** 166k parameters vs 240k for MUAD, and 25× smaller than our earlier 4.4M model with
    the same accuracy.
 
 **Supported by the design (verified in the code, `project/tracks/proposed_model/ug_moe_v2.py`):**
@@ -299,9 +320,9 @@ zero; noise = Gaussian with σ = level × the training standard deviation per ch
 **Not yet supported, so don't claim it yet:**
 - That the *uncertainty* components (probabilistic representation, uncertainty routing) improve accuracy:
   on SN the full model equals "plain" (§4.4).
-- That the *uncertainty* components cause the robustness gain over MUAD (§4.5): this needs the same
-  test on `ug_moe2:plain` (next run).
 - Graceful degradation when metrics are missing: neither model has it (§4.5).
+- Accuracy gains from the uncertainty components on *clean* data: none on SN (§4.4). Their value is
+  robustness (§4.6).
 - TT results: **round 7 running**.
 
 ---
