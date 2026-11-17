@@ -33,25 +33,12 @@ from common import (
     train_and_select,
     trivial_baseline_metrics,
 )
-from tracks.proposed_model import DEFAULT_CONFIG, GraphAwareMoE
-from vendor.muad.models.main_model import MainModel
+from registry import get_model
 
-
-def build_track_a(metadata, device):
-    return MainModel(device, hidden_dim=[64, 64], event_num=metadata["event_num"])
-
-
-def build_track_b(metadata, device):
-    config = DEFAULT_CONFIG.copy()
-    config["log_dim"] = metadata["event_num"]
-    config["metric_dim"] = metadata["metric_num"]
-    config["num_nodes"] = metadata["node_num"]
-    return GraphAwareMoE(**config)
-
-
+# track name -> (description, registry model name)
 TRACKS = {
-    "track_a": ("MUAD baseline", build_track_a),
-    "track_b": ("Graph-Aware MoE", build_track_b),
+    "track_a": ("MUAD baseline", "muad"),
+    "track_b": ("Graph-Aware MoE", "ug_moe"),
 }
 
 
@@ -114,16 +101,17 @@ def main():
     errors = {t: [] for t in tracks}
     for seed in seeds:
         for track in tracks:
-            name, builder = TRACKS[track]
+            name, registry_name = TRACKS[track]
+            builder, forward_fn = get_model(registry_name)
             print(f"\n--- {track} ({name}) | seed {seed} ---")
             try:
                 seed_everything(seed)
-                model = builder(metadata, device)
+                model = builder(metadata)
                 res = train_and_select(
                     model, loaders, device,
                     epochs=args.epochs, lr=args.lr, weight_decay=args.weight_decay,
                     patience=patience, ckpt_path=out_dir / f"{track}_seed{seed}_best.pth",
-                    log_prefix="  ",
+                    forward_fn=forward_fn, log_prefix="  ",
                 )
                 res["seed"] = seed
                 results[track].append(res)

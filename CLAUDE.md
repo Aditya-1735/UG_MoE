@@ -29,12 +29,13 @@ cd project
 
 python experiments/run_comparison.py --seeds 42 --device cuda            # Track A vs Track B (current standard: single seed)
 python experiments/run_comparison.py --seeds 42,123,456,789,999          # multi-seed + paired t-test (only for final paper runs)
-python experiments/run_ablations.py --seeds 42 --ablation no_graph       # one ablation (omit --ablation for all 6)
-python experiments/run_track_b_full.py                                   # Track B alone; Track A = run_track_a_full.py / run_track_a_al.py (active learning)
-python experiments/run_hdfs.py --config configs/hdfs_full.json           # HDFS log-only mode
+python experiments/run_baselines.py --device cuda                        # Exp. A: muad, gat, plain_moe, graph_moe, ug_moe (--models to subset)
+python experiments/run_ablations.py --device cuda                        # ug_moe + all ablations (--ablations no_graph,no_fusion to subset)
+python experiments/run_robustness.py --device cuda                       # Exp. D+E on ug_moe (--model, --checkpoint <best.pth> to skip training)
+python experiments/run_hdfs.py --config configs/hdfs_full.json           # HDFS log-only mode (not migrated, outside plan scope)
 ```
 
-Other `experiments/run_*.py` scripts are standalone analyses/baselines (GAT, plain MoE, graph MoE, missing-modality, noise robustness, routing analysis, uncertainty/fusion analysis). Each writes timestamped output to `project/experiments/runs/<name>_<YYYYMMDD_HHMMSS>/` (`summary.json`, `run_N_results.json`, checkpoints). These are run on the GPU server (see workflow above), not locally.
+All migrated scripts share the same CLI (`registry.add_common_args`: `--seeds` (default 42), `--epochs`, `--lr`, `--patience`, `--val-ratio`, `--split-seed`, `--data-dir`, `--device`) and write to `project/experiments/runs/<name>_<YYYYMMDD_HHMMSS>/`: `summary.json`, `split.json`, one `<model>_seed<N>.json` per run (with val history) and `<model>_seed<N>_best.pth`. Not yet migrated (they still select on test): `run_routing_analysis.py`, `run_uncertainty_fusion_analysis.py`, `run_track_a_full.py`, `run_track_a_al.py`, `run_hdfs.py`. These are run on the GPU server (see workflow above), not locally.
 
 - **Tests**: there is no pytest suite wired up. `tracks/proposed_model/test_components.py` and `test_integration.py` are ad-hoc scripts (`python tracks/proposed_model/test_components.py`); `test_integration.py` is stale (expects `load_data` to return 3 values and uses old `muad_compat` paths; it currently returns 4).
 - **Data validation**: `python validation/run_all_gates.py` runs 10 sequential gate scripts (raw integrity → parsed schema → chunk schema → tensor dims → labels → graph → split → artifact comparison → dataloader). Gate 1 hardcodes an absolute `raw_data/SN Dataset` path from the author's machine.
@@ -55,11 +56,14 @@ Forward pass, in order: `encode_modalities` → per-expert outputs → (optional
 - Router receives `graph_info` = flattened edge list per sample, hardcoded for **24 edges (48 values)**; the 12-node / 24-edge MUAD topology is assumed in several places (`num_nodes=12`, `.view(B, 12, -1)`). Other datasets (SN, via `preprocessing/sn` and `experiments/convert_sn_dataset.py`) needed per-node feature expansion/padding to fit — recent commits (`log_node` padded to `log_dim`, router output shape handling) are fixes in this area.
 - The forward pass raises `RuntimeError("NaN/Inf ...")` at each stage on non-finite values. Experiment scripts also disable flash/mem-efficient SDPA (`torch.backends.cuda.enable_*_sdp(False)`) because of NaN gradients in Transformer attention — keep that when writing new training scripts.
 - Configs: `DEFAULT_CONFIG` in `model.py` (note `log_dim=15` matches the recovered dataset's `event_num=15`; the constructor default is 14). `create_graph_aware_moe(config, muad_baseline=None)` can reuse a MUAD baseline's encoders. `configs/hdfs_full.json` is the HDFS config (consumed by `run_hdfs.py`).
-- Ablation configs (`run_ablations.py`): `no_graph`, `no_uncertainty`, `no_fusion`, `single_expert`, `plain_moe`, `graph_transformer`.
+- Ablation configs (`registry.ABLATIONS`): `no_graph`, `no_uncertainty`, `no_fusion`, `single_expert`, `plain_moe`, `graph_transformer`.
+- Size: `ug_moe` has ~4.4M parameters vs ~0.24M (MUAD) and ~0.3M (GAT); keep this in mind for comparisons.
 
 ### Shared experiment protocol (`project/experiments/common.py`)
 
-New and migrated experiment scripts must use this module rather than writing their own loop: `load_splits` (val = stratified 15% of `chunk_train.pkl`, fixed `split_seed`, shared across models and seeds), `train_and_select` (select on **val** F1, tie-break PR-AUC, early stopping, test evaluated once, per-seed checkpoint), `compute_metrics` (anomaly F1 / P / R plus macro-F1, normal-class F1, PR-AUC, ROC-AUC) and `trivial_baseline_metrics`. Scripts import it as `from common import ...` (the script directory is on `sys.path`). As of 2026-11-17 only `run_comparison.py` has been migrated; the other `run_*.py` scripts still select on test (see `PROJECT_STATUS.md` §3.4).
+New and migrated experiment scripts must use this module rather than writing their own loop: `load_splits` (val = stratified 15% of `chunk_train.pkl`, fixed `split_seed`, shared across models and seeds), `train_and_select` (select on **val** F1, tie-break PR-AUC, early stopping, test evaluated once, per-seed checkpoint), `compute_metrics` (anomaly F1 / P / R plus macro-F1, normal-class F1, PR-AUC, ROC-AUC) and `trivial_baseline_metrics`. Scripts import it as `from common import ...` (the script directory is on `sys.path`).
+
+Models are defined once in `project/experiments/registry.py`: `MODELS` (`muad`, `ug_moe`, `plain_moe`, `gat`, `graph_moe`) plus `abl:<name>` for `ABLATIONS`, each with its forward adapter (MUAD/UG-MoE take raw culprit labels and return `MMlogit`; the baselines in `project/tracks/baselines/` take binary labels and return `logits`). `run_suite` trains a list of models × seeds. To add a model or ablation, register it there; don't build models inside scripts.
 
 ### Track A / vendor code
 

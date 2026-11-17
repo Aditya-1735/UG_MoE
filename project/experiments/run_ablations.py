@@ -1,309 +1,71 @@
 #!/usr/bin/env python3
 """
-Ablation Studies for Graph-Aware MoE
-Runs 6 ablation configs × 5 seeds on OUR regenerated data (event_num=14)
+Component ablations of the Graph-Aware MoE under the shared protocol (experiments/common.py).
+
+The full model (ug_moe) is always trained alongside the ablations so every row is compared
+against a reference trained on the same split, seed and hyperparameters.
+
+CAVEAT (PROJECT_STATUS.md section 3.7): with the current model these ablations do not isolate
+the components their names suggest. The set will be redefined to match implementation guide
+section 8B once Phase 2 fixes routing / uncertainty / fusion.
+
+Usage (from project/):
+    python experiments/run_ablations.py --device cuda                           # all ablations, seed 42
+    python experiments/run_ablations.py --ablations no_graph,no_fusion --device cuda
 """
-import sys
-import json
 import argparse
-import torch
-import numpy as np
-from pathlib import Path
+import json
 from datetime import datetime
+from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "vendor/muad"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+import torch
 
-from vendor.muad.data.utils import load_data, create_dataloader
-from vendor.muad.data.dataset import ChunkDataset
-from vendor.muad.utils.general_utils import seed_everything
-from tracks.proposed_model import GraphAwareMoE, DEFAULT_CONFIG
+from common import configure_torch, load_splits, trivial_baseline_metrics
+from registry import ABLATIONS, add_common_args, print_table, run_suite
 
-# Disable Flash SDPA and mem-efficient SDPA — known NaN issues in backward pass
-# with Transformer attention. Forces standard (stable) attention implementation.
-torch.backends.cuda.enable_flash_sdp(False)
-torch.backends.cuda.enable_mem_efficient_sdp(False)
-torch.backends.cuda.enable_math_sdp(True)
-
-# Ablation configurations
-ABLATIONS = {
-    "no_graph": {
-        "use_graph_routing": False,
-        "router_type": "base",
-        "description": "No graph routing - base router only"
-    },
-    "no_uncertainty": {
-        "use_uncertainty": False,
-        "description": "No uncertainty blocks"
-    },
-    "no_fusion": {
-        "fusion_type": "weighted_concat",
-        "description": "Simple weighted_concat fusion instead of confidence-weighted"
-    },
-    "single_expert": {
-        "expert_types": ["temporal"],
-        "description": "Single temporal expert (no MoE)"
-    },
-    "plain_moe": {
-        "router_type": "base",
-        "use_graph_routing": False,
-        "use_uncertainty_routing": False,
-        "fusion_type": "weighted_concat",
-        "description": "Plain MoE: no graph, no uncertainty, simple weighted_concat fusion"
-    },
-    "graph_transformer": {
-        "description": "Graph Transformer instead of GAT in dependency expert",
-        "dependency_expert_type": "graph_transformer"
-    }
-}
-
-def run_ablation(ablation_name: str, ablation_config: dict, seed: int, output_base: Path,
-                 data_dir: Path = None, epochs: int = 50, batch_size: int = 50, lr: float = 0.001, device: str = "cuda"):
-    """Run single ablation experiment with given seed."""
-    print(f"\n{'='*60}")
-    print(f"ABLATION: {ablation_name} | Seed: {seed}")
-    print(f"{'='*60}")
-    print(f"Config: {ablation_config.get('description', '')}")
-    
-    seed_everything(seed)
-    
-    if data_dir is None:
-        data_dir = Path(__file__).parent.parent / "recovered_artifact"
-    train_data, node_num, edges, metadata = load_data(
-        str(data_dir / "chunk_train.pkl"),
-        str(data_dir / "metadata.json")
-    )
-    test_data, _, _, _ = load_data(
-        str(data_dir / "chunk_test.pkl"),
-        str(data_dir / "metadata.json")
-    )
-    
-    print(f"  Data dims: log_dim={metadata['event_num']}, metric_dim={metadata['metric_num']}, num_nodes={metadata['node_num']}")
-    
-    train_dataset = ChunkDataset(train_data, list(train_data.keys()), node_num, edges)
-    test_dataset = ChunkDataset(test_data, list(test_data.keys()), node_num, edges)
-    
-    train_loader = create_dataloader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = create_dataloader(test_dataset, batch_size=batch_size, shuffle=False)
-    
-    device = torch.device(device)
-    config = DEFAULT_CONFIG.copy()
-    config['log_dim'] = metadata["event_num"]
-    
-    # Apply ablation config
-    for k, v in ablation_config.items():
-        if k != "description":
-            config[k] = v
-    
-    model_config = {k: v for k, v in config.items() if k != 'epochs'}
-    model = GraphAwareMoE(**model_config).to(device)
-    
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
-    criterion = torch.nn.CrossEntropyLoss()
-    
-    best_f1 = 0
-    best_epoch = 0
-    nan_batches = 0
-    
-    for epoch in range(1, epochs + 1):
-        model.train()
-        train_loss = 0
-        for graph, labels in train_loader:
-            graph, labels = graph.to(device), labels.to(device)
-            binary_labels = (labels >= 1).long()
-            
-            optimizer.zero_grad()
-            outputs = model(graph, binary_labels)
-            logits = outputs["MMlogit"]
-            loss = outputs["loss"]
-            
-            # Skip batch if model outputs or loss are non-finite
-            if not torch.isfinite(logits).all() or not torch.isfinite(loss):
-                nan_batches += 1
-                continue
-            
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
-            optimizer.step()
-            train_loss += loss.item()
-        
-        if nan_batches > 0:
-            print(f"  Warning: {nan_batches} batches skipped due to NaN/Inf loss in epoch {epoch}")
-            nan_batches = 0
-        
-        avg_train_loss = train_loss / len(train_loader)
-        
-        model.eval()
-        all_preds = []
-        all_labels = []
-        all_probs = []
-        test_loss = 0
-        with torch.no_grad():
-            for graph, labels in test_loader:
-                graph, labels = graph.to(device), labels.to(device)
-                binary_labels = (labels >= 1).long()
-                outputs = model(graph, binary_labels)
-                loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
-                test_loss += loss.item()
-                preds = outputs["y_pred"]
-                probs = torch.softmax(outputs["MMlogit"], dim=-1)[:, 1]
-                all_preds.extend(preds.cpu().tolist())
-                all_labels.extend(binary_labels.cpu().tolist())
-                all_probs.extend(probs.cpu().tolist())
-        
-        avg_test_loss = test_loss / len(test_loader)
-        
-        from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, average_precision_score
-        f1 = f1_score(all_labels, all_preds, average='binary')
-        precision = precision_score(all_labels, all_preds, average='binary')
-        recall = recall_score(all_labels, all_preds, average='binary')
-        roc_auc = roc_auc_score(all_labels, all_probs)
-        pr_auc = average_precision_score(all_labels, all_probs)
-        
-        print(f"  Epoch {epoch:2d}: Train Loss={avg_train_loss:.4f}, Test Loss={avg_test_loss:.4f}, F1={f1:.4f}, Pre={precision:.4f}, Rec={recall:.4f}, ROC-AUC={roc_auc:.4f}, PR-AUC={pr_auc:.4f}")
-
-        if f1 > best_f1:
-            best_f1 = f1
-            best_epoch = epoch
-    
-    # Final eval
-    model.eval()
-    all_preds = []
-    all_labels = []
-    with torch.no_grad():
-        for graph, labels in test_loader:
-            graph, labels = graph.to(device), labels.to(device)
-            binary_labels = (labels >= 1).long()
-            outputs = model(graph, binary_labels)
-            preds = outputs["y_pred"]
-            all_preds.extend(preds.cpu().tolist())
-            all_labels.extend(binary_labels.cpu().tolist())
-    
-    from sklearn.metrics import f1_score, precision_score, recall_score
-    final_f1 = f1_score(all_labels, all_preds, average='binary')
-    final_pre = precision_score(all_labels, all_preds, average='binary')
-    final_rec = recall_score(all_labels, all_preds, average='binary')
-    final_roc_auc = roc_auc_score(all_labels, all_probs)
-    final_pr_auc = average_precision_score(all_labels, all_probs)
-    
-    return {
-        "ablation": ablation_name,
-        "seed": seed,
-        "best_f1": best_f1,
-        "best_epoch": best_epoch,
-        "final_f1": final_f1,
-        "final_precision": final_pre,
-        "final_recall": final_rec,
-        "final_roc_auc": final_roc_auc,
-        "final_pr_auc": final_pr_auc
-    }
 
 def main():
-    parser = argparse.ArgumentParser(description="Ablation Studies for Graph-Aware MoE")
-    parser.add_argument("--seeds", type=str, default="42",
-                        help="Comma-separated list of seeds (default: 42 for single-seed test)")
-    parser.add_argument("--ablation", type=str, default=None,
-                        help="Run only one ablation (e.g. no_uncertainty, plain_moe, no_graph)")
-    parser.add_argument("--data-dir", type=str, default=None,
-                        help="Path to preprocessed data dir (default: preprocessing/muad_compat/output)")
-    parser.add_argument("--output-dir", type=str, default=None,
-                        help="Base output directory (default: experiments/runs)")
-    parser.add_argument("--epochs", type=int, default=50, help="Number of epochs (default: 50)")
-    parser.add_argument("--batch-size", type=int, default=50, help="Batch size (default: 50)")
-    parser.add_argument("--lr", type=float, default=0.0005, help="Learning rate (default: 0.0005)")
-    parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu (default: cuda)")
+    parser = add_common_args(argparse.ArgumentParser(description="Ablation study"))
+    parser.add_argument("--ablations", type=str, default=",".join(ABLATIONS),
+                        help=f"Comma-separated subset of: {', '.join(ABLATIONS)}")
+    parser.add_argument("--skip-full", action="store_true", help="Do not train the full ug_moe reference")
     args = parser.parse_args()
 
-    seeds = [int(s.strip()) for s in args.seeds.split(",")]
+    configure_torch()
+    abls = [a.strip() for a in args.ablations.split(",")]
+    unknown = [a for a in abls if a not in ABLATIONS]
+    if unknown:
+        parser.error(f"unknown ablation(s) {unknown}; options: {list(ABLATIONS)}")
+    names = ([] if args.skip_full else ["ug_moe"]) + [f"abl:{a}" for a in abls]
+    seeds = [int(s) for s in args.seeds.split(",")]
+    device = torch.device(args.device)
 
-    print("="*60)
-    print("ABLATION STUDIES - GRAPH-AWARE MoE")
-    print("="*60)
-    print(f"Ablations: {list(ABLATIONS.keys())}")
-    print(f"Seeds: {seeds} ({len(seeds)} seed(s))")
-    print(f"Epochs: {args.epochs}, Batch: {args.batch_size}, LR: {args.lr}")
+    out_dir = Path(args.output_dir) / f"ablations_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    loaders = load_splits(Path(args.data_dir), args.batch_size, args.val_ratio, args.split_seed,
+                          split_out=out_dir / "split.json")
+    print(f"Sizes: {loaders['sizes']} | runs: {names} | seeds: {seeds}")
 
-    project_root = Path(__file__).resolve().parent.parent
-    if args.data_dir:
-        data_dir = Path(args.data_dir)
-    else:
-        data_dir = project_root / "preprocessing" / "muad_compat" / "output"
-
-    if args.output_dir:
-        output_base = Path(args.output_dir) / f"ablations_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    else:
-        output_base = project_root / "experiments" / "runs" / f"ablations_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    output_base.mkdir(parents=True, exist_ok=True)
-
-    all_results = {}
-
-    # Filter ablations if --ablation specified
-    ablation_items = list(ABLATIONS.items())
-    if args.ablation:
-        if args.ablation not in ABLATIONS:
-            print(f"ERROR: Unknown ablation '{args.ablation}'. Available: {list(ABLATIONS.keys())}")
-            return
-        ablation_items = [(args.ablation, ABLATIONS[args.ablation])]
-        print(f"Running single ablation: {args.ablation}")
-
-    for ablation_name, ablation_config in ablation_items:
-        print(f"\n{'='*60}")
-        print(f"ABLATION: {ablation_name} - {ablation_config.get('description', '')}")
-        print(f"{'='*60}")
-
-        ablation_results = []
-        for i, seed in enumerate(seeds, 1):
-            try:
-                result = run_ablation(ablation_name, ablation_config, seed, output_base,
-                                      data_dir=data_dir, epochs=args.epochs,
-                                      batch_size=args.batch_size, lr=args.lr, device=args.device)
-                ablation_results.append(result)
-                print(f"  Run {i}/{len(seeds)} (seed={seed}): Best F1={result['best_f1']:.4f} (epoch {result['best_epoch']})")
-            except Exception as e:
-                print(f"  ERROR in run {i} (seed={seed}): {e}")
-                import traceback
-                traceback.print_exc()
-                ablation_results.append({"ablation": ablation_name, "seed": seed, "error": str(e)})
-
-        all_results[ablation_name] = ablation_results
-
-        # Save intermediate
-        with open(output_base / f"{ablation_name}_results.json", "w") as f:
-            json.dump(ablation_results, f, indent=2)
-
-    # Summary
-    print(f"\n{'='*60}")
-    print("ABLATION SUMMARY")
-    print(f"{'='*60}")
-
-    for ablation_name, results in all_results.items():
-        successful = [r for r in results if "error" not in r]
-        if successful:
-            f1s = [r["best_f1"] for r in successful]
-            print(f"{ablation_name:20s}: Mean F1={np.mean(f1s):.4f} ± {np.std(f1s):.4f}  (Max: {np.max(f1s):.4f})")
-        else:
-            print(f"{ablation_name:20s}: FAILED")
+    trivial = trivial_baseline_metrics(loaders["test"])
+    suite = run_suite(names, seeds, loaders, device, args, out_dir)
 
     summary = {
         "experiment": "ablations",
+        "protocol": "train/val/test; checkpoint selected on val F1 (tie: PR-AUC); test evaluated once",
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "config": {
-            "hidden_dim": 64,
-            "epochs": args.epochs,
-            "lr": args.lr,
-            "batch_size": args.batch_size,
-            "weight_decay": 1e-5,
-            "event_num": 15,
-            "seeds": seeds
-        },
-        "results": all_results
+        "config": vars(args),
+        "ablation_overrides": {a: ABLATIONS[a] for a in abls},
+        "sizes": loaders["sizes"],
+        "trivial_always_anomalous_test": trivial,
+        "models": suite,
     }
-    
-    with open(output_base / "summary.json", "w") as f:
+    with open(out_dir / "summary.json", "w") as f:
         json.dump(summary, f, indent=2)
-    
-    print(f"\nResults saved to: {output_base}")
+
+    print("\nTEST metrics at validation-selected epoch (mean over seeds)")
+    print_table(suite, trivial)
+    print(f"\nSaved to: {out_dir}")
+
 
 if __name__ == "__main__":
     main()
