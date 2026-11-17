@@ -15,8 +15,6 @@ class ExpertRouter(nn.Module):
     - Modality representations
     - Graph structure information
     - Uncertainty estimates
-    
-    Supports log_only_mode for log-only datasets (e.g., HDFS).
     """
     
     def __init__(
@@ -30,7 +28,6 @@ class ExpertRouter(nn.Module):
         use_graph: bool = True,
         use_uncertainty: bool = True,
         top_k: int = 2,  # Number of experts to route to
-        log_only_mode: bool = False,
     ):
         super().__init__()
         self.num_experts = num_experts
@@ -39,20 +36,12 @@ class ExpertRouter(nn.Module):
         self.top_k = top_k
         self.use_graph = use_graph
         self.use_uncertainty = use_uncertainty
-        self.log_only_mode = log_only_mode
-        
-        # Expert names (adjust based on mode)
-        if log_only_mode:
-            self.expert_names = ["log", "log_graph", "log_context"]
-        else:
-            self.expert_names = ["temporal", "semantic", "dependency", "cross_modal"]
-        assert len(self.expert_names) == num_experts
         
         # Input projection - project to hidden_dim
         self.input_proj = nn.Linear(input_dim, hidden_dim)
         
-        # Graph encoder (if using graph structure and not log-only mode)
-        if use_graph and not log_only_mode:
+        # Graph encoder (if using graph structure)
+        if use_graph:
             self.graph_encoder = nn.Sequential(
                 nn.Linear(24 * 2, hidden_dim),  # 24 edges * 2 (src, dst)
                 nn.GELU(),
@@ -69,13 +58,8 @@ class ExpertRouter(nn.Module):
                 nn.Linear(hidden_dim, hidden_dim),
             )
         
-        # Routing network
-        if log_only_mode:
-            # Log-only mode: just hidden_dim input
-            router_input_dim = hidden_dim
-        else:
-            # Multi-modal: hidden_dim * 3 (metric + trace + log or graph + uncertainty)
-            router_input_dim = hidden_dim * 3
+        # Routing network input: [projected features | graph feature | uncertainty feature]
+        router_input_dim = hidden_dim * 3
         
         self.router = nn.Sequential(
             nn.Linear(router_input_dim, hidden_dim * 2),
@@ -92,15 +76,14 @@ class ExpertRouter(nn.Module):
     
     def forward(
         self,
-        features: torch.Tensor,  # [B, input_dim] - for log_only_mode: [B, hidden_dim], else [B, 3*hidden_dim]
+        features: torch.Tensor,  # [B, input_dim] (concatenated metric + trace + log embeddings)
         graph_info: Optional[torch.Tensor] = None,   # [B, 24*2] edge list flattened
         expert_uncertainties: Optional[torch.Tensor] = None,  # [B, num_experts]
         return_uncertainty: bool = False,
     ) -> Tuple[torch.Tensor, Optional[Union[torch.Tensor, Dict]]]:
         """
         Args:
-            features: [B, input_dim] - combined modality features (already concatenated metric+trace+log) 
-                      or [B, hidden_dim] for log_only_mode
+            features: [B, input_dim] - combined modality features (already concatenated metric+trace+log)
             graph_info: Graph structure encoding [B, edge_features]
             expert_uncertainties: Per-expert uncertainty estimates [B, num_experts]
             return_uncertainty: Whether to return per-expert uncertainty
@@ -111,37 +94,31 @@ class ExpertRouter(nn.Module):
         """
         B = features.shape[0]
         
-        if self.log_only_mode:
-            # Log-only mode: features already have correct dimension [B, hidden_dim]
-            x = self.input_proj(features)  # [B, hidden_dim]
-            # No graph or uncertainty concatenation needed
-        else:
-            # Multi-modal: original logic
-            # Project to hidden_dim
-            x = self.input_proj(features)  # [B, hidden_dim]
-            
-            # Add graph info (if enabled and provided)
-            if self.use_graph:
-                if graph_info is not None:
-                    graph_feat = self.graph_encoder(graph_info)  # [B, hidden_dim]
-                else:
-                    graph_feat = torch.zeros(B, self.hidden_dim, device=features.device, dtype=features.dtype)
-                x = torch.cat([x, graph_feat], dim=-1)
-            else:
-                # Pad with zeros to maintain hidden_dim * 3 structure
-                x = torch.cat([x, torch.zeros(B, self.hidden_dim, device=features.device, dtype=features.dtype)], dim=-1)
-            
-            # Add uncertainty info
-            if self.use_uncertainty:
-                if expert_uncertainties is not None:
-                    unc_feat = self.uncertainty_encoder(expert_uncertainties)  # [B, hidden_dim]
-                else:
-                    unc_feat = torch.zeros(B, self.hidden_dim, device=features.device, dtype=features.dtype)
-                x = torch.cat([x, unc_feat], dim=-1)
-            else:
-                # Pad with zeros to maintain hidden_dim * 3 structure
-                x = torch.cat([x, torch.zeros(B, self.hidden_dim, device=features.device, dtype=features.dtype)], dim=-1)
+        # Project to hidden_dim
+        x = self.input_proj(features)  # [B, hidden_dim]
         
+        # Add graph info (if enabled and provided)
+        if self.use_graph:
+            if graph_info is not None:
+                graph_feat = self.graph_encoder(graph_info)  # [B, hidden_dim]
+            else:
+                graph_feat = torch.zeros(B, self.hidden_dim, device=features.device, dtype=features.dtype)
+            x = torch.cat([x, graph_feat], dim=-1)
+        else:
+            # Pad with zeros to maintain hidden_dim * 3 structure
+            x = torch.cat([x, torch.zeros(B, self.hidden_dim, device=features.device, dtype=features.dtype)], dim=-1)
+        
+        # Add uncertainty info
+        if self.use_uncertainty:
+            if expert_uncertainties is not None:
+                unc_feat = self.uncertainty_encoder(expert_uncertainties)  # [B, hidden_dim]
+            else:
+                unc_feat = torch.zeros(B, self.hidden_dim, device=features.device, dtype=features.dtype)
+            x = torch.cat([x, unc_feat], dim=-1)
+        else:
+            # Pad with zeros to maintain hidden_dim * 3 structure
+            x = torch.cat([x, torch.zeros(B, self.hidden_dim, device=features.device, dtype=features.dtype)], dim=-1)
+    
         # Compute routing logits
         logits = self.router(x) / self.temperature  # [B, num_experts]
         
@@ -398,7 +375,7 @@ def create_router(
     """
     # Filter kwargs based on router type
     if router_type == "base":
-        valid_keys = {'input_dim', 'hidden_dim', 'num_heads', 'dropout', 'temperature', 'use_graph', 'use_uncertainty', 'top_k', 'load_balancing_weight', 'log_only_mode'}
+        valid_keys = {'input_dim', 'hidden_dim', 'num_heads', 'dropout', 'temperature', 'use_graph', 'use_uncertainty', 'top_k', 'load_balancing_weight'}
     elif router_type == "graph_aware":
         valid_keys = {'node_feat_dim', 'hidden_dim', 'num_heads', 'dropout'}
     elif router_type == "uncertainty_guided":

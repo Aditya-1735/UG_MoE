@@ -44,6 +44,5 @@ python experiments/run_comparison.py --data-dir /path/to/other/chunks  # any dir
 
 ## Data Generation Pipelines
 - `project/preprocessing/raw_to_parsed/` — Convert raw logs/metrics/traces to parsed format (Drain3)
-- `project/preprocessing/hdfs/` — HDFS log-specific preprocessing
 - `project/preprocessing/sn/` — SN (Eadro) dataset preprocessing
 - `project/preprocessing/muad_compat/` — MUAD-compatible data regeneration

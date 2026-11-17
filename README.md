@@ -33,7 +33,7 @@ go to `project/experiments/runs/<experiment>_<timestamp>/`.
 | `project/tracks/baselines/` | GAT and Graph-MoE baselines |
 | `project/experiments/` | Shared protocol (`common.py`), model registry (`registry.py`), experiment scripts |
 | `project/recovered_artifact/` | Dataset used by all experiments (MUAD chunks: 12 services, 24 edges, `event_num=15`) |
-| `project/preprocessing/` | Data pipelines (raw SN → parsed, MUAD-compatible chunks, HDFS) |
+| `project/preprocessing/` | Data pipelines (raw SN → parsed, MUAD-compatible chunks, SN chunks) |
 | `project/validation/` | Data validation gates (`run_all_gates.py`) |
 | `project/vendor/` | Third-party code: MUAD baseline, Eadro |
 

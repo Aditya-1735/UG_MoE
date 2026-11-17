@@ -14,6 +14,7 @@
 | 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ❌ pending |
 | 2026-11-17 | **Decision:** because of time constraints, all experiments run with a **single seed (42)** for now. Multi-seed runs (5 seeds plus paired t-test) are deferred to the final paper runs (Phase 3–4). Single-seed differences below about 1 F1 point are not evidence of improvement. | n/a |
 | 2026-11-17 | **Phase 1 (cont.):** `experiments/registry.py` (single definition of every model / ablation + forward adapter + `run_suite`). GAT and Graph-MoE model classes moved to `tracks/baselines/` (node count now read from the graph, not hard-coded). New scripts on the shared protocol: `run_baselines.py` (Exp. A), `run_ablations.py` (rewritten; always trains the `ug_moe` reference too), `run_robustness.py` (Exp. D + E as specified: single-modality drop, random 10/20/40/60% masking, noise scaled to train std on all 7 modality combinations, relative F1 drop). `run_comparison.py` now builds models through the registry. **Removed** (superseded): `run_gat_baseline.py`, `run_plain_moe.py`, `run_graph_moe.py`, `run_track_b_full.py`, `run_missing_modality.py`, `run_noise_robustness.py`. Not migrated yet: routing / uncertainty-fusion analysis (they depend on Phase 2), `run_track_a_al.py`, `run_hdfs.py`. | ❌ pending |
+| 2026-11-17 | **Scope:** removed the HDFS log-only mode and all HDFS code and runs (out of plan scope, §7), plus `UG-MoE-Research-Paper-Draft.md` (invalid numbers and claims). `model.py` and `router.py` now have a single multimodal path. | ❌ pending (compile-checked only) |
 | 2026-11-17 | **Clean-up:** deleted 8 opencode-era planning/forensics `.md` files at the root, `run2`, `project/ablations.log`, `project/project/` (119 MB of October runs), `tracks/proposed_model/train.py` and `test_integration.py`, and `experiments/run_track_a_full.py` (superseded by the `muad` registry entry). Untracked 18 `.pyc` files. Rewrote `README.md` and fixed `data_README.md` (train count, labels, commands). | n/a |
 
 ---
@@ -223,7 +224,7 @@ Counted from the registry builders: `ug_moe` 4.38M parameters, `plain_moe` 4.18M
 
 ## 7. Out of scope or beyond the plan
 
-- **HDFS log-only mode** (`log_only_mode`, `src/experts/log_expert.py`, `preprocessing/hdfs/`, `experiments/run_hdfs.py`, `configs/hdfs_full.json`; the current branch is named `hdfs`). The plan covers **multimodal** detection only. Decide with the supervisor whether HDFS stays as an extra experiment or is dropped. It adds branches throughout `model.py` and `router.py`.
+- **HDFS log-only mode: removed 2026-11-17.** The plan covers **multimodal** detection only, and the log-only branches went through the exact files Phase 2 rewrites (`model.py`, `router.py`, experts). Removed: `log_only_mode` and its parameters, `src/experts/log_expert.py`, `preprocessing/hdfs/`, `experiments/run_hdfs.py`, `configs/hdfs_full.json`, `project/runs/` (old HDFS runs), and the HDFS-derived copies in `preprocessing/sn/`. It can be recovered from git history or the `backup-hdfs` branch if the supervisor asks for a log-only experiment.
 - **Active learning** (`run_track_a_al.py`). Plan §13: "do not add active learning to the first implementation". It's fine as a MUAD reproduction, but it isn't part of UG-MoE.
 - **Framework:** the plan suggests PyTorch Geometric; the code uses DGL (inherited from MUAD). This is an acceptable deviation, but mention it.
 - **Project layout** differs from plan §5 (`src/` + `tracks/` + `experiments/` instead of `models/` + `scripts/`). This is fine.
@@ -236,7 +237,7 @@ Each phase should end with a commit pushed to GitHub and a server run whose outp
 
 ### Phase 0: Decide and stabilize (local, no training)
 1. **Settle the uncertainty-block version** (deterministic μ at eval and sampling at train, with clamping, is the usual choice). Commit it, and make `forward` respect `self.training`.
-2. Agree with the supervisor on the HDFS and active-learning scope (§7).
+2. ~~HDFS scope~~ (removed, §7). Active-learning scope still to confirm with the supervisor.
 
 ### Phase 1: Evaluation protocol (before any further results)
 3. Add a **validation split** from the train set, at window level and time-ordered if timestamps can be recovered. Select the epoch/checkpoint on **validation** F1 or PR-AUC. Report test once, at the selected checkpoint.
@@ -264,7 +265,7 @@ Each phase should end with a commit pushed to GitHub and a server run whose outp
 
 ### Phase 4: Reproducibility and paper
 21. A single `evaluate.py` / `make_tables.py` that regenerates all tables and plots from saved checkpoints and result JSONs.
-22. Only then update `UG-MoE-Research-Paper-Draft.md` with numbers from this pipeline.
+22. Only then write the paper (the opencode draft was deleted), using numbers from this pipeline only.
 
 ---
 
@@ -272,14 +273,14 @@ Each phase should end with a commit pushed to GitHub and a server run whose outp
 1. Is `recovered_artifact` (the MUAD authors' pre-built SN chunks) acceptable as the primary dataset, or must the data be regenerated from raw SN with our own pipeline? Our pipeline currently produces `event_num=14` and a different number of chunks.
 2. Given that 83% of windows are anomalous and F1 is around 0.99 everywhere, should we move to a harder setting (e.g. a time-ordered split, normal-class F1, or the TT dataset as the main benchmark) so that differences between models mean something?
 3. Should routing be per sample (graph-level) or per node (service-level)?
-4. Is HDFS in scope?
+4. ~~Is HDFS in scope?~~ Removed as out of plan scope (§7); confirm this is acceptable.
 
 ---
 
 ## 10. Repository clean-up backlog (plan for a clean research codebase)
 - ~~Untrack `.pyc`; remove `project/project/`, `run2`, `.swp`, opencode-era `.md` files~~ (done 2026-11-17).
 - Stray empty `C:Usersas999OneDriveDesktoptrashimpl/` folder at the repo root: untracked, delete by hand.
-- Pending decisions: `project/runs/` (old HDFS runs) and the HDFS pipeline, depending on the HDFS scope decision (§7). `UG-MoE-Research-Paper-Draft.md`: its numbers and "complete" claims are invalid, so rewrite or delete it once real results exist.
+- ~~HDFS code, `project/runs/`, `UG-MoE-Research-Paper-Draft.md`~~ (removed 2026-11-17). The raw `hdfs_dataset/` (1.6 GB, untracked, gitignored) is still on the local disk; delete it by hand if no longer needed.
 - Old-protocol results in `project/experiments/runs/*_202611{11,12}_*`: keep as the "before" reference until the new-protocol runs replace them, then delete.
 - Replace hard-coded Windows paths (`convert_sn_dataset.py`, `gate01`) with CLI arguments.
 - Fix `pyproject.toml` dependencies (TOML table → array) so `pip install -e .` works on the server.
