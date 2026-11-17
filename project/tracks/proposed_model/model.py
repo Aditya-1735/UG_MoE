@@ -493,16 +493,7 @@ class GraphAwareMoE(nn.Module):
                         out = out.get("metric_embedding", out.get("trace_embedding", list(out.values())[0]))
                         # out is already [B, D], no reshaping needed
                 elif exp_type == "semantic":
-                    # LogSemanticExpert expects input of shape [B*12, log_dim]
-                    # Ensure log_node has correct shape
-                    log_node = modality_embeddings["log"]
-                    if log_node.shape[-1] != self.log_dim:
-                        if log_node.shape[-1] < self.log_dim:
-                            padding = torch.zeros(log_node.shape[0], self.log_dim - log_node.shape[-1], device=log_node.device)
-                            log_node = torch.cat([log_node, padding], dim=1)
-                        else:
-                            log_node = log_node[:, :self.log_dim]
-                    out = expert(graph, log_node)  # [B, D]
+                    out = expert(graph.ndata["logs"], B)  # [B, D]
                 elif exp_type == "dependency":
                     # Use actual per-node metric embeddings (not broadcast graph-level)
                     node_feats = modality_embeddings["metric_node"]  # [B*12, hidden_dim]
@@ -588,14 +579,6 @@ class GraphAwareMoE(nn.Module):
             expert_uncertainties=expert_unc_tensor,
             return_uncertainty=True,
         )
-        # Ensure routing_weights has shape [B, num_experts]
-        if routing_weights.dim() == 1:
-            routing_weights = routing_weights.view(B, -1)
-        elif routing_weights.dim() == 2:
-            if routing_weights.shape[1] == 1:
-                routing_weights = routing_weights.view(B, -1)
-            elif routing_weights.shape[1] != self.num_experts:
-                routing_weights = routing_weights.view(B, self.num_experts)
         # Handle new return format from router (dict with aux_loss)
         if isinstance(routing_aux_loss, dict):
             routing_aux_loss = routing_aux_loss.get('aux_loss', 0)

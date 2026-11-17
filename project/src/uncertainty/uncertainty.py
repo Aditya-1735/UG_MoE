@@ -62,34 +62,35 @@ class UncertaintyBlock(nn.Module):
             x: [B, in_dim] - input features
             
         Returns:
-            out: [B, out_dim] - deterministic output (mu, no sampling noise)
-            kl_loss: scalar - KL divergence loss used as regularizer
+            z: [B, out_dim] - reparameterized sample in training mode,
+               deterministic mean (mu) in eval mode
+            kl_loss: scalar - KL divergence loss
         """
         encoded = self.encoder(x)  # [B, hidden_dim]
-        
+
         mu = self.fc_mu(encoded)      # [B, out_dim]
         var = self.fc_var(encoded)    # [B, out_dim]
-        
+
         # Attention gating
         mu_attn = self.attention_mu(mu)
-        var_attn = self.attention_var(var)
-        
-        # Use mu directly (deterministic) - no sampling noise that causes training instability
-        # KL loss is still computed as a regularizer toward N(0, I)
-        out = mu_attn
+        var_attn = torch.clamp(self.attention_var(var), 1e-6, 1e4)
+
+        # Sample only while training; eval is deterministic so test metrics are reproducible
+        z = self.reparameterize(mu_attn, var_attn) if self.training else mu_attn
+
+        # KL loss
         kl_loss = self.kl_loss(mu_attn, var_attn)
-        
-        return out, kl_loss
-    
+
+        return z, kl_loss
+
     def reparameterize(self, mu: torch.Tensor, var: torch.Tensor) -> torch.Tensor:
         """
         Reparameterization trick: z = mu + eps * sigma
-        
+
         Note: var is treated as VARIANCE (not log-variance)
         sigma = sqrt(var)
         """
-        var = torch.clamp(var, 1e-8, 1e4)
-        std = var.sqrt()
+        std = var.sqrt()  # Treat var as variance
         eps = torch.randn_like(std)
         return mu + eps * std
     
@@ -106,7 +107,7 @@ class UncertaintyBlock(nn.Module):
         This implementation uses variance consistently.
         """
         # KL(N(mu, var) || N(0, I)) = 0.5 * (mu^2 + var - 1 - log(var))
-        kl = 0.5 * (mu ** 2 + var - 1 - (var + 1e-8).log())
+        kl = 0.5 * (mu ** 2 + var - 1 - var.log())
         return kl.mean()
 
 
@@ -170,31 +171,29 @@ class VariationalUncertaintyBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns:
-            out: [B, out_dim] - deterministic output (mu, no sampling noise)
-            kl_loss: scalar - KL divergence loss used as regularizer
+            z: [B, out_dim] - reparameterized sample in training mode,
+               deterministic mean (mu) in eval mode
+            kl_loss: scalar
         """
         encoded = self.encoder(x)
-        
+
         mu = self.fc_mu(encoded)           # [B, out_dim]
         logvar = self.fc_logvar(encoded)   # [B, out_dim]
-        
-        # Clamp logvar to prevent exp() overflow
-        logvar = torch.clamp(logvar, -10, 10)
-        
-        # Attention gating
+
+        # Attention gating; clamp log-variance so exp() cannot overflow
         mu_attn = self.attention_mu(mu)
-        logvar_attn = self.attention_var(logvar)
-        
-        # Use mu directly (deterministic) - no sampling noise that causes training instability
-        # KL loss is still computed as a regularizer toward N(0, I)
-        out = mu_attn
+        logvar_attn = torch.clamp(self.attention_var(logvar), -10.0, 10.0)
+
+        # Sample only while training; eval is deterministic so test metrics are reproducible
+        z = self.reparameterize(mu_attn, logvar_attn) if self.training else mu_attn
+
+        # KL loss
         kl_loss = self.kl_loss(mu_attn, logvar_attn)
-        
-        return out, kl_loss
+
+        return z, kl_loss
     
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         """z = mu + eps * sqrt(exp(logvar))"""
-        logvar = torch.clamp(logvar, -10, 10)
         std = (0.5 * logvar).exp()
         eps = torch.randn_like(std)
         return mu + eps * std
@@ -204,8 +203,7 @@ class VariationalUncertaintyBlock(nn.Module):
         KL(N(mu, exp(logvar)) || N(0, I)) 
         = 0.5 * sum(mu^2 + exp(logvar) - 1 - logvar)
         """
-        var = torch.clamp(logvar.exp(), 1e-8, 1e4)
-        kl = 0.5 * (mu ** 2 + var - 1 - logvar)
+        kl = 0.5 * (mu ** 2 + logvar.exp() - 1 - logvar)
         return kl.mean()
 
 

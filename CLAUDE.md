@@ -1,0 +1,79 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Workflow and ground rules (from the user)
+
+1. **Branch**: the initialised git repo is currently on the `hdfs` branch.
+2. **Local vs GPU server**: work happens on the user's local (Windows) machine, where we only verify that files compile/import (e.g. `python -m py_compile <file>`) — do not try to run training or experiments locally. Changes are pushed to the GitHub repo; the user then manually runs `git pull` on the GPU server (repo root `~/AHA_BTP/UG_MoE`) and runs the commands we give them there. So when suggesting commands, write them for the server (Linux, from `project/`), and say what output/files to bring back.
+3. **Don't trust the docs, trust the code**: the project was previously developed with opencode. `UG-MoE-Research-Paper-Draft.md` is documentation produced from that work, and nobody knows whether it is correct against the plan. The baseline paper is `7. Uncertainty-Aware_Multimodal_Anomaly_Detection_for_Microservice_Systems_With_Active_Learning.pdf` (MUAD), and the supervisor's plan is `7. UG-MoE_Implementation_Guide.md`. It is unknown how much of the implementation actually follows them. Do not assume anything claimed in the `.md` files (status tables, reported results, "complete" markers) is true unless the Python code confirms it; the Python files are the primary source of truth. When code and plan disagree, flag it rather than silently picking one.
+4. **Existing results**: everything in `project/experiments/runs/` (logs and `summary.json` files) was produced on the `project/recovered_artifact` dataset (`event_num=15`).
+5. **Status tracking**: `PROJECT_STATUS.md` (repo root) is the code-verified record of what is done, broken, and next relative to the implementation guide. Read it before starting work and update it when a phase/step changes.
+6. **Keep it clean**: this is meant to become a research-paper codebase that works properly and follows the plan. Keep the directory tidy (no stray artifacts, scratch files or duplicate output dirs) and keep committing/pushing only what we are confident about.
+
+## What this repo is
+
+Research code for **UG-MoE**: a Graph-Aware Mixture-of-Experts (MoE) for multimodal anomaly detection in microservice systems (metrics + traces + logs). It extends the vendored **MUAD** baseline (`project/vendor/muad`) and is compared against it. The two models are called **Track A** (MUAD, faithful reproduction) and **Track B** (`GraphAwareMoE`, the proposed model). Eadro (`project/vendor/eadro`) is vendored for the SN (SocialNetwork) dataset format.
+
+The repo root holds many planning/forensics markdown files and PDFs (`IMPLEMENTATION_PLAN.md`, `UG-MoE_Implementation_Guide.md`, `*_FORENSICS_*.md`, paper draft). They are background reading, not code. **All code lives under `project/`.**
+
+## Running things
+
+Everything is run **from `project/`** (scripts `sys.path.insert` the project root, `vendor/muad` and `src`, and use relative data paths):
+
+```bash
+cd project
+# Environment: conda env "muad" (see ../activate_conda.sh: sets DGLBACKEND=pytorch and CUDA_VISIBLE_DEVICES=2).
+# Needs torch, dgl, numpy, scipy, scikit-learn, matplotlib. There is also a project/.venv on the author's machine.
+
+python experiments/run_comparison.py --seeds 42 --device cuda            # Track A vs Track B smoke test (paired t-test over seeds)
+python experiments/run_comparison.py --seeds 42,123,456,789,999          # full comparison
+python experiments/run_ablations.py --seeds 42 --ablation no_graph       # one ablation (omit --ablation for all 6)
+python experiments/run_track_b_full.py                                   # Track B alone; Track A = run_track_a_full.py / run_track_a_al.py (active learning)
+python experiments/run_hdfs.py --config configs/hdfs_full.json           # HDFS log-only mode
+```
+
+Other `experiments/run_*.py` scripts are standalone analyses/baselines (GAT, plain MoE, graph MoE, missing-modality, noise robustness, routing analysis, uncertainty/fusion analysis). Each writes timestamped output to `project/experiments/runs/<name>_<YYYYMMDD_HHMMSS>/` (`summary.json`, `run_N_results.json`, checkpoints). These are run on the GPU server (see workflow above), not locally.
+
+- **Tests**: there is no pytest suite wired up. `tracks/proposed_model/test_components.py` and `test_integration.py` are ad-hoc scripts (`python tracks/proposed_model/test_components.py`); `test_integration.py` is stale (expects `load_data` to return 3 values and uses old `muad_compat` paths; it currently returns 4).
+- **Data validation**: `python validation/run_all_gates.py` runs 10 sequential gate scripts (raw integrity → parsed schema → chunk schema → tensor dims → labels → graph → split → artifact comparison → dataloader). Gate 1 hardcodes an absolute `raw_data/SN Dataset` path from the author's machine.
+- **Lint/format config** (`pyproject.toml`): black/flake8 with line length 100. Note `pyproject.toml`'s `[project.dependencies]` is written as a TOML table rather than an array, so `pip install -e .` may fail; don't rely on it.
+
+## Architecture
+
+### Model (`project/tracks/proposed_model/model.py`, `GraphAwareMoE`)
+
+Forward pass, in order: `encode_modalities` → per-expert outputs → (optional) per-expert uncertainty block → router → fusion → classifier.
+
+- **Components live in `project/src/`**: `experts/` (Temporal, Semantic/log, Dependency, CrossModal, plus log-only `LogExpert`/`LogGraphExpert`/`LogContextExpert` via `create_log_experts`), `routing/router.py` (`create_router`: `base` / `graph_aware` / `uncertainty_guided`), `uncertainty/` (`UncertaintyBlock`, `VariationalUncertaintyBlock` — returns `(sample, kl_loss)`), `fusion/` (`AdaptiveFusion` with attention/weighted_concat/gated/confidence, and `DynamicFusion`). `model.py` imports them as `src.*`, so `project/` must be on `sys.path`.
+- **Two modes, selected by `log_only_mode`**:
+  - Multimodal (default; MUAD dataset): inputs are batched DGL graphs with `ndata["metrics"] [B*12,10,7]`, `["traces"] [B*12,10,1]`, `["logs"] [B*12,event_num]`. Experts: temporal, semantic, dependency, cross_modal. Router input is `concat(metric, trace, log)` embeddings.
+  - Log-only (HDFS): `ndata["logs"]` holds template-ID sequences; experts forced to `["log","log_graph","log_context"]`. `log_graph` expert uses `graph.log_graph` if attached, else falls back to mean-pooled embeddings.
+- **Routing + fusion both run.** Routing weights scale the expert outputs into `combined`, but the logits come from `self.fusion(expert_outputs)` — `combined` is not what the classifier sees. Routing influences the loss only via its load-balancing aux loss. Keep this in mind when changing routing behaviour.
+- **Loss** = CE + `0.1 * mean(KL from uncertainty blocks)` + `0.01 * router aux loss`. In multimodal mode labels are culprit IDs binarized as `labels >= 1`; in log-only mode labels are already binary.
+- Router receives `graph_info` = flattened edge list per sample, hardcoded for **24 edges (48 values)**; the 12-node / 24-edge MUAD topology is assumed in several places (`num_nodes=12`, `.view(B, 12, -1)`). Other datasets (SN, via `preprocessing/sn` and `experiments/convert_sn_dataset.py`) needed per-node feature expansion/padding to fit — recent commits (`log_node` padded to `log_dim`, router output shape handling) are fixes in this area.
+- The forward pass raises `RuntimeError("NaN/Inf ...")` at each stage on non-finite values. Experiment scripts also disable flash/mem-efficient SDPA (`torch.backends.cuda.enable_*_sdp(False)`) because of NaN gradients in Transformer attention — keep that when writing new training scripts.
+- Configs: `DEFAULT_CONFIG` in `model.py` (note `log_dim=15` matches the recovered dataset's `event_num=15`; the constructor default is 14). `create_graph_aware_moe(config, muad_baseline=None)` can reuse a MUAD baseline's encoders. `configs/hdfs_full.json` is the HDFS config (consumed by `run_hdfs.py`).
+- Ablation configs (`run_ablations.py`): `no_graph`, `no_uncertainty`, `no_fusion`, `single_expert`, `plain_moe`, `graph_transformer`.
+
+### Shared experiment protocol (`project/experiments/common.py`)
+
+New and migrated experiment scripts must use this module rather than writing their own loop: `load_splits` (val = stratified 15% of `chunk_train.pkl`, fixed `split_seed`, shared across models and seeds), `train_and_select` (select on **val** F1, tie-break PR-AUC, early stopping, test evaluated once, per-seed checkpoint), `compute_metrics` (anomaly F1 / P / R plus macro-F1, normal-class F1, PR-AUC, ROC-AUC) and `trivial_baseline_metrics`. Scripts import it as `from common import ...` (the script directory is on `sys.path`). As of 2026-11-17 only `run_comparison.py` has been migrated; the other `run_*.py` scripts still select on test (see `PROJECT_STATUS.md` §3.4).
+
+### Track A / vendor code
+
+`run_comparison.py` is the reference for how experiments are wired: Track A is `vendor.muad.models.main_model.MainModel` trained on its own returned `loss` (MUAD objective), Track B is `GraphAwareMoE`, and both go through `common.train_and_select` with identical data, split and seeds. Data loading underneath is `vendor.muad.data.utils.load_data` (returns `train_data, node_num, edges, metadata`) → `ChunkDataset` → DGL dataloaders. Treat `project/vendor/` as third-party; avoid editing it unless a fix is required for both tracks.
+
+### Datasets (see `project/data_README.md`; **do not mix them**)
+
+- `project/recovered_artifact/` — original MUAD dataset (`chunk_{train,test}.pkl` + `metadata.json`, `event_num=15`, 12 nodes, 24 edges). **Use this for Track A vs Track B**; `vendor/muad/Dataset/chunk/` is a byte-identical copy.
+- `project/preprocessing/muad_compat/output/` — regenerated data with `event_num=14`; using it for one track and not the other invalidates the comparison.
+- HDFS: `preprocessing/hdfs/` pipeline (`run_preprocess.py` orchestrates parse (Drain3) → sequences → log graph → train/test split) writes to `preprocessing/hdfs/output_{2k,full}/`; loaded by `preprocessing/hdfs/hdfs_dataset.py`. Raw `hdfs_dataset/` and `raw_data/` are gitignored.
+- SN (Eadro SocialNetwork): `preprocessing/raw_to_parsed/` (raw → `parsed_data/SN`) and `preprocessing/sn/`; chunks for Eadro in `vendor/eadro/codes/chunks/SN/`.
+
+## Repo quirks
+
+- Large artifacts are committed to git: `.pkl` chunk files, `.pth` checkpoints, `__pycache__/*.pyc`, and many `experiments/runs/*` outputs — so `git status` is noisy with modified `.pyc`/`.pkl`. Don't stage those unintentionally.
+- `project/project/experiments/runs/` and `project/runs/` are older output directories from earlier runs (stale duplicates); the current output location is `project/experiments/runs/`. A stray `C:Usersas999OneDriveDesktoptrashimpl/` directory at the repo root is a path-mangling artifact.
+- Main branch is `main`; other branches: `run_track_b_full`, `prog`, `backup-hdfs`.
+- `.kilo/` (gitignored) contains planning notes from another AI tool, not part of the codebase.
