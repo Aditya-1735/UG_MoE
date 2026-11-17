@@ -23,9 +23,11 @@ can be checked. Things not yet shown are listed in §6.
    - On SN rebuilt from the raw Eadro data (harder, includes fault-free runs): **UG-MoE v2 0.987
      vs. MUAD 0.922 macro-F1 (+6.5 points)**, with recall 0.973 vs 0.857. It uses 166k parameters
      (MUAD: 240k).
-5. **Honest limit:** on SN the full UG-MoE v2 is level with its own "plain" variant (experts + router,
-   no graph or uncertainty: 0.986). So the gain over MUAD currently comes from the **mixture-of-experts
-   architecture**. The uncertainty components show their value under
+   - On TrainTicket (TT, much harder): **UG-MoE v2 0.823 vs. MUAD 0.647 macro-F1 (+17.6)**, and +9.4
+     over the best baseline (GAT). Recall 0.92 vs 0.55: the baselines miss about half the anomalies (§4.4b).
+5. **Where the components matter:** on SN (near ceiling) the full UG-MoE v2 is level with its own
+   "plain" variant on clean data (0.987 vs 0.986). On TT the uncertainty components are decisive
+   (plain 0.667 → full 0.823; uncertainty-guided routing is the key step). The uncertainty components show their value under
    **missing data**: UG-MoE v2 degrades about half as much as MUAD (40% masking: 0.856 vs 0.716 F1), and
    **the plain variant does not** (0.722, no better than MUAD). So the robustness comes from the
    probabilistic representation plus uncertainty-aware fusion (§4.6). Both models still fail completely
@@ -249,6 +251,30 @@ Validation macro-F1 is about 0.98 for **every** step. The middle steps fit the d
 others, but generalize worse to the unseen test run. Adaptive fusion recovers the loss completely. On SN
 the components only help **together**, and the full model is not better than "plain" on clean data.
 
+### 4.4b TrainTicket (TT), the harder dataset (rounds 7 and 7-v2, `runs/round7_tt/`, `runs/round7_v2_tt/`)
+11 runs (9 fault, 2 fault-free), 27 services. Train = 5 fault runs + the first 60% of both fault-free
+runs; val / test = 2 fault runs each + later 20% segments of the fault-free runs. Test 68% anomalous
+(trivial F1 0.809, macro-F1 0.404).
+
+| Model | Test F1 | Recall | F1 normal | **Macro-F1** | PR-AUC |
+|---|---|---|---|---|---|
+| Trivial | 0.8087 | 1.0000 | 0 | 0.4044 | 0.6789 |
+| **UG-MoE v2 full** | **0.8943** | **0.9237** | **0.7521** | **0.8232** | **0.9527** |
+| UG-MoE v2 up to uncertainty-guided routing | 0.9163 | 0.9968 | 0.7635 | 0.8399 | 0.9505 |
+| UG-MoE v2 plain | 0.6949 | 0.5543 | 0.6396 | 0.6673 | 0.9243 |
+| GAT | 0.7854 | 0.6977 | 0.6740 | 0.7297 | 0.9416 |
+| Plain MoE (legacy) | 0.6810 | 0.5205 | 0.6559 | 0.6685 | 0.9089 |
+| **MUAD** | 0.6801 | 0.5475 | 0.6145 | **0.6473** | 0.9169 |
+| Graph-MoE | 0.6494 | 0.4977 | 0.6197 | 0.6345 | 0.9346 |
+
+- **UG-MoE v2 beats MUAD by +17.6 macro-F1 and the best baseline (GAT) by +9.4.**
+- Every baseline is precise but **misses 30–50% of the anomalies**. Its anomaly-F1 is *below* the
+  trivial predictor, which is another reason to report macro-F1. UG-MoE v2 detects 92% of them.
+- **Here the uncertainty components improve clean accuracy:** uncertainty-guided routing lifts macro-F1
+  from 0.58 to 0.84. On SN, which is near its ceiling, they only improved robustness (§4.6).
+- Caveat: TT's validation scores fluctuate strongly between epochs, so the 5-seed final runs are
+  needed to fix the size of this gain.
+
 ### 4.5 Robustness on rebuilt SN (plan Exp. D/E; round 8, `runs/round8_rob_sn_v2/`, `runs/round8_rob_sn_muad/`)
 Saved checkpoints from §4.3, perturbed only at test time. The clean scores reproduce §4.3 exactly, which
 confirms the checkpoints loaded correctly. Masking = random (window, service, modality) entries set to
@@ -346,9 +372,9 @@ uncertainty (log-variance) and its fusion weight.
 - That the *uncertainty* components (probabilistic representation, uncertainty routing) improve accuracy:
   on SN the full model equals "plain" (§4.4).
 - Graceful degradation when metrics are missing: neither model has it (§4.5).
-- Accuracy gains from the uncertainty components on *clean* data: none on SN (§4.4). Their value is
-  robustness (§4.6).
-- TT results: **round 7 running**.
+- Accuracy gains from the uncertainty components on *clean* data: none on SN (§4.4), large on TT
+  (§4.4b). Single seed, so the TT gain needs the 5-seed runs.
+- TT robustness and TT routing/uncertainty analysis: pending.
 
 ---
 

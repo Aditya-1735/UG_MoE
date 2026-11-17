@@ -11,6 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-17 | **Round 7 (TT, v2 steps)**, server, seed 42 (§4): **full v2 0.823 macro-F1 vs GAT 0.730, MUAD 0.647, v2 plain 0.667**; recall 0.92 vs ≤ 0.70 for every baseline. Uncertainty-guided routing is the decisive step (ug_routing 0.840). First clean-accuracy gain from the UG components. | ✅ |
 | 2026-11-17 | **Exp. F + G** (`experiments/run_analysis.py`, round 13, SN): uncertainty rises and the fusion weight falls for a corrupted modality (works in direction), but metrics keep ≥ 88% of the weight even when missing (too weak to fall back). Uncertainty is higher on wrong predictions. Metric routing specializes by fault type (normal → GAT expert 0.87, cpu → cross-modal 0.95, network → temporal). | ✅ |
 | 2026-11-17 | **Round 8 (robustness, SN)**, server, seed 42 (§4): UG-MoE v2 beats MUAD under masking and noise (p = 0.4 masking: 0.856 vs 0.716 F1; metric noise σ = 1: 0.964 vs 0.856), with about half the relative drop. Both collapse to trivial without metrics. **Attribution over the §12 steps:** full ≈ plain on clean data, but **full beats plain by +10.7 / +13.4 F1 at 20 / 40% masking**, and plain is no better than MUAD there. The robustness comes from the probabilistic representation plus adaptive fusion. | ✅ |
 | 2026-11-17 | **Round 5 (rebuilt SN / TT)**, server, seed 42 (§4): SN macro-F1 legacy UG-MoE 0.984 > Graph-MoE 0.973 > plain MoE 0.969 > GAT 0.965 > MUAD 0.922. TT: 4 of 5 models collapsed to "all anomalous" because of the selection bug above; results void. | ✅ (TT void) |
@@ -315,6 +316,33 @@ anomaly-F1 falls *below* the trivial predictor while macro-F1 is far above it. R
 validation scores swing strongly between epochs (e.g. v2 plain: 0.60 ↔ 0.84). Whether some fault types
 are simply invisible on the test runs is now measured: `evaluate` reports per-fault-type recall
 (`recall_type<c>`) and `fpr_normal`, printed by `run_robustness.py` on the clean test set.
+
+#### Round 7 (v2): UG-MoE v2 incremental steps on TT (seed 42, 2026-11-17)
+
+`runs/round7_v2_tt/baselines_20261117_164211`, same split and protocol as the TT baselines above.
+
+| Model | Test F1 | Precision | Recall | F1 normal | Macro-F1 | PR-AUC | ROC-AUC |
+|---|---|---|---|---|---|---|---|
+| Trivial | 0.8087 | 0.6789 | 1.0000 | 0 | 0.4044 | 0.6789 | 0.5 |
+| v2 plain | 0.6949 | 0.9310 | 0.5543 | 0.6396 | 0.6673 | 0.9243 | 0.8443 |
+| + graph | 0.7131 | 0.9577 | 0.5680 | 0.6622 | 0.6876 | 0.9330 | 0.8582 |
+| + prob | 0.5676 | 0.9360 | 0.4073 | 0.5893 | 0.5785 | 0.8720 | 0.7193 |
+| **+ ug_routing** | **0.9163** | 0.8478 | **0.9968** | **0.7635** | **0.8399** | 0.9505 | 0.9053 |
+| **full** | 0.8943 | 0.8668 | 0.9237 | 0.7521 | 0.8232 | **0.9527** | **0.9101** |
+| *ref: GAT (best baseline)* | 0.7854 | 0.8983 | 0.6977 | 0.6740 | 0.7297 | 0.9416 | 0.8934 |
+| *ref: MUAD* | 0.6801 | 0.8975 | 0.5475 | 0.6145 | 0.6473 | 0.9169 | 0.8411 |
+
+**Reading:**
+- **On TT the full model is clearly best:** macro-F1 0.823 vs GAT 0.730 (+9.4), MUAD 0.647 (+17.6) and
+  v2 plain 0.667 (+15.6). It is the only model family whose anomaly-F1 beats the trivial predictor
+  (0.894 vs 0.809), because it **recovers the missed anomalies** (recall 0.92 vs 0.55–0.70 for every
+  baseline) at a moderate precision cost. It also has the best ranking (PR-AUC 0.953, ROC-AUC 0.910).
+- **Uncertainty-guided routing is the decisive step on TT** (+26 macro-F1 over `prob`, +17 over `plain`).
+  Adding the probabilistic representation alone hurts (0.579). Full vs ug_routing (−1.7) is close to
+  single-seed noise, given TT's unstable validation curves.
+- Together with SN: on the easy dataset (SN, near ceiling) the uncertainty components add robustness but
+  no clean accuracy; on the harder dataset (TT) they add **both**. Single seed, and TT's validation
+  scores swing strongly between epochs, so this needs the 5-seed final runs before it is a claim.
 
 #### Round 8: robustness (Exp. D/E) on rebuilt SN, UG-MoE v2 full vs MUAD (seed 42, 2026-11-17)
 
