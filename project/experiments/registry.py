@@ -12,6 +12,11 @@ Names:
   gat         GAT baseline (tracks/baselines/gat_baseline.py)
   graph_moe   Graph-MoE baseline (tracks/baselines/graph_moe.py)
   abl:<name>  ug_moe with the overrides in ABLATIONS[<name>]
+
+Modality subsets (implementation guide section 8C, trained modality ablation):
+  <name>@<mods>  e.g. muad@traces, gat@traces+logs, abl:plain_moe@metrics+logs
+                 Modalities NOT in <mods> are set to 0 for every batch, in training AND evaluation.
+                 With the default train-split z-score this equals the training mean, i.e. "absent".
 """
 import json
 import traceback
@@ -84,8 +89,30 @@ MODELS: Dict[str, Tuple[Callable, Callable]] = {
 }
 
 
+MODALITY_NAMES = ("metrics", "traces", "logs")
+
+
+def _restrict_modalities(forward_fn, keep):
+    """Wrap a forward fn so that modalities outside `keep` are zeroed before every call."""
+    drop = [m for m in MODALITY_NAMES if m not in keep]
+
+    def fwd(model, graph, labels):
+        for m in drop:
+            graph.ndata[m] = torch.zeros_like(graph.ndata[m])
+        return forward_fn(model, graph, labels)
+    return fwd
+
+
 def get_model(name: str):
-    """Return (builder, forward_fn) for a registry name, including 'abl:<ablation>'."""
+    """Return (builder, forward_fn) for a registry name, incl. 'abl:<ablation>' and '<name>@<mods>'."""
+    if "@" in name:
+        base, mods = name.rsplit("@", 1)
+        keep = mods.split("+")
+        bad = [m for m in keep if m not in MODALITY_NAMES]
+        if bad or not keep:
+            raise KeyError(f"Bad modality subset '{mods}' in '{name}'; use '+'-joined {MODALITY_NAMES}")
+        builder, fwd = get_model(base)
+        return builder, _restrict_modalities(fwd, keep)
     if name.startswith("abl:"):
         abl = name.split(":", 1)[1]
         if abl not in ABLATIONS:

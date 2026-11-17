@@ -15,6 +15,7 @@
 | 2026-11-17 | **Decision:** because of time constraints, all experiments run with a **single seed (42)** for now. Multi-seed runs (5 seeds plus paired t-test) are deferred to the final paper runs (Phase 3–4). Single-seed differences below about 1 F1 point are not evidence of improvement. | n/a |
 | 2026-11-17 | **Phase 1 (cont.):** `experiments/registry.py` (single definition of every model / ablation + forward adapter + `run_suite`). GAT and Graph-MoE model classes moved to `tracks/baselines/` (node count now read from the graph, not hard-coded). New scripts on the shared protocol: `run_baselines.py` (Exp. A), `run_ablations.py` (rewritten; always trains the `ug_moe` reference too), `run_robustness.py` (Exp. D + E as specified: single-modality drop, random 10/20/40/60% masking, noise scaled to train std on all 7 modality combinations, relative F1 drop). `run_comparison.py` now builds models through the registry. **Removed** (superseded): `run_gat_baseline.py`, `run_plain_moe.py`, `run_graph_moe.py`, `run_track_b_full.py`, `run_missing_modality.py`, `run_noise_robustness.py`. Not migrated yet: routing / uncertainty-fusion analysis (they depend on Phase 2), `run_track_a_al.py`, `run_hdfs.py`. | ❌ pending |
 | 2026-11-17 | **First new-protocol result** (server): Track A vs Track B, seed 42. Test F1 0.9882 vs 0.9879, macro-F1 0.9654 vs 0.9645, so there is **no advantage** for UG-MoE once selection moves off the test set (§4). This is the "before" baseline for the Phase 2 fixes. | ✅ |
+| 2026-11-17 | **Round 2 (normalized inputs)**, server, seed 42: plain MoE 0.9906 / GAT 0.9869 / Graph-MoE 0.9898 / MUAD 0.9882 / UG-MoE 0.9857 test F1. **Traces and logs are still unused by both MUAD and UG-MoE**, so the problem is a metrics shortcut, not only scale (§4). Added trained modality ablation (Exp. C) as `<model>@<mods>` in `registry.py`. | ✅ |
 | 2026-11-17 | **Robustness** (server, seed 42) on the comparison checkpoints: **MUAD also ignores traces and logs completely**, so the problem lies in the data rather than in our model. **Root cause:** the log features are ~6e-10 in magnitude, numerically constant to the networks. Fix: train-split z-score normalization of all modalities in `common.load_splits` (plan Step 5, now the default; `--normalize none` for the old behaviour). All "before" numbers above use raw inputs, so rerun comparison and baselines with normalization (§3.5). | ✅ results / ❌ fix pending |
 | 2026-11-17 | **Baselines** (server, seed 42): GAT 0.9848 / Graph-MoE 0.9866 / **plain MoE 0.9917** test F1 (macro-F1 0.9543 / 0.9608 / **0.9756**). Plain MoE beats full UG-MoE (0.9879 / 0.9645), so the uncertainty and routing components currently hurt (§4). | ✅ |
 | 2026-11-17 | **Data:** the SN chunks in `preprocessing/sn/` (from `convert_sn_dataset.py`) turned out to be malformed and single-class (§3.11). Deleted them; the converter is marked broken. | n/a |
@@ -239,6 +240,31 @@ Baselines on the same split, seed and hyperparameters (`runs/baselines_20261117_
 **Reading (baselines):** the best model on every metric is **plain MoE**, i.e. UG-MoE *with its proposed components switched off*. It beats full UG-MoE by +0.38 F1, +1.83 normal-class F1 and +1.11 macro-F1 points (seed 42 only, but the macro-F1 gap is above the ~1-point single-seed threshold). The components that make up the "UG" part (variational uncertainty blocks plus KL, the uncertainty-guided router with its undocumented loss term (§3.3), confidence fusion) are currently **hurting**. Phase 2 therefore has to show that each component, once fixed, adds value over plain MoE. That is the plan's own incremental order (§12 steps 6→10). Plain MoE also peaked at the last epoch (50), so a longer budget is needed in the next round.
 
 **Reading (Track A vs B):** with model selection moved off the test set, **the claimed UG-MoE advantage disappears.** On F1 and macro-F1 Track B is level with MUAD or marginally below it (−0.03 / −0.09 points, well within single-seed noise). It is slightly higher only on the ranking metrics (PR-AUC +0.06, ROC-AUC +0.32 points), and that is not a significant edge either. This happens with an 18× larger model. It is consistent with §3.1–3.3: as currently wired, the MoE parts contribute nothing. Track B's best epoch is 49 of 50, so it may still be improving; allow more epochs in the next comparison. The old-protocol numbers below (0.9896 vs 0.9918, "p = 0.005") should be treated as an artifact of test-set selection.
+
+#### Round 2: same protocol + train-split z-score normalization (seed 42, 2026-11-17)
+
+`runs/round2_tracks/baselines_20261117_115635` (MUAD, UG-MoE) and `runs/round2_baselines/baselines_20261117_115645` (others). Same split, 50 epochs, lr 5e-4.
+
+| Model | Test F1 | P | R | F1 normal | Macro-F1 | PR-AUC | ROC-AUC | Δ macro-F1 vs raw inputs |
+|---|---|---|---|---|---|---|---|---|
+| Trivial "all anomalous" | 0.9064 | 0.8289 | 1.0000 | 0.0000 | 0.4532 | 0.8289 | 0.5000 | — |
+| GAT | 0.9869 | 0.9829 | 0.9909 | 0.9349 | 0.9609 | 0.9993 | 0.9964 | +0.66 |
+| Graph-MoE | 0.9898 | 0.9861 | 0.9935 | 0.9496 | 0.9697 | 0.9992 | 0.9962 | +0.89 |
+| MUAD (Track A) | 0.9882 | 0.9866 | 0.9898 | 0.9423 | 0.9652 | 0.9985 | 0.9935 | −0.02 |
+| UG-MoE (Track B) | 0.9857 | 0.9881 | 0.9833 | 0.9318 | 0.9588 | 0.9991 | 0.9954 | −0.57 |
+| **Plain MoE** | **0.9906** | 0.9882 | 0.9930 | **0.9539** | **0.9723** | 0.9988 | 0.9949 | −0.33 |
+
+Robustness on the round-2 checkpoints (`runs/round2_tracks/robustness_*`):
+
+| Perturbation (test) | UG-MoE F1 / macro-F1 | MUAD F1 / macro-F1 |
+|---|---|---|
+| Clean | 0.9857 / 0.9588 | 0.9882 / 0.9652 |
+| Drop metrics / traces / logs | 0.9064 (trivial) / **unchanged** / **unchanged** | 0.9064 (trivial) / 0.9879 / **unchanged** |
+| Random mask p = 0.6 | 0.8774 / 0.6672 | 0.9340 / 0.7213 |
+| Noise on traces or logs, σ ≤ 2 | unchanged (logs: +0.0008 at σ = 2) | unchanged (±0.0005) |
+| Noise on metrics, σ = 1 / 2 | 0.9605 / 0.9085 | 0.9313 / 0.9047 |
+
+**Reading:** normalization made logs numerically visible, but **neither model started using traces or logs.** So scale was not the only cause. Metrics alone already reach about 0.99 on this dataset, and the models take that shortcut. Changes from normalization are within single-seed noise. The ranking is unchanged: plain MoE is still the best and UG-MoE is still below plain MoE and MUAD. **Next diagnostic:** the plan's Exp. C (modality ablation, *trained* on each subset), which shows whether traces and logs carry standalone signal. It is implemented as the registry suffix `<model>@<mods>`, e.g. `muad@traces+logs`.
 
 #### Old protocol (test-set selection, for reference only)
 
