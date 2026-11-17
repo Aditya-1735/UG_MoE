@@ -14,6 +14,7 @@
 | 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ❌ pending |
 | 2026-11-17 | **Decision:** because of time constraints, all experiments run with a **single seed (42)** for now. Multi-seed runs (5 seeds plus paired t-test) are deferred to the final paper runs (Phase 3–4). Single-seed differences below about 1 F1 point are not evidence of improvement. | n/a |
 | 2026-11-17 | **Phase 1 (cont.):** `experiments/registry.py` (single definition of every model / ablation + forward adapter + `run_suite`). GAT and Graph-MoE model classes moved to `tracks/baselines/` (node count now read from the graph, not hard-coded). New scripts on the shared protocol: `run_baselines.py` (Exp. A), `run_ablations.py` (rewritten; always trains the `ug_moe` reference too), `run_robustness.py` (Exp. D + E as specified: single-modality drop, random 10/20/40/60% masking, noise scaled to train std on all 7 modality combinations, relative F1 drop). `run_comparison.py` now builds models through the registry. **Removed** (superseded): `run_gat_baseline.py`, `run_plain_moe.py`, `run_graph_moe.py`, `run_track_b_full.py`, `run_missing_modality.py`, `run_noise_robustness.py`. Not migrated yet: routing / uncertainty-fusion analysis (they depend on Phase 2), `run_track_a_al.py`, `run_hdfs.py`. | ❌ pending |
+| 2026-11-17 | **First new-protocol result** (server): Track A vs Track B, seed 42. Test F1 0.9882 vs 0.9879, macro-F1 0.9654 vs 0.9645, so there is **no advantage** for UG-MoE once selection moves off the test set (§4). This is the "before" baseline for the Phase 2 fixes. | ✅ |
 | 2026-11-17 | **Data:** the SN chunks in `preprocessing/sn/` (from `convert_sn_dataset.py`) turned out to be malformed and single-class (§3.11). Deleted them; the converter is marked broken. | n/a |
 | 2026-11-17 | **Scope:** removed the HDFS log-only mode and all HDFS code and runs (out of plan scope, §7), plus `UG-MoE-Research-Paper-Draft.md` (invalid numbers and claims). `model.py` and `router.py` now have a single multimodal path. | ❌ pending (compile-checked only) |
 | 2026-11-17 | **Clean-up:** deleted 8 opencode-era planning/forensics `.md` files at the root, `run2`, `project/ablations.log`, `project/project/` (119 MB of October runs), `tracks/proposed_model/train.py` and `test_integration.py`, and `experiments/run_track_a_full.py` (superseded by the `muad` registry entry). Untracked 18 `.pyc` files. Rewrote `README.md` and fixed `data_README.md` (train count, labels, commands). | n/a |
@@ -191,6 +192,20 @@ Counted from the registry builders: `ug_moe` 4.38M parameters, `plain_moe` 4.18M
 | Ablation `single_expert` | 5 | 5e-4 | 0.9835 ± 0.0021 |
 | Ablation `plain_moe` | 5 | 5e-4 | 0.9901 ± 0.0025 |
 | Ablation `graph_transformer` | 5 | 5e-4 | 0.9879 ± 0.0010 |
+
+#### New protocol: validation-selected, test evaluated once (seed 42, `runs/comparison_20261117_104222`)
+
+Split: train 2,861 / val 505 / test 2,244. lr 5e-4, 50 epochs, patience 15, no NaN batches skipped.
+
+| Model | Best epoch (val) | Val F1 | Test F1 | P | R | F1 normal | Macro-F1 | PR-AUC | ROC-AUC |
+|---|---|---|---|---|---|---|---|---|---|
+| Trivial "all anomalous" | — | — | 0.9064 | 0.8289 | 1.0000 | 0.0000 | 0.4532 | 0.8289 | 0.5000 |
+| Track A, MUAD (own objective) | 36 | 0.9941 | **0.9882** | 0.9882 | 0.9882 | 0.9427 | **0.9654** | 0.9980 | 0.9913 |
+| Track B, UG-MoE (current code) | 49 | 0.9929 | **0.9879** | 0.9871 | 0.9887 | 0.9412 | **0.9645** | 0.9986 | 0.9945 |
+
+**Reading:** with model selection moved off the test set, **the claimed UG-MoE advantage disappears.** On F1 and macro-F1 Track B is level with MUAD or marginally below it (−0.03 / −0.09 points, well within single-seed noise). It is slightly higher only on the ranking metrics (PR-AUC +0.06, ROC-AUC +0.32 points), and that is not a significant edge either. This happens with an 18× larger model. It is consistent with §3.1–3.3: as currently wired, the MoE parts contribute nothing. Track B's best epoch is 49 of 50, so it may still be improving; allow more epochs in the next comparison. The old-protocol numbers below (0.9896 vs 0.9918, "p = 0.005") should be treated as an artifact of test-set selection.
+
+#### Old protocol (test-set selection, for reference only)
 
 **Do not put these numbers in the paper.** Plain MoE with no graph and no uncertainty (0.9916) and `no_fusion` (0.9918) match the full model, which is what you would expect given §3.1–3.3.
 
