@@ -71,6 +71,10 @@ def main():
     parser.add_argument("--split-seed", type=int, default=2026)
     parser.add_argument("--normalize", type=str, default="train_zscore", choices=["train_zscore", "none"],
                         help="Input normalization fitted on the train split (default) or raw values")
+    parser.add_argument("--split", type=str, default="run", choices=["run", "random"],
+                        help="run: leak-free run-level split (default); random: old leaky artifact split")
+    parser.add_argument("--test-run", type=int, default=3, help="Run index used as test set (--split run)")
+    parser.add_argument("--val-run", type=int, default=2, help="Run index used as validation set (--split run)")
     parser.add_argument("--tracks", type=str, default="track_a,track_b")
     parser.add_argument("--device", type=str, default="cuda")
     args = parser.parse_args()
@@ -87,6 +91,7 @@ def main():
     loaders = load_splits(
         Path(args.data_dir), args.batch_size, args.val_ratio, args.split_seed, split_out=out_dir / "split.json",
         normalize=args.normalize,
+        split=args.split, test_run=args.test_run, val_run=args.val_run,
     )
     metadata = loaders["metadata"]
     print("=" * 70)

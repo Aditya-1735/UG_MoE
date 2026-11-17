@@ -11,7 +11,12 @@ separated so experiments can switch datasets without modifying code.
 - Location: `project/recovered_artifact/`
 - Files: `chunk_train.pkl`, `chunk_test.pkl`, `metadata.json`
 - `event_num`: 15, `node_num`: 12, train chunks: 3,366 (5,610 = train + test), test chunks: 2,244
-- Labels: `culprit` ∈ {0, 1, 4, 5}; 0 = normal, ≥1 = anomalous (MUAD convention); test is ~83% anomalous
+- Labels: `culprit` = fault type: 0 normal, 1 cpu_load, 4 network_delay, 5 network_loss (decoded from the raw SN
+  fault files); ≥1 = anomalous (MUAD convention); ~83% of windows are anomalous
+- **Structure:** stride-1, 10-second windows from 4 SN fault-injection runs (Eadro preprocessing). The
+  artifact's own train/test split is random and therefore **leaky** (83.9% of test windows have a 1-second-shifted
+  training neighbour). `experiments/common.py` re-chains the chunks into their runs and splits by run
+  (`--split run`, default); see `PROJECT_STATUS.md` §3.12
 - Used by: every script built on `experiments/common.py` (default `--data-dir`), which carves a
   stratified 15% validation split out of `chunk_train.pkl`
 - Git commit: `c0aef10` (repo-initialize)

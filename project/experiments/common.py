@@ -96,6 +96,43 @@ def apply_normalizer(chunks: Dict, ids: List[str], stats) -> Dict:
     return out
 
 
+def _chunk_key(a) -> bytes:
+    return np.round(np.asarray(a, dtype=np.float64), 5).tobytes()
+
+
+def reconstruct_runs(chunks: Dict) -> List[List[str]]:
+    """
+    Recover the temporal order of the chunks. The artifact was produced by Eadro's preprocessing
+    (vendor/eadro/codes/preprocess/align.py), which cuts each fault-injection run into 10-step
+    windows with STRIDE 1, so window t+1's first 9 metric steps equal window t's last 9 steps.
+    Chaining on that identity yields one ordered list of chunk ids per run (4 runs for
+    recovered_artifact, verified unambiguous on 2026-11-17). Runs are returned in a
+    deterministic order (sorted by their first chunk id); the true wall-clock order between runs
+    is not recoverable and does not matter for a run-level split.
+    """
+    head = {}
+    for k, c in chunks.items():
+        head.setdefault(_chunk_key(c["metrics"][:, :-1, :]), []).append(k)
+    nxt = {}
+    for k, c in chunks.items():
+        cand = head.get(_chunk_key(c["metrics"][:, 1:, :]), [])
+        if len(cand) > 1:
+            raise RuntimeError(f"Ambiguous successor for chunk {k}; cannot reconstruct runs")
+        if cand:
+            nxt[k] = cand[0]
+    has_pred = set(nxt.values())
+    runs = []
+    for start in sorted(k for k in chunks if k not in has_pred):
+        run, seen = [start], {start}
+        while run[-1] in nxt and nxt[run[-1]] not in seen:
+            run.append(nxt[run[-1]])
+            seen.add(run[-1])
+        runs.append(run)
+    if sum(len(r) for r in runs) != len(chunks):
+        raise RuntimeError("Run reconstruction did not cover every chunk (cycle or broken chain)")
+    return runs
+
+
 def load_splits(
     data_dir: Path = DEFAULT_DATA_DIR,
     batch_size: int = 50,
@@ -103,10 +140,24 @@ def load_splits(
     split_seed: int = DEFAULT_SPLIT_SEED,
     split_out: Optional[Path] = None,
     normalize: str = "train_zscore",
+    split: str = "run",
+    test_run: int = 3,
+    val_run: int = 2,
 ) -> Dict:
     """
-    Build train/val/test loaders. The val set is a stratified (by culprit) subset of
-    chunk_train.pkl; chunk_test.pkl is untouched and used only for the final evaluation.
+    Build train/val/test loaders.
+
+    split:
+      "run" (default) - leak-free run-level split. All chunks (chunk_train.pkl + chunk_test.pkl)
+                        are re-ordered into their original fault-injection runs
+                        (reconstruct_runs); run `test_run` is the test set, run `val_run` the
+                        validation set, the remaining runs are training. No window overlaps
+                        across splits, and the test run's faults hit services unseen in
+                        training. Required by implementation guide section 13.
+      "random"        - the artifact's own split (chunk_test.pkl as test) with a stratified
+                        `val_ratio` validation subset of chunk_train.pkl. LEAKY: windows have
+                        stride 1, so 83.9% of test chunks have a 1-second-shifted (90% identical)
+                        neighbour in train. Kept only to reproduce runs before 2026-11-17 night.
 
     normalize:
       "train_zscore" (default) - per-channel z-score of metrics / traces / logs with statistics
@@ -114,53 +165,62 @@ def load_splits(
                                  section 13), applied identically to train / val / test and to
                                  every model. Needed because the raw log features are ~6e-10 and
                                  numerically invisible to the networks (PROJECT_STATUS.md 3.5).
-      "none"                   - raw artifact values (reproduces runs before 2026-11-17 evening).
+      "none"                   - raw artifact values.
 
-    Note: chunk ids carry no timestamps, so a time-ordered split is not possible with this
-    artifact; the split is stratified-random at chunk (window) level.
+    Labels: culprit 0 = normal, 1 = cpu_load, 4 = network_delay, 5 = network_loss (decoded from
+    the raw SN fault files); models use culprit >= 1 as "anomalous".
     """
     if normalize not in ("train_zscore", "none"):
         raise ValueError(f"normalize must be 'train_zscore' or 'none', got {normalize!r}")
+    if split not in ("run", "random"):
+        raise ValueError(f"split must be 'run' or 'random', got {split!r}")
     data_dir = Path(data_dir)
     train_all, node_num, edges, metadata = load_data(
         str(data_dir / "chunk_train.pkl"), str(data_dir / "metadata.json")
     )
     test_data, _, _, _ = load_data(str(data_dir / "chunk_test.pkl"), str(data_dir / "metadata.json"))
+    pool = {**train_all, **test_data}
+    if len(pool) != len(train_all) + len(test_data):
+        raise RuntimeError("chunk ids collide between chunk_train.pkl and chunk_test.pkl")
 
-    all_ids = sorted(train_all.keys())
-    culprits = [train_all[k]["culprit"] for k in all_ids]
-    train_ids, val_ids = train_test_split(
-        all_ids, test_size=val_ratio, random_state=split_seed, stratify=culprits
-    )
-    test_ids = sorted(test_data.keys())
+    split_info = {"data_dir": str(data_dir), "split": split}
+    if split == "run":
+        runs = reconstruct_runs(pool)
+        n = len(runs)
+        if not (0 <= test_run < n and 0 <= val_run < n and test_run != val_run):
+            raise ValueError(f"need distinct test_run/val_run in [0, {n}), got {test_run}/{val_run}")
+        test_ids = list(runs[test_run])
+        val_ids = list(runs[val_run])
+        train_ids = [k for i, r in enumerate(runs) if i not in (test_run, val_run) for k in r]
+        split_info.update(n_runs=n, run_lengths=[len(r) for r in runs], test_run=test_run,
+                          val_run=val_run, runs=runs)
+    else:
+        all_ids = sorted(train_all.keys())
+        culprits = [train_all[k]["culprit"] for k in all_ids]
+        train_ids, val_ids = train_test_split(
+            all_ids, test_size=val_ratio, random_state=split_seed, stratify=culprits
+        )
+        test_ids = sorted(test_data.keys())
+        split_info.update(split_seed=split_seed, val_ratio=val_ratio)
 
     if split_out is not None:
         split_out = Path(split_out)
         split_out.parent.mkdir(parents=True, exist_ok=True)
         with open(split_out, "w") as f:
-            json.dump(
-                {
-                    "data_dir": str(data_dir),
-                    "split_seed": split_seed,
-                    "val_ratio": val_ratio,
-                    "train_ids": sorted(train_ids),
-                    "val_ids": sorted(val_ids),
-                    "test_ids": test_ids,
-                },
-                f,
-            )
+            json.dump({**split_info, "train_ids": sorted(train_ids), "val_ids": sorted(val_ids),
+                       "test_ids": sorted(test_ids)}, f)
 
     norm_info = {"method": normalize}
     if normalize == "train_zscore":
-        stats = fit_normalizer(train_all, train_ids)  # train split only; val/test never seen
-        train_src = apply_normalizer(train_all, train_ids + val_ids, stats)
-        test_src = apply_normalizer(test_data, test_ids, stats)
-        norm_info["stats"] = {m: {k: v.tolist() for k, v in s.items()} for m, s in stats.items()}
+        stats = fit_normalizer(pool, train_ids)  # train split only; val/test never seen
+        src = apply_normalizer(pool, train_ids + val_ids + test_ids, stats)
+        norm_info["stats"] = {m: {k: v.tolist() for k, v in st.items()} for m, st in stats.items()}
         if split_out is not None:
             with open(Path(split_out).with_name("normalization.json"), "w") as f:
                 json.dump(norm_info, f, indent=2)
     else:
-        train_src, test_src = train_all, test_data
+        src = pool
+    train_src = test_src = src
 
     train_ds = ChunkDataset(train_src, train_ids, node_num, edges)
     val_ds = ChunkDataset(train_src, val_ids, node_num, edges)
@@ -176,11 +236,12 @@ def load_splits(
         "test": create_dataloader(test_ds, batch_size=batch_size, shuffle=False),
         "metadata": metadata,
         "sizes": {"train": len(train_ids), "val": len(val_ids), "test": len(test_ids)},
-        "normalization": norm_info,
+        "normalization": {"method": normalize},
+        "split": {k: v for k, v in split_info.items() if k != "runs"},
         "culprit_dist": {
-            "train": _dist(train_all, train_ids),
-            "val": _dist(train_all, val_ids),
-            "test": _dist(test_data, test_ids),
+            "train": _dist(pool, train_ids),
+            "val": _dist(pool, val_ids),
+            "test": _dist(pool, test_ids),
         },
     }
 

@@ -43,7 +43,7 @@ def main():
     out_dir = Path(args.output_dir) / f"ablations_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     out_dir.mkdir(parents=True, exist_ok=True)
     loaders = load_splits(Path(args.data_dir), args.batch_size, args.val_ratio, args.split_seed,
-                          split_out=out_dir / "split.json", normalize=args.normalize)
+                          split_out=out_dir / "split.json", normalize=args.normalize, split=args.split, test_run=args.test_run, val_run=args.val_run)
     print(f"Sizes: {loaders['sizes']} | runs: {names} | seeds: {seeds}")
 
     trivial = trivial_baseline_metrics(loaders["test"])
