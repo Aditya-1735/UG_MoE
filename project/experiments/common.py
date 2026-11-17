@@ -390,7 +390,7 @@ def default_forward(model, graph, labels):
 @torch.no_grad()
 def evaluate(model, loader, device, forward_fn: ForwardFn = default_forward) -> Dict[str, float]:
     model.eval()
-    y_true, y_pred, p_anom = [], [], []
+    y_true, y_pred, p_anom, culprit = [], [], [], []
     total_loss, n_batches = 0.0, 0
     for graph, labels in loader:
         graph, labels = graph.to(device), labels.to(device)
@@ -398,11 +398,19 @@ def evaluate(model, loader, device, forward_fn: ForwardFn = default_forward) -> 
         if loss is not None and torch.isfinite(loss):
             total_loss += loss.item()
             n_batches += 1
+        culprit.extend(labels.long().cpu().tolist())
         y_true.extend(to_binary(labels).cpu().tolist())
         y_pred.extend(logits.argmax(dim=-1).cpu().tolist())
         p_anom.extend(torch.softmax(logits, dim=-1)[:, 1].cpu().tolist())
     metrics = compute_metrics(y_true, y_pred, p_anom)
     metrics["loss"] = total_loss / max(n_batches, 1)
+    # Per-fault-type detection rate (recall_type<c>, c = raw culprit id >= 1) and the false-positive
+    # rate on normal windows: shows which fault types a model misses.
+    culprit, y_pred = np.asarray(culprit), np.asarray(y_pred)
+    for c in sorted(set(culprit.tolist()) - {0}):
+        metrics[f"recall_type{c}"] = float(np.mean(y_pred[culprit == c] == 1))
+    if (culprit == 0).any():
+        metrics["fpr_normal"] = float(np.mean(y_pred[culprit == 0] == 1))
     return metrics
 
 

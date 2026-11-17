@@ -293,6 +293,28 @@ Baselines on the same split, seed and hyperparameters (`runs/baselines_20261117_
 
 **Reading:** the full v2 model is the best model on SN (macro-F1 0.987, +6.5 over MUAD, level with the legacy UG-MoE at 1/25 of its size), but **it is not better than `plain`** (+0.07, noise). The intermediate steps lose 2–4 points, all through recall, and validation macro-F1 is ~0.98 for every step, so this is a val→test generalization gap rather than worse fitting. Adaptive fusion recovers all of it. Components only pay off together, so the §12 "each step adds value" story does not hold on SN. SN is near ceiling. TT (harder, 2 test fault runs) and the robustness experiments (Exp. D/E, where uncertainty-aware fusion should matter) are the decisive tests.
 
+#### Round 7: rebuilt TT with the fixed protocol (seed 42, 2026-11-17)
+
+`runs/round7_tt/baselines_20261117_164202` (val macro-F1 selection, fault-free runs segmented). Test is
+67.9% anomalous.
+
+| Model | Test F1 | Precision | Recall | F1 normal | Macro-F1 | PR-AUC | ROC-AUC |
+|---|---|---|---|---|---|---|---|
+| Trivial | 0.8087 | 0.6789 | 1.0000 | 0 | 0.4044 | 0.6789 | 0.5 |
+| **GAT** | **0.7854** | 0.8983 | **0.6977** | **0.6740** | **0.7297** | **0.9416** | **0.8934** |
+| Plain MoE (legacy) | 0.6810 | 0.9845 | 0.5205 | 0.6559 | 0.6685 | 0.9089 | 0.7951 |
+| MUAD | 0.6801 | 0.8975 | 0.5475 | 0.6145 | 0.6473 | 0.9169 | 0.8411 |
+| Graph-MoE | 0.6494 | 0.9340 | 0.4977 | 0.6197 | 0.6345 | 0.9346 | 0.8742 |
+| UG-MoE (legacy) | 0.8085 | 0.6788 | 0.9995 | 0 | 0.4042 (= trivial) | 0.8333 | 0.6466 |
+
+**Reading:** TT is much harder than SN. Every model except the legacy UG-MoE (which never left the
+all-anomalous state; don't build on it) is **precise but misses 30–50% of anomalous windows**, so
+anomaly-F1 falls *below* the trivial predictor while macro-F1 is far above it. Ranking is good (PR-AUC
+0.91–0.94), but validation macro-F1 at the selected epoch (~0.83) is 10–19 points above test, and the
+validation scores swing strongly between epochs (e.g. v2 plain: 0.60 ↔ 0.84). Whether some fault types
+are simply invisible on the test runs is now measured: `evaluate` reports per-fault-type recall
+(`recall_type<c>`) and `fpr_normal`, printed by `run_robustness.py` on the clean test set.
+
 #### Round 8: robustness (Exp. D/E) on rebuilt SN, UG-MoE v2 full vs MUAD (seed 42, 2026-11-17)
 
 `runs/round8_rob_sn_v2/`, `runs/round8_rob_sn_muad/` (round 6 / round 5 checkpoints; clean scores reproduce exactly: v2 0.9842 F1, MUAD 0.9037, MUAD varies by ±0.0005 because it samples at test time). Test F1, with relative drop in brackets.

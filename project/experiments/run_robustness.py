@@ -135,7 +135,9 @@ def main():
         train_info = {k: v for k, v in res.items() if k != "history"}
 
     clean = evaluate(model, loaders["test"], device, base_fwd)
-    print(f"\nClean test: F1={clean['f1']:.4f} macroF1={clean['macro_f1']:.4f}")
+    print(f"\nClean test: F1={clean['f1']:.4f} macroF1={clean['macro_f1']:.4f} PR-AUC={clean['pr_auc']:.4f}")
+    print("  per fault type (recall), normal FPR: " + " ".join(
+        f"{k}={v:.3f}" for k, v in clean.items() if k.startswith("recall_type") or k == "fpr_normal"))
     stds = channel_std(loaders["train"])
 
     results = {"clean": clean, "drop_modality": {}, "random_mask": {}, "noise": {}}
