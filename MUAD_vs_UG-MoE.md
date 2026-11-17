@@ -169,10 +169,12 @@ model problem. That's why we added normalization for every model, §3.)
 ### 2.6 Other differences to know (not defects, but relevant)
 - MUAD's loss is `CE + 0.6·confidence_loss + KL` (`main_model.py:111`). We train MUAD with exactly this
   loss.
-- **Hyperparameters:** the paper uses lr 1e-3 and 120 epochs. Our shared protocol uses lr 5e-4, at most
-  50 epochs, early stopping (patience 15), the same for every model. MUAD's selected epochs (e.g. 32 in
-  round 4) are below the limit, so it is not obviously short of training budget. Still, a reviewer could
-  raise this, and one MUAD run at the paper's lr and epochs would settle it.
+- **Hyperparameters, checked:** the paper uses lr 1e-3 and 120 epochs. Our shared protocol uses lr 5e-4,
+  at most 50 epochs, early stopping (patience 15), the same for every model. We trained MUAD once more
+  with the paper's settings on rebuilt SN (`runs/round10_muad_paperhp_sn/`). It scored **test macro-F1
+  0.793**, against **0.922** with our settings: the paper's settings fit the validation run better (0.973)
+  but generalize worse. **Our settings favour MUAD**, so they cannot explain our margin over it. We report
+  MUAD's better result.
 
 ---
 
@@ -250,6 +252,25 @@ hypothesis, not a measured cause.
 Validation macro-F1 is about 0.98 for **every** step. The middle steps fit the data as well as the
 others, but generalize worse to the unseen test run. Adaptive fusion recovers the loss completely. On SN
 the components only help **together**, and the full model is not better than "plain" on clean data.
+
+### 4.4a Removing one component at a time (plan §8B ablations; round 9, SN, `runs/round9_abl2_sn/`)
+
+| Model | Test macro-F1 | Δ vs full |
+|---|---|---|
+| **Full UG-MoE v2** | **0.9868** | — |
+| w/o graph | 0.9857 | −0.1 |
+| w/o MoE (one expert only) | 0.9089 | **−7.8** |
+| w/o dynamic routing (fixed equal expert weights) | 0.9794 | −0.7 |
+| w/o uncertainty-guided routing | 0.9480 | **−3.9** |
+| w/o probabilistic representation | 0.9828 | −0.4 |
+| w/o adaptive fusion | 0.9459 | **−4.1** |
+
+The mixture of experts, uncertainty-guided routing and uncertainty-aware fusion each cost 4–8 points when
+removed. Graph, dynamic routing and the probabilistic representation make no measurable difference on
+clean SN. The probabilistic representation's contribution is robustness (§4.6). One check on
+reproducibility: "w/o adaptive fusion" is the same configuration as the incremental step "+ uncertainty
+routing" (§4.4), and it reproduced that result exactly (0.9459). Training is deterministic for a fixed
+seed.
 
 ### 4.4b TrainTicket (TT), the harder dataset (rounds 7 and 7-v2, `runs/round7_tt/`, `runs/round7_v2_tt/`)
 11 runs (9 fault, 2 fault-free), 27 services. Train = 5 fault runs + the first 60% of both fault-free

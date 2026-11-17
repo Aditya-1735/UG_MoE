@@ -11,6 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-17 | **Round 9 (v2 ablations, SN)** and **round 10 (MUAD at paper hyperparameters, SN)**, server, seed 42 (§4): removing MoE / adaptive fusion / uncertainty routing costs 7.8 / 4.1 / 3.9 macro-F1; graph, dynamic routing and probabilistic representation are within noise on clean SN. MUAD with lr 1e-3 / 120 epochs: 0.793 vs 0.922 with our settings, so our settings favour MUAD. | ✅ |
 | 2026-11-17 | **Round 7 (TT, v2 steps)**, server, seed 42 (§4): **full v2 0.823 macro-F1 vs GAT 0.730, MUAD 0.647, v2 plain 0.667**; recall 0.92 vs ≤ 0.70 for every baseline. Uncertainty-guided routing is the decisive step (ug_routing 0.840). First clean-accuracy gain from the UG components. | ✅ |
 | 2026-11-17 | **Exp. F + G** (`experiments/run_analysis.py`, round 13, SN): uncertainty rises and the fusion weight falls for a corrupted modality (works in direction), but metrics keep ≥ 88% of the weight even when missing (too weak to fall back). Uncertainty is higher on wrong predictions. Metric routing specializes by fault type (normal → GAT expert 0.87, cpu → cross-modal 0.95, network → temporal). | ✅ |
 | 2026-11-17 | **Round 8 (robustness, SN)**, server, seed 42 (§4): UG-MoE v2 beats MUAD under masking and noise (p = 0.4 masking: 0.856 vs 0.716 F1; metric noise σ = 1: 0.964 vs 0.856), with about half the relative drop. Both collapse to trivial without metrics. **Attribution over the §12 steps:** full ≈ plain on clean data, but **full beats plain by +10.7 / +13.4 F1 at 20 / 40% masking**, and plain is no better than MUAD there. The robustness comes from the probabilistic representation plus adaptive fusion. | ✅ |
@@ -385,6 +386,36 @@ are simply invisible on the test runs is now measured: `evaluate` reports per-fa
   claim robustness to *missing* data and moderate noise, not to extreme noise. Graph-aware routing on
   its own makes the model *more* fragile to noise (σ = 2: 0.635). Single seed; confirm with 5 seeds in
   the final runs.
+
+#### Round 9: v2 component ablations (plan §8B) on SN (seed 42, 2026-11-17)
+
+`runs/round9_abl2_sn/baselines_20261117_181606`. Each row removes exactly one component from the full model
+(full: test macro-F1 0.9868, F1 0.9842).
+
+| Ablation | Test F1 | Recall | Macro-F1 | Δ macro-F1 vs full |
+|---|---|---|---|---|
+| w/o graph | 0.9829 | 0.9723 | 0.9857 | −0.1 (noise) |
+| **w/o MoE** (single temporal expert) | 0.8845 | 0.7957 | 0.9089 | **−7.8** |
+| w/o dynamic routing (uniform weights) | 0.9752 | 0.9550 | 0.9794 | −0.7 (noise) |
+| **w/o uncertainty routing** | 0.9362 | 0.8892 | 0.9480 | **−3.9** |
+| w/o probabilistic representation | 0.9794 | 0.9654 | 0.9828 | −0.4 (noise) |
+| **w/o adaptive fusion** | 0.9340 | 0.8944 | 0.9459 | **−4.1** |
+
+- Clean-accuracy contributions on SN: **MoE (−7.8), adaptive fusion (−4.1) and uncertainty-guided routing
+  (−3.9)**. Graph, dynamic routing and the probabilistic representation are within single-seed noise on
+  *clean* SN (the probabilistic representation matters for robustness, round 8).
+- **Reproducibility check:** `w/o adaptive fusion` is the same configuration as the `ug_routing`
+  incremental step, and it reproduced it exactly (identical epoch log, test 0.9459). Training is
+  deterministic for a given seed.
+
+#### Round 10: MUAD with the paper's hyperparameters on SN (seed 42, 2026-11-17)
+
+`runs/round10_muad_paperhp_sn/baselines_20261117_202530`: lr 1e-3, up to 120 epochs (early-stopped at 76,
+selected epoch 61). **Test macro-F1 0.7928** (F1 0.7200, recall 0.573), vs **0.9219** with our shared
+settings (lr 5e-4, ≤ 50 epochs). Validation macro-F1 was 0.973 at the selected epoch, so the paper's
+settings overfit the validation run and generalize worse. **Our shared settings favour MUAD, so the
+hyperparameter difference cannot explain our margin over it.** Report MUAD with our settings (its
+better result).
 
 #### Round 13: routing and uncertainty analysis (Exp. F + G), UG-MoE v2 full, SN test (2026-11-17)
 
