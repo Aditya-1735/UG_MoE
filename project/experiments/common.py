@@ -30,6 +30,14 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import train_test_split
 
+# Flush every line even when stdout is redirected to a file (nohup / log files on the server),
+# so progress is visible with `tail -f` instead of appearing in large buffered blocks.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(line_buffering=True)
+    except AttributeError:  # non-standard stream (e.g. some notebooks)
+        pass
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 for _p in (PROJECT_ROOT, PROJECT_ROOT / "vendor" / "muad", PROJECT_ROOT / "src"):
     if str(_p) not in sys.path:
