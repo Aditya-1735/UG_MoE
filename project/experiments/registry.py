@@ -156,5 +156,7 @@ def add_common_args(parser):
     parser.add_argument("--patience", type=int, default=15, help="Early-stopping patience on val (<=0 disables)")
     parser.add_argument("--val-ratio", type=float, default=0.15)
     parser.add_argument("--split-seed", type=int, default=2026)
+    parser.add_argument("--normalize", type=str, default="train_zscore", choices=["train_zscore", "none"],
+                        help="Input normalization fitted on the train split (default) or raw values")
     parser.add_argument("--device", type=str, default="cuda")
     return parser

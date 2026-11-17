@@ -59,20 +59,60 @@ def to_binary(labels: torch.Tensor) -> torch.Tensor:
 # ---------------------------------------------------------------------------
 # Data
 # ---------------------------------------------------------------------------
+MODALITIES = ("metrics", "traces", "logs")
+
+
+def fit_normalizer(chunks: Dict, ids: List[str]) -> Dict[str, Dict[str, np.ndarray]]:
+    """Per-channel (last axis) mean/std of each modality over the given TRAINING chunks,
+    pooled over samples, services and time steps. Computed in float64: the log features in
+    recovered_artifact are ~6e-10 in magnitude and would lose precision in float32."""
+    stats = {}
+    for m in MODALITIES:
+        x = np.stack([np.asarray(chunks[k][m], dtype=np.float64) for k in ids])
+        x = x.reshape(-1, x.shape[-1])
+        mean, std = x.mean(0), x.std(0)
+        std = np.where(std > 0, std, 1.0)  # constant channel -> leave centred, unscaled
+        stats[m] = {"mean": mean, "std": std}
+    return stats
+
+
+def apply_normalizer(chunks: Dict, ids: List[str], stats) -> Dict:
+    """Return a new {id: chunk} dict with z-scored modalities (float32); labels untouched."""
+    out = {}
+    for k in ids:
+        c = dict(chunks[k])
+        for m in MODALITIES:
+            x = np.asarray(c[m], dtype=np.float64)
+            c[m] = ((x - stats[m]["mean"]) / stats[m]["std"]).astype(np.float32)
+        out[k] = c
+    return out
+
+
 def load_splits(
     data_dir: Path = DEFAULT_DATA_DIR,
     batch_size: int = 50,
     val_ratio: float = DEFAULT_VAL_RATIO,
     split_seed: int = DEFAULT_SPLIT_SEED,
     split_out: Optional[Path] = None,
+    normalize: str = "train_zscore",
 ) -> Dict:
     """
     Build train/val/test loaders. The val set is a stratified (by culprit) subset of
     chunk_train.pkl; chunk_test.pkl is untouched and used only for the final evaluation.
 
+    normalize:
+      "train_zscore" (default) - per-channel z-score of metrics / traces / logs with statistics
+                                 fitted on the TRAIN split only (implementation guide step 5 and
+                                 section 13), applied identically to train / val / test and to
+                                 every model. Needed because the raw log features are ~6e-10 and
+                                 numerically invisible to the networks (PROJECT_STATUS.md 3.5).
+      "none"                   - raw artifact values (reproduces runs before 2026-11-17 evening).
+
     Note: chunk ids carry no timestamps, so a time-ordered split is not possible with this
     artifact; the split is stratified-random at chunk (window) level.
     """
+    if normalize not in ("train_zscore", "none"):
+        raise ValueError(f"normalize must be 'train_zscore' or 'none', got {normalize!r}")
     data_dir = Path(data_dir)
     train_all, node_num, edges, metadata = load_data(
         str(data_dir / "chunk_train.pkl"), str(data_dir / "metadata.json")
@@ -102,9 +142,21 @@ def load_splits(
                 f,
             )
 
-    train_ds = ChunkDataset(train_all, train_ids, node_num, edges)
-    val_ds = ChunkDataset(train_all, val_ids, node_num, edges)
-    test_ds = ChunkDataset(test_data, test_ids, node_num, edges)
+    norm_info = {"method": normalize}
+    if normalize == "train_zscore":
+        stats = fit_normalizer(train_all, train_ids)  # train split only; val/test never seen
+        train_src = apply_normalizer(train_all, train_ids + val_ids, stats)
+        test_src = apply_normalizer(test_data, test_ids, stats)
+        norm_info["stats"] = {m: {k: v.tolist() for k, v in s.items()} for m, s in stats.items()}
+        if split_out is not None:
+            with open(Path(split_out).with_name("normalization.json"), "w") as f:
+                json.dump(norm_info, f, indent=2)
+    else:
+        train_src, test_src = train_all, test_data
+
+    train_ds = ChunkDataset(train_src, train_ids, node_num, edges)
+    val_ds = ChunkDataset(train_src, val_ids, node_num, edges)
+    test_ds = ChunkDataset(test_src, test_ids, node_num, edges)
 
     def _dist(chunks, ids):
         vals, counts = np.unique([chunks[k]["culprit"] for k in ids], return_counts=True)
@@ -116,6 +168,7 @@ def load_splits(
         "test": create_dataloader(test_ds, batch_size=batch_size, shuffle=False),
         "metadata": metadata,
         "sizes": {"train": len(train_ids), "val": len(val_ids), "test": len(test_ids)},
+        "normalization": norm_info,
         "culprit_dist": {
             "train": _dist(train_all, train_ids),
             "val": _dist(train_all, val_ids),

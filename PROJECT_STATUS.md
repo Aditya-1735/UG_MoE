@@ -15,6 +15,7 @@
 | 2026-11-17 | **Decision:** because of time constraints, all experiments run with a **single seed (42)** for now. Multi-seed runs (5 seeds plus paired t-test) are deferred to the final paper runs (Phase 3–4). Single-seed differences below about 1 F1 point are not evidence of improvement. | n/a |
 | 2026-11-17 | **Phase 1 (cont.):** `experiments/registry.py` (single definition of every model / ablation + forward adapter + `run_suite`). GAT and Graph-MoE model classes moved to `tracks/baselines/` (node count now read from the graph, not hard-coded). New scripts on the shared protocol: `run_baselines.py` (Exp. A), `run_ablations.py` (rewritten; always trains the `ug_moe` reference too), `run_robustness.py` (Exp. D + E as specified: single-modality drop, random 10/20/40/60% masking, noise scaled to train std on all 7 modality combinations, relative F1 drop). `run_comparison.py` now builds models through the registry. **Removed** (superseded): `run_gat_baseline.py`, `run_plain_moe.py`, `run_graph_moe.py`, `run_track_b_full.py`, `run_missing_modality.py`, `run_noise_robustness.py`. Not migrated yet: routing / uncertainty-fusion analysis (they depend on Phase 2), `run_track_a_al.py`, `run_hdfs.py`. | ❌ pending |
 | 2026-11-17 | **First new-protocol result** (server): Track A vs Track B, seed 42. Test F1 0.9882 vs 0.9879, macro-F1 0.9654 vs 0.9645, so there is **no advantage** for UG-MoE once selection moves off the test set (§4). This is the "before" baseline for the Phase 2 fixes. | ✅ |
+| 2026-11-17 | **Robustness** (server, seed 42) on the comparison checkpoints: **MUAD also ignores traces and logs completely**, so the problem lies in the data rather than in our model. **Root cause:** the log features are ~6e-10 in magnitude, numerically constant to the networks. Fix: train-split z-score normalization of all modalities in `common.load_splits` (plan Step 5, now the default; `--normalize none` for the old behaviour). All "before" numbers above use raw inputs, so rerun comparison and baselines with normalization (§3.5). | ✅ results / ❌ fix pending |
 | 2026-11-17 | **Baselines** (server, seed 42): GAT 0.9848 / Graph-MoE 0.9866 / **plain MoE 0.9917** test F1 (macro-F1 0.9543 / 0.9608 / **0.9756**). Plain MoE beats full UG-MoE (0.9879 / 0.9645), so the uncertainty and routing components currently hurt (§4). | ✅ |
 | 2026-11-17 | **Data:** the SN chunks in `preprocessing/sn/` (from `convert_sn_dataset.py`) turned out to be malformed and single-class (§3.11). Deleted them; the converter is marked broken. | n/a |
 | 2026-11-17 | **Scope:** removed the HDFS log-only mode and all HDFS code and runs (out of plan scope, §7), plus `UG-MoE-Research-Paper-Draft.md` (invalid numbers and claims). `model.py` and `router.py` now have a single multimodal path. | ❌ pending (compile-checked only) |
@@ -120,7 +121,30 @@ Every training loop evaluates on the test set each epoch and reports `best_f1 = 
 | Noise σ=0.5 on traces / logs | unchanged | unchanged |
 | Noise σ=0.5 on metrics | 0.9832 | 0.9851 |
 
-Test loss changes only around the 8th decimal. **The trained model is metric-only.** The cause has not been diagnosed. Candidates: the fusion confidence gates collapse for those inputs, the semantic/cross-modal paths saturate, or the trace/log features are close to constant. Diagnose before claiming any "multimodal" or "robustness" result.
+Test loss changes only around the 8th decimal. **The trained model is metric-only.**
+
+**Confirmed on the new protocol, and for MUAD too** (2026-11-17, `runs/robustness_ug_moe_20261117_112943`, `runs/robustness_muad_20261117_113500`, seed 42, test set):
+
+| Perturbation | UG-MoE F1 / macro-F1 | MUAD F1 / macro-F1 |
+|---|---|---|
+| Clean | 0.9879 / 0.9645 | 0.9884 / 0.9663 |
+| Drop metrics | 0.9064 / 0.4532 (= all-anomalous) | 0.9064 / 0.4532 (= all-anomalous) |
+| Drop traces | 0.9879 / 0.9645 (identical) | 0.9884 / 0.9663 (identical) |
+| Drop logs | 0.9879 / 0.9645 (identical) | 0.9884 / 0.9663 (identical) |
+| Random mask p = 0.1 / 0.2 / 0.4 / 0.6 | 0.971 / 0.952 / 0.907 / 0.862 F1; 0.920 / 0.878 / 0.796 / 0.723 mF1 | 0.977 / 0.970 / 0.944 / 0.925 F1; 0.929 / 0.900 / 0.783 / 0.654 mF1 |
+| Noise on metrics σ = 0.5 / 1 / 2 × train std | 0.987 / 0.966 / 0.929 F1 | 0.963 / 0.935 / 0.908 F1 |
+| Noise on traces or logs or traces+logs, any σ up to 2 | unchanged | unchanged (±0.0003) |
+
+**Root cause found: the log features are numerically invisible, and traces are dominated by metrics.** Descriptive statistics of `recovered_artifact/chunk_train.pkl` (no training involved):
+- **logs**: every value lies in [0, 6.06e-10] (mean 5.9e-10, std 9.4e-11). Rounded to 6 decimals the whole modality is a single constant. A linear layer with ~0.1 weights turns this into ~1e-11, effectively zero, so **no model can use logs as provided**. The signal does exist *relative to its own scale*: event channels 1, 2, 3 and 5 differ between normal and anomalous windows by 0.36–0.51 standardized mean difference.
+- **traces**: already z-scored (mean 0, std 0.98), with signal (SMD 0.70 between classes). Metrics are stronger (channels 1, 5, 6: SMD 0.96–1.06), so the models learn a metric-only shortcut.
+- **Additional UG-MoE wiring issue:** `TemporalExpertGraph` returns both `metric_embedding` and `trace_embedding`, but `model.py` keeps only `metric_embedding` (`out.get("metric_embedding", ...)`). Traces reach UG-MoE only through the cross-modal expert (and through routing features, which don't affect the output, §3.1).
+
+**Fix applied (plan Step 5 / §13, so not a deviation):** `common.load_splits` now z-scores every modality per channel with statistics fitted on the **train split only** (`--normalize train_zscore`, the default; `--normalize none` reproduces the old raw inputs). This applies to all models, including MUAD, and the fitted stats are saved to `normalization.json` in each run directory. Checked locally: in a batch, logs go from std ≈ 1e-10 to ≈ 1. The temporal-expert trace issue is left for Phase 2.
+
+**Other readings:** UG-MoE is more robust than MUAD to metric noise (σ = 1: 0.966 vs 0.935 F1), but degrades faster in F1 under random masking (p = 0.6: 0.862 vs 0.925), while keeping a higher macro-F1 (0.723 vs 0.654). With one seed and both models effectively metric-only, none of these is a claimable result yet. Rerun after normalization.
+
+Note: MUAD's clean test F1 here (0.9884) differs slightly from the comparison run (0.9882) because MUAD's vendored uncertainty block samples even in eval mode. Its eval is not deterministic; ours is (§3.6).
 
 ### 3.6 Uncommitted changes to the uncertainty block and model
 `git diff` shows the working copy differs from HEAD (`d8bbcb9 "revert some bugs"`):
