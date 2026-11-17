@@ -272,6 +272,18 @@ reproducibility: "w/o adaptive fusion" is the same configuration as the incremen
 routing" (§4.4), and it reproduced that result exactly (0.9459). Training is deterministic for a fixed
 seed.
 
+**The same ablations on TT (round 15b) give a different picture:** removing the graph (−18.8) or dynamic
+routing (−15.6) hurts most, removing the probabilistic representation costs 6.3, and removing the MoE,
+uncertainty routing or adaptive fusion makes no difference. The only component that matters on both
+datasets is the **probabilistic representation** (TT clean accuracy; SN robustness, §4.6). TT results
+fluctuate strongly between training epochs, so with one seed the TT ablation is not reliable enough to
+rank components. The 5-seed final runs must settle it.
+
+**Which modalities carry signal (plan Exp. C; round 12, SN):** v2 trained on each subset scores
+metrics 0.883, traces 0.935, logs 0.832, traces + logs 0.938, metrics + logs 0.959, metrics + traces 0.929,
+and **all three 0.987**. Every modality carries real signal, and combining all three adds +2.8 over the
+best pair.
+
 ### 4.4b TrainTicket (TT), the harder dataset (rounds 7 and 7-v2, `runs/round7_tt/`, `runs/round7_v2_tt/`)
 11 runs (9 fault, 2 fault-free), 27 services. Train = 5 fault runs + the first 60% of both fault-free
 runs; val / test = 2 fault runs each + later 20% segments of the fault-free runs. Test 68% anomalous

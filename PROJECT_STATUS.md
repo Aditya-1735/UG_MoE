@@ -11,6 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-17 | **Rounds 12, 15b, 16a** (§4): modality ablation, every modality alone ≥ 0.83 on SN (traces 0.935), all three 0.987 (+2.8 over the best pair). TT ablations disagree with SN (TT needs graph / dynamic routing, SN needs MoE / UG routing / fusion); only the probabilistic representation matters on both; TT single-seed ablations unreliable. Sensitivity: ≥ 2 experts needed; hidden 64 best (32 −0.9, 128 −1.4), so keep 64. | ✅ |
 | 2026-11-17 | **Rounds 11, 14, 15a** (§4): w/o probabilistic representation loses 12.8 / 14.9 F1 at 20 / 40% masking on SN (same clean accuracy), so that component causes the robustness. TT: baselines miss network faults (recall 0.30–0.65 vs 0.88–0.90 for v2, at FPR 0.30 vs 0.13–0.17). TT robustness: v2 best up to 40% masking but the margin vanishes; uncertainty is overconfident under log noise and doesn't flag errors on TT. | ✅ |
 | 2026-11-17 | **Round 9 (v2 ablations, SN)** and **round 10 (MUAD at paper hyperparameters, SN)**, server, seed 42 (§4): removing MoE / adaptive fusion / uncertainty routing costs 7.8 / 4.1 / 3.9 macro-F1; graph, dynamic routing and probabilistic representation are within noise on clean SN. MUAD with lr 1e-3 / 120 epochs: 0.793 vs 0.922 with our settings, so our settings favour MUAD. | ✅ |
 | 2026-11-17 | **Round 7 (TT, v2 steps)**, server, seed 42 (§4): **full v2 0.823 macro-F1 vs GAT 0.730, MUAD 0.647, v2 plain 0.667**; recall 0.92 vs ≤ 0.70 for every baseline. Uncertainty-guided routing is the decisive step (ug_routing 0.840). First clean-accuracy gain from the UG components. | ✅ |
@@ -417,6 +418,70 @@ settings (lr 5e-4, ≤ 50 epochs). Validation macro-F1 was 0.973 at the selected
 settings overfit the validation run and generalize worse. **Our shared settings favour MUAD, so the
 hyperparameter difference cannot explain our margin over it.** Report MUAD with our settings (its
 better result).
+
+#### Round 12: modality ablation (plan §8C), v2 full trained on each subset, SN (2026-11-17)
+
+`runs/round12_modality_sn/baselines_20261117_215903`. Test macro-F1 (trivial 0.289):
+
+| Modalities | Macro-F1 | F1 | PR-AUC |
+|---|---|---|---|
+| metrics | 0.883 | 0.850 | 0.990 |
+| traces | 0.935 | 0.923 | 0.975 |
+| logs | 0.832 | 0.779 | 0.835 |
+| traces + logs | 0.938 | 0.924 | 0.970 |
+| metrics + logs | 0.959 | 0.950 | 0.994 |
+| metrics + traces | 0.929 | 0.912 | 0.993 |
+| **all three** | **0.987** | **0.984** | **0.998** |
+
+- **Every modality carries real signal on its own** (all ≥ 0.83 vs trivial 0.29). Trained on traces only,
+  v2 reaches 0.935, above metrics only (0.883). (Partly a traffic signal: in SN fault runs only 58–74% of
+  seconds have spans vs 93–95% in fault-free runs.)
+- **Fusion pays:** all three beat the best pair by +2.8 and the best single modality by +5.2.
+- **Consequence for robustness:** the full model collapses when metrics are removed at test time
+  (round 8), yet a model trained without metrics reaches 0.938. The information is there; the full model
+  never learns to fall back on it because it never sees a window without metrics in training. This is
+  the case for modality dropout (proposal pending).
+
+#### Round 15b: v2 component ablations on TT (2026-11-17)
+
+`runs/round15b_abl2_tt/baselines_20261117_215852` (full: 0.8232 macro-F1).
+
+| Ablation | Macro-F1 | Δ vs full | (SN Δ, round 9) |
+|---|---|---|---|
+| w/o graph | 0.636 | **−18.8** | −0.1 |
+| w/o MoE | 0.825 | +0.2 | **−7.8** |
+| w/o dynamic routing | 0.667 | **−15.6** | −0.7 |
+| w/o uncertainty routing | 0.821 | −0.3 | **−3.9** |
+| w/o probabilistic | 0.760 | **−6.3** | −0.4 (but −13 to −15 under masking) |
+| w/o adaptive fusion | 0.840 | +1.7 | **−4.1** |
+
+- `w/o adaptive fusion` reproduced the `ug_routing` step exactly again (0.8399): training is deterministic.
+- **The pattern differs between datasets.** TT needs graph and dynamic routing (−19 / −16), SN needs MoE,
+  uncertainty routing and adaptive fusion. **The only component that matters on both is the
+  probabilistic representation** (TT clean −6.3; SN robustness −13 to −15).
+- **Caution on TT:** a single temporal expert (w/o MoE) matches the full model, while a 4-expert mixture
+  without graph context or with fixed weights collapses to 0.64–0.67 (like `plain` / `graph`, round 7).
+  With TT's strongly fluctuating validation curves, single-seed TT ablations are not reliable enough to
+  rank components. They must be settled by the 5-seed final runs.
+
+#### Round 16a: sensitivity, number of experts and embedding size (plan §8H, SN, 2026-11-17)
+
+`runs/round16a_sens_sn/baselines_20261117_215920` (full: 4 experts, hidden 64, 166k params, 0.9868).
+
+| Variant | Macro-F1 | Δ |
+|---|---|---|
+| 1 expert (`abl2:no_moe`, round 9) | 0.909 | −7.8 |
+| 2 experts (temporal + dependency) | 0.988 | +0.2 |
+| 3 experts (+ cross-modal) | 0.984 | −0.3 |
+| 4 experts (full) | 0.987 | — |
+| hidden 16 | 0.980 | −0.7 |
+| hidden 32 (43k params) | 0.978 | −0.9 |
+| hidden 128 (652k params) | 0.973 | −1.4 |
+
+- At least two experts are needed (1 → 2: +7.9); beyond that, SN is flat within noise.
+- Embedding size: 64 is best; every other size is within 1.4 points. Size sweep (step 13b): 32 loses
+  0.9 test points, more than the 0.5-point threshold, so **keep hidden 64**. The 4× larger model is
+  slightly worse, so capacity is not what drives the results.
 
 #### Round 15a: robustness of `abl2:no_probabilistic` on SN (2026-11-17)
 
