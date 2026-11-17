@@ -85,16 +85,8 @@ def run_track_a(seed, train_loader, test_loader, output_dir, epochs, lr, event_n
             graph, labels = graph.to(device), labels.to(device)
             binary_labels = (labels >= 1).long()
 
-            # Expand log and trace features to match time dimension
-            B = graph.batch_size
-            N = graph.batch_num_nodes()[0]
-            T = graph.ndata["metrics"].shape[1] // N
-
-            graph.ndata["logs"] = graph.ndata["logs"].unsqueeze(1).expand(-1, T, -1).view(-1, graph.ndata["logs"].shape[-1])
-            graph.ndata["traces"] = graph.ndata["traces"].unsqueeze(1).expand(-1, T, -1).view(-1, 1)
-
             optimizer.zero_grad()
-            outputs = model(graph, binary_labels)
+            outputs = model(graph, labels)
             logits = outputs["MMlogit"]
             loss = criterion(logits, binary_labels)
 
@@ -120,15 +112,6 @@ def run_track_a(seed, train_loader, test_loader, output_dir, epochs, lr, event_n
             for graph, labels in test_loader:
                 graph, labels = graph.to(device), labels.to(device)
                 binary_labels = (labels >= 1).long()
-                
-                # Expand log and trace features to match time dimension
-                B = graph.batch_size
-                N = graph.batch_num_nodes()[0]
-                T = graph.ndata["metrics"].shape[1] // N
-                
-                graph.ndata["logs"] = graph.ndata["logs"].unsqueeze(1).expand(-1, T, -1).view(-1, graph.ndata["logs"].shape[-1])
-                graph.ndata["traces"] = graph.ndata["traces"].unsqueeze(1).expand(-1, T, -1).view(-1, 1)
-                
                 outputs = model(graph, labels)
                 loss = outputs.get("loss", criterion(outputs["MMlogit"], binary_labels))
                 test_loss += loss.item()
