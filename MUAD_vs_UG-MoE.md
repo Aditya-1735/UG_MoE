@@ -293,6 +293,17 @@ runs; val / test = 2 fault runs each + later 20% segments of the fault-free runs
   trivial predictor, which is another reason to report macro-F1. UG-MoE v2 detects 92% of them.
 - **Here the uncertainty components improve clean accuracy:** uncertainty-guided routing lifts macro-F1
   from 0.58 to 0.84. On SN, which is near its ceiling, they only improved robustness (§4.6).
+- **Which anomalies:** recall by fault type on the TT test set:
+
+  | Model | CPU load | Network delay | Network loss | False alarms on normal windows |
+  |---|---|---|---|---|
+  | MUAD | 0.949 | 0.389 | 0.302 | 13.1% |
+  | GAT | 0.963 | 0.645 | 0.486 | 16.7% |
+  | **UG-MoE v2** | **1.000** | **0.895** | **0.877** | 30.0% |
+
+  CPU faults are easy for every model. The baselines miss most **network faults**, which UG-MoE v2
+  detects. The price is more false alarms (30% of normal windows flagged vs 13–17%), which should be
+  stated in the paper.
 - Caveat: TT's validation scores fluctuate strongly between epochs, so the 5-seed final runs are
   needed to fix the size of this gain.
 
@@ -332,6 +343,9 @@ each column compares the models on identical perturbations. Test F1 (relative dr
 | + uncertainty-guided routing | 0.934 | 0.815 (12.8%) | 0.734 (21.4%) | 0.680 (27.2%) | 0.874 |
 | **full (+ adaptive fusion)** | **0.984** | **0.931 (5.5%)** | **0.856 (13.0%)** | **0.748 (24.0%)** | **0.981 (0.3%)** |
 
+- **Direct test** (round 15a): the full model *without* the probabilistic representation, everything
+  else equal, has the same clean F1 (0.979) but drops to 0.803 / 0.707 at 20% / 40% masking (full:
+  0.931 / 0.856). Removing that one component costs 12.8 / 14.9 points under missing data.
 - **On clean data full ≈ plain, but with 20% / 40% of observations missing, full is +10.7 / +13.4 F1
   points better.** The plain MoE is no more robust than MUAD. So the robustness gain over MUAD comes from
   the **uncertainty components**, not from having experts.
@@ -366,6 +380,28 @@ uncertainty (log-variance) and its fusion weight.
   (GAT) expert (0.87), CPU-load faults to the cross-modal expert (0.95), network delay / loss mainly to the
   temporal expert (~0.5). So the router learned fault-specific paths, as intended (plan Exp. F).
 
+### 4.8 Robustness and uncertainty on TT (rounds 11 and 14): where the claims stop holding
+On TT, anomaly-F1 is misleading under perturbation. MUAD and GAT miss many anomalies, so corrupting
+their input makes them flag more windows, and their anomaly-F1 *rises* towards the trivial 0.809. We
+therefore compare macro-F1:
+
+| Model | Clean | 10% masked | 20% masked | 40% masked | 60% masked |
+|---|---|---|---|---|---|
+| MUAD | 0.647 | 0.636 | 0.616 | 0.577 | 0.559 |
+| GAT | 0.730 | 0.652 | 0.615 | 0.540 | 0.471 |
+| **UG-MoE v2** | **0.823** | **0.734** | **0.672** | **0.581** | 0.547 |
+
+- UG-MoE v2 stays best up to 40% missing data, but its lead shrinks from +9 / +18 points to about level.
+  **The large robustness advantage seen on SN does not carry over to TT.**
+- **The uncertainty mechanism works strongly on TT when metrics are missing:** metric uncertainty jumps
+  (−0.28 → +0.80) and its fusion weight falls from 0.61 to 0.13, with traces taking over (0.79). Detection
+  still fails, because TT traces cover only 2–4% of seconds: the modality the model falls back on is
+  nearly empty. That is a limit of the data, not of the mechanism.
+- **Failure case:** with noise on the logs, the model becomes *more* confident in the logs and raises
+  their weight from 0.11 to 0.65, which costs 8 F1 points. Learned variance can be overconfident on
+  inputs unlike the training data, a known limitation that the paper should state. On TT the uncertainty
+  also does not separate correct from wrong predictions (unlike SN).
+
 ---
 
 ## 5. Why UG-MoE is better than MUAD, and how far the evidence goes
@@ -395,7 +431,8 @@ uncertainty (log-variance) and its fusion weight.
 - Graceful degradation when metrics are missing: neither model has it (§4.5).
 - Accuracy gains from the uncertainty components on *clean* data: none on SN (§4.4), large on TT
   (§4.4b). Single seed, so the TT gain needs the 5-seed runs.
-- TT robustness and TT routing/uncertainty analysis: pending.
+- Robustness on TT beyond 20% missing data (§4.8), and reliable uncertainty under noise the model never
+  saw in training (the log-noise failure case, §4.8).
 
 ---
 

@@ -11,6 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-17 | **Rounds 11, 14, 15a** (§4): w/o probabilistic representation loses 12.8 / 14.9 F1 at 20 / 40% masking on SN (same clean accuracy), so that component causes the robustness. TT: baselines miss network faults (recall 0.30–0.65 vs 0.88–0.90 for v2, at FPR 0.30 vs 0.13–0.17). TT robustness: v2 best up to 40% masking but the margin vanishes; uncertainty is overconfident under log noise and doesn't flag errors on TT. | ✅ |
 | 2026-11-17 | **Round 9 (v2 ablations, SN)** and **round 10 (MUAD at paper hyperparameters, SN)**, server, seed 42 (§4): removing MoE / adaptive fusion / uncertainty routing costs 7.8 / 4.1 / 3.9 macro-F1; graph, dynamic routing and probabilistic representation are within noise on clean SN. MUAD with lr 1e-3 / 120 epochs: 0.793 vs 0.922 with our settings, so our settings favour MUAD. | ✅ |
 | 2026-11-17 | **Round 7 (TT, v2 steps)**, server, seed 42 (§4): **full v2 0.823 macro-F1 vs GAT 0.730, MUAD 0.647, v2 plain 0.667**; recall 0.92 vs ≤ 0.70 for every baseline. Uncertainty-guided routing is the decisive step (ug_routing 0.840). First clean-accuracy gain from the UG components. | ✅ |
 | 2026-11-17 | **Exp. F + G** (`experiments/run_analysis.py`, round 13, SN): uncertainty rises and the fusion weight falls for a corrupted modality (works in direction), but metrics keep ≥ 88% of the weight even when missing (too weak to fall back). Uncertainty is higher on wrong predictions. Metric routing specializes by fault type (normal → GAT expert 0.87, cpu → cross-modal 0.95, network → temporal). | ✅ |
@@ -416,6 +417,62 @@ settings (lr 5e-4, ≤ 50 epochs). Validation macro-F1 was 0.973 at the selected
 settings overfit the validation run and generalize worse. **Our shared settings favour MUAD, so the
 hyperparameter difference cannot explain our margin over it.** Report MUAD with our settings (its
 better result).
+
+#### Round 15a: robustness of `abl2:no_probabilistic` on SN (2026-11-17)
+
+`runs/round15a_rob_sn_noprob/`. Full model minus the probabilistic representation (and therefore minus
+uncertainty routing), everything else equal.
+
+| Model | Clean F1 | Mask 10% | Mask 20% | Mask 40% | Mask 60% | Noise all σ=1 |
+|---|---|---|---|---|---|---|
+| full | 0.984 | 0.962 | **0.931** | **0.856** | **0.748** | 0.960 |
+| w/o probabilistic | 0.979 | 0.895 | 0.803 | 0.707 | 0.646 | 0.902 |
+
+**Direct evidence:** the same architecture without the probabilistic representation has the same clean
+accuracy (−0.5) but loses **12.8 / 14.9 F1 points** at 20 / 40% masking. The probabilistic representation
+is what makes the model robust to missing data.
+
+#### Rounds 11 and 14: TT robustness (MUAD, GAT, v2 full) and TT routing / uncertainty analysis (2026-11-17)
+
+`runs/round11_rob_tt_{muad,gat}/`, `runs/round14_rob_tt_v2/`, `runs/round14_analysis_tt/`.
+
+**Per-fault-type recall on the clean TT test set (new metric):**
+
+| Model | cpu_load | network_delay | network_loss | FPR on normal windows | Macro-F1 |
+|---|---|---|---|---|---|
+| MUAD | 0.949 | 0.389 | 0.302 | 0.131 | 0.647 |
+| GAT | 0.963 | 0.645 | 0.486 | 0.167 | 0.730 |
+| **v2 full** | **1.000** | **0.895** | **0.877** | 0.300 | **0.823** |
+
+The anomalies the baselines miss on TT are the **network faults**: CPU load is easy for every model.
+UG-MoE v2 detects 88–90% of network faults vs 30–65%, at the cost of more false alarms (30% of normal
+windows vs 13–17%).
+
+**Robustness on TT: read macro-F1, not anomaly-F1.** MUAD and GAT are conservative (low recall), so
+perturbations push them towards "anomalous" and their anomaly-F1 *rises* towards the trivial 0.809,
+while macro-F1 falls. Macro-F1 under masking:
+
+| Model | Clean | Mask 10% | Mask 20% | Mask 40% | Mask 60% | Drop metrics |
+|---|---|---|---|---|---|---|
+| MUAD | 0.647 | 0.636 | 0.616 | 0.577 | 0.559 | 0.243 |
+| GAT | 0.730 | 0.652 | 0.615 | 0.540 | 0.471 | 0.404 (trivial) |
+| v2 full | **0.823** | **0.734** | **0.672** | **0.581** | 0.547 | 0.404 (trivial) |
+
+v2 stays best up to 40% masking, but its margin shrinks from +9 / +18 points (vs GAT / MUAD) to about
+level at 40–60%. **The robustness advantage seen on SN is not reproduced on TT.**
+
+**Analysis on TT (Exp. F / G):**
+- Fusion is more balanced on TT than SN (clean: metric 0.61, trace 0.28, log 0.11).
+- **When metrics are dropped the mechanism works strongly:** metric log-variance −0.28 → +0.80 and its
+  fusion weight 0.61 → 0.13, with traces taking 0.79. The model still predicts trivially, because TT
+  traces cover only 2–4% of seconds: the modality it falls back on carries almost no information.
+- **Failure case: noise on logs.** Log uncertainty *decreases* (−0.03 → −0.14) and the log fusion
+  weight *rises* to 0.65 (F1 0.894 → 0.817). The learned variance is overconfident on out-of-distribution
+  noisy inputs, a known limitation of learned (aleatoric) variance heads. Same under noise on all
+  modalities (log weight 0.43).
+- On TT the uncertainty does **not** flag errors (log-variance −0.22 correct vs −0.25 wrong), unlike SN.
+- Routing: CPU-load windows again get a dedicated metric expert (semantic, 0.996). Traces route to the
+  cross-modal expert (0.87), logs to the semantic expert (0.79).
 
 #### Round 13: routing and uncertainty analysis (Exp. F + G), UG-MoE v2 full, SN test (2026-11-17)
 
