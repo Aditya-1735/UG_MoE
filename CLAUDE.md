@@ -55,7 +55,7 @@ Forward pass, in order: `encode_modalities` → per-expert outputs → (optional
 - The forward pass raises `RuntimeError("NaN/Inf ...")` at each stage on non-finite values. Experiment scripts also disable flash/mem-efficient SDPA (`torch.backends.cuda.enable_*_sdp(False)`) because of NaN gradients in Transformer attention — keep that when writing new training scripts.
 - Configs: `DEFAULT_CONFIG` in `model.py` (note `log_dim=15` matches the recovered dataset's `event_num=15`; the constructor default is 14). `create_graph_aware_moe(config, muad_baseline=None)` can reuse a MUAD baseline's encoders.
 - Ablation configs (`registry.ABLATIONS`): `no_graph`, `no_uncertainty`, `no_fusion`, `single_expert`, `plain_moe`, `graph_transformer`.
-- Size: `ug_moe` has ~4.4M parameters vs ~0.24M (MUAD) and ~0.3M (GAT); keep this in mind for comparisons.
+- Size: `ug_moe` has ~4.4M parameters vs ~0.24M (MUAD) and ~0.3M (GAT). The user doesn't mind large experts, but shrinking is welcome when the loss is negligible (validation F1 / macro-F1 within ~0.5 points). This is planned as a size sweep after the Phase 2 fixes (`PROJECT_STATUS.md` §3.10, step 13b), not before.
 
 ### Shared experiment protocol (`project/experiments/common.py`)
 

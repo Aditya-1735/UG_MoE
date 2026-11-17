@@ -148,6 +148,8 @@ Plan §8B needs: w/o graph, w/o MoE, w/o dynamic routing, w/o uncertainty routin
 ### 3.10 The proposed model is ~18× larger than the baselines
 Counted from the registry builders: `ug_moe` 4.38M parameters, `plain_moe` 4.18M, `single_expert` 0.25M, MUAD 0.24M, GAT 0.30M, Graph-MoE 0.32M. Most of the size sits in the expert Transformers and cross-attention. Any gain over MUAD/GAT could come from capacity rather than from the architecture. Plan §13 also says "do not start with a very large expert architecture". Phase 2 should shrink the experts, or the paper should report a size-matched baseline.
 
+**Decision (2026-11-17, user):** model size is not a goal in itself. Shrink the experts **only if the loss is negligible**. Planned as step 13b (after the Phase 2 fixes, so we size the final architecture): a single-seed sweep over `hidden_dim` / `expert_hidden_dim` / `fusion_dim` / `router_hidden_dim` (e.g. 64/128 → 32/64 → 16/32) and the expert depth. Pick the smallest config whose **validation** F1 and macro-F1 stay within ~0.5 points of the full-size model; test is evaluated only for the chosen config. With one seed, a gap of that size is within noise, so it would count as "no measurable loss", not as evidence that the two sizes are equal.
+
 ### 3.11 Smaller issues
 - Hard-coded 12-node / 24-edge assumptions: `nn.Linear(24*2, …)` in the router, `range(12)` routing heads, `.view(B, 12, -1)`, `N = 12` in the baselines. These block running on TT (27 services) or the SN variant without code changes.
 - ~~`run_ablations.py`: `final_roc_auc` / `final_pr_auc` reused `all_probs` from the last epoch loop~~ (fixed by the rewrite onto `common.py`).
@@ -253,6 +255,8 @@ Each phase should end with a commit pushed to GitHub and a server run whose outp
 11. **Diagnose the metric-only behaviour (§3.5):** per-modality probes, gradient and feature statistics for traces/logs, checks for near-constant trace/log inputs. Add modality dropout during training if needed (`src/fusion/fusion.py` already has `ModalityDropout`).
 12. Remove the hard-coded 12/24 assumptions so TT (27 services) can run.
 13. Re-run Plan §12 steps 4–10 in order as quick single-seed checks on the server: simple MLP, then GAT, then plain MoE, then +graph routing, then +uncertainty, then +UG routing, then +fusion. Confirm each addition changes behaviour.
+
+13b. **Size sweep (§3.10):** shrink experts and dims to the smallest config with negligible validation loss. Single seed; keep the full size if the loss isn't negligible.
 
 ### Phase 3: Freeze, then run the experiments (plan §8)
 14. Freeze the model (tag a commit). Rewrite ablations to exactly match §8B, each flag removing exactly one component.
