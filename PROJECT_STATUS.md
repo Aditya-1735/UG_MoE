@@ -268,7 +268,11 @@ Baselines on the same split, seed and hyperparameters (`runs/baselines_20261117_
 | Plain MoE | 11 | 0.9688 | 0.8560 | 0.9124 | 0.9957 | 0.9811 | −6.0 |
 | Graph-MoE | 2 | 0.9112 | 0.0810 | 0.4961 (≈ trivial) | 0.9819 | 0.9389 | **−47.4** |
 | GAT | 4 | 0.8738 | 0.2323 | 0.5530 | 0.9584 | 0.8170 | **−40.8** |
-| MUAD, traces only | (running) | — | — | val macro-F1 ≈ 0.77 by epoch 36 | — | — | — |
+| MUAD, traces only | 40 | 0.9034 | 0.2500 | 0.5767 | 0.8555 | 0.6134 | — |
+| MUAD, logs only | 26 | 0.9077 | 0.0000 | 0.4538 (= trivial) | 0.9238 | 0.6793 | — |
+| MUAD, traces + logs | 37 | 0.8978 | 0.5223 | 0.7101 | 0.9613 | 0.8428 | — |
+
+**Modality ablation (Exp. C, MUAD, leak-free):** metrics carry almost all the signal (all three modalities 0.932 macro-F1). **Traces alone** reach val macro-F1 0.767 but only 0.577 on the test run (weak cross-run generalization). **Logs alone** never beat the trivial predictor at the default threshold, though they still rank somewhat (ROC-AUC 0.68). **Traces + logs together reach 0.710 macro-F1 and ROC-AUC 0.84, far more than either alone**, so the two are complementary. So on this artifact traces and logs are *useful but secondary*: they matter most as a fallback when metrics are missing or noisy (Exp. D/E), which is where uncertainty-aware fusion should show its value. Caveat: these are MUAD's Hawkes log features; the rebuilt data uses template counts and may behave differently.
 
 **Readings:**
 - **The leakage was inflating everything, and it hid real differences.** GAT and Graph-MoE looked competitive on the leaky split (macro-F1 0.96–0.97) but **collapse to near-trivial on an unseen run**. They were memorizing near-duplicate windows (their training loss keeps falling while validation loss rises from epoch 2–4). MUAD and UG-MoE lose only ~3 points, so they generalize.
