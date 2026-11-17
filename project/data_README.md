@@ -10,9 +10,10 @@ separated so experiments can switch datasets without modifying code.
 - Source: MUAD paper original dataset (recovered from commit 6031ccf)
 - Location: `project/recovered_artifact/`
 - Files: `chunk_train.pkl`, `chunk_test.pkl`, `metadata.json`
-- `event_num`: 15, `node_num`: 12, `train chunks`: 5,610, `test chunks`: 2,244
-- Used by: Track A (`run_track_a_full.py`), Track B (`run_track_b_full.py`), 
-  `run_comparison.py`, `run_ablations.py`
+- `event_num`: 15, `node_num`: 12, train chunks: 3,366 (5,610 = train + test), test chunks: 2,244
+- Labels: `culprit` ∈ {0, 1, 4, 5}; 0 = normal, ≥1 = anomalous (MUAD convention); test is ~83% anomalous
+- Used by: every script built on `experiments/common.py` (default `--data-dir`), which carves a
+  stratified 15% validation split out of `chunk_train.pkl`
 - Git commit: `c0aef10` (repo-initialize)
 
 ### 2. `regenerated/` (muad_compat output) — NOT recommended for comparison
@@ -34,13 +35,11 @@ Track A and Track B MUST use the same dataset for a valid comparison.
 - `muad_compat/output/` has different event_num (14) — mixing invalidates comparison
 
 ## How to Switch Datasets
-Edit the experiment script or pass `--data-dir`:
+Every experiment script takes `--data-dir` (default: `recovered_artifact/`). Model dimensions
+(`event_num`, `metric_num`, `node_num`) are read from the directory's `metadata.json`:
 ```bash
-# Use recovered_artifact (recommended)
-python experiments/run_track_b_full.py
-
-# Or explicitly specify
-python experiments/run_track_b_full.py --data-dir /path/to/recovered_artifact --event-num 15
+python experiments/run_comparison.py                                   # recovered_artifact (recommended)
+python experiments/run_comparison.py --data-dir /path/to/other/chunks  # any dir with chunk_{train,test}.pkl + metadata.json
 ```
 
 ## Data Generation Pipelines

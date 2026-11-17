@@ -13,7 +13,8 @@
 | 2026-11-17 | **Phase 0.1:** uncertainty blocks (`src/uncertainty/uncertainty.py`) now sample with reparameterization only in `train()` mode and return deterministic μ in `eval()`. Variance / log-variance clamps restored. Working-copy `model.py` semantic-expert fix (`expert(graph.ndata["logs"], B)`) kept. Fixes §3.6. | ❌ pending |
 | 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ❌ pending |
 | 2026-11-17 | **Decision:** because of time constraints, all experiments run with a **single seed (42)** for now. Multi-seed runs (5 seeds plus paired t-test) are deferred to the final paper runs (Phase 3–4). Single-seed differences below about 1 F1 point are not evidence of improvement. | n/a |
-| 2026-11-17 | **Phase 1 (cont.):** `experiments/registry.py` (single definition of every model / ablation + forward adapter + `run_suite`). GAT and Graph-MoE model classes moved to `tracks/baselines/` (node count now read from the graph, not hard-coded). New scripts on the shared protocol: `run_baselines.py` (Exp. A), `run_ablations.py` (rewritten; always trains the `ug_moe` reference too), `run_robustness.py` (Exp. D + E as specified: single-modality drop, random 10/20/40/60% masking, noise scaled to train std on all 7 modality combinations, relative F1 drop). `run_comparison.py` now builds models through the registry. **Removed** (superseded): `run_gat_baseline.py`, `run_plain_moe.py`, `run_graph_moe.py`, `run_track_b_full.py`, `run_missing_modality.py`, `run_noise_robustness.py`. Not migrated yet: routing / uncertainty-fusion analysis (they depend on Phase 2), `run_track_a_full.py`, `run_track_a_al.py`, `run_hdfs.py`. | ❌ pending |
+| 2026-11-17 | **Phase 1 (cont.):** `experiments/registry.py` (single definition of every model / ablation + forward adapter + `run_suite`). GAT and Graph-MoE model classes moved to `tracks/baselines/` (node count now read from the graph, not hard-coded). New scripts on the shared protocol: `run_baselines.py` (Exp. A), `run_ablations.py` (rewritten; always trains the `ug_moe` reference too), `run_robustness.py` (Exp. D + E as specified: single-modality drop, random 10/20/40/60% masking, noise scaled to train std on all 7 modality combinations, relative F1 drop). `run_comparison.py` now builds models through the registry. **Removed** (superseded): `run_gat_baseline.py`, `run_plain_moe.py`, `run_graph_moe.py`, `run_track_b_full.py`, `run_missing_modality.py`, `run_noise_robustness.py`. Not migrated yet: routing / uncertainty-fusion analysis (they depend on Phase 2), `run_track_a_al.py`, `run_hdfs.py`. | ❌ pending |
+| 2026-11-17 | **Clean-up:** deleted 8 opencode-era planning/forensics `.md` files at the root, `run2`, `project/ablations.log`, `project/project/` (119 MB of October runs), `tracks/proposed_model/train.py` and `test_integration.py`, and `experiments/run_track_a_full.py` (superseded by the `muad` registry entry). Untracked 18 `.pyc` files. Rewrote `README.md` and fixed `data_README.md` (train count, labels, commands). | n/a |
 
 ---
 
@@ -150,7 +151,6 @@ Counted from the registry builders: `ug_moe` 4.38M parameters, `plain_moe` 4.18M
 - Hard-coded 12-node / 24-edge assumptions: `nn.Linear(24*2, …)` in the router, `range(12)` routing heads, `.view(B, 12, -1)`, `N = 12` in the baselines. These block running on TT (27 services) or the SN variant without code changes.
 - ~~`run_ablations.py`: `final_roc_auc` / `final_pr_auc` reused `all_probs` from the last epoch loop~~ (fixed by the rewrite onto `common.py`).
 - `experiments/convert_sn_dataset.py:31–32` and `validation/gates/gate01_raw_integrity.py` hard-code Windows absolute paths, so they will not run on the server.
-- `tracks/proposed_model/test_integration.py` is stale (expects `load_data` to return 3 values).
 - Checkpoints from the baseline runs were written to the server's `project/checkpoints/` (gitignored). Every seed overwrites the same file (e.g. `baseline_gat.pth`), so only the last seed's checkpoint survives.
 - `EVAL_EVERY = 5` is defined in `run_comparison.py` but not used (evaluation runs every epoch).
 
@@ -277,9 +277,10 @@ Each phase should end with a commit pushed to GitHub and a server run whose outp
 ---
 
 ## 10. Repository clean-up backlog (plan for a clean research codebase)
-- Untrack committed build artifacts: `__pycache__/*.pyc` (add to the index ignore, `git rm --cached`).
-- Remove stale output directories: `project/project/experiments/runs/` and `project/runs/`, plus the stray `C:Usersas999OneDriveDesktoptrashimpl/` folder, `.PROJECT_EXECUTION_MASTER_PLAN_DETAILED.md.swp` and `run2` (pasted terminal log) at the repo root.
-- Move opencode-era planning/forensics `.md` files into a `docs/archive/` folder (or delete them). Several contradict the code (e.g. "uncertainty-guided routing: Complete").
+- ~~Untrack `.pyc`; remove `project/project/`, `run2`, `.swp`, opencode-era `.md` files~~ (done 2026-11-17).
+- Stray empty `C:Usersas999OneDriveDesktoptrashimpl/` folder at the repo root: untracked, delete by hand.
+- Pending decisions: `project/runs/` (old HDFS runs) and the HDFS pipeline, depending on the HDFS scope decision (§7). `UG-MoE-Research-Paper-Draft.md`: its numbers and "complete" claims are invalid, so rewrite or delete it once real results exist.
+- Old-protocol results in `project/experiments/runs/*_202611{11,12}_*`: keep as the "before" reference until the new-protocol runs replace them, then delete.
 - Replace hard-coded Windows paths (`convert_sn_dataset.py`, `gate01`) with CLI arguments.
 - Fix `pyproject.toml` dependencies (TOML table → array) so `pip install -e .` works on the server.
 - Replace the ad-hoc test scripts with a small `pytest` suite (shape and forward-pass smoke tests on a handful of chunks) that can run locally on CPU.

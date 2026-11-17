@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Research code for **UG-MoE**: a Graph-Aware Mixture-of-Experts (MoE) for multimodal anomaly detection in microservice systems (metrics + traces + logs). It extends the vendored **MUAD** baseline (`project/vendor/muad`) and is compared against it. The two models are called **Track A** (MUAD, faithful reproduction) and **Track B** (`GraphAwareMoE`, the proposed model). Eadro (`project/vendor/eadro`) is vendored for the SN (SocialNetwork) dataset format.
 
-The repo root holds many planning/forensics markdown files and PDFs (`IMPLEMENTATION_PLAN.md`, `UG-MoE_Implementation_Guide.md`, `*_FORENSICS_*.md`, paper draft). They are background reading, not code. **All code lives under `project/`.**
+The repo root holds only the reference documents (`7. UG-MoE_Implementation_Guide.md`, the MUAD paper as PDF + markdown, the proposal PDF, `UG-MoE-Research-Paper-Draft.md`), `README.md`, `PROJECT_STATUS.md` and this file. The opencode-era planning/forensics markdown files were deleted on 2026-11-17 (they are in git history before that date); don't recreate parallel planning docs, update `PROJECT_STATUS.md` instead. **All code lives under `project/`.**
 
 ## Running things
 
@@ -35,9 +35,9 @@ python experiments/run_robustness.py --device cuda                       # Exp. 
 python experiments/run_hdfs.py --config configs/hdfs_full.json           # HDFS log-only mode (not migrated, outside plan scope)
 ```
 
-All migrated scripts share the same CLI (`registry.add_common_args`: `--seeds` (default 42), `--epochs`, `--lr`, `--patience`, `--val-ratio`, `--split-seed`, `--data-dir`, `--device`) and write to `project/experiments/runs/<name>_<YYYYMMDD_HHMMSS>/`: `summary.json`, `split.json`, one `<model>_seed<N>.json` per run (with val history) and `<model>_seed<N>_best.pth`. Not yet migrated (they still select on test): `run_routing_analysis.py`, `run_uncertainty_fusion_analysis.py`, `run_track_a_full.py`, `run_track_a_al.py`, `run_hdfs.py`. These are run on the GPU server (see workflow above), not locally.
+All migrated scripts share the same CLI (`registry.add_common_args`: `--seeds` (default 42), `--epochs`, `--lr`, `--patience`, `--val-ratio`, `--split-seed`, `--data-dir`, `--device`) and write to `project/experiments/runs/<name>_<YYYYMMDD_HHMMSS>/`: `summary.json`, `split.json`, one `<model>_seed<N>.json` per run (with val history) and `<model>_seed<N>_best.pth`. Not yet migrated (they still select on test): `run_routing_analysis.py`, `run_uncertainty_fusion_analysis.py`, `run_track_a_al.py`, `run_hdfs.py`. These are run on the GPU server (see workflow above), not locally.
 
-- **Tests**: there is no pytest suite wired up. `tracks/proposed_model/test_components.py` and `test_integration.py` are ad-hoc scripts (`python tracks/proposed_model/test_components.py`); `test_integration.py` is stale (expects `load_data` to return 3 values and uses old `muad_compat` paths; it currently returns 4).
+- **Tests**: there is no pytest suite wired up. `tracks/proposed_model/test_components.py` is an ad-hoc component shape check (`python tracks/proposed_model/test_components.py`, CPU, random tensors).
 - **Data validation**: `python validation/run_all_gates.py` runs 10 sequential gate scripts (raw integrity → parsed schema → chunk schema → tensor dims → labels → graph → split → artifact comparison → dataloader). Gate 1 hardcodes an absolute `raw_data/SN Dataset` path from the author's machine.
 - **Lint/format config** (`pyproject.toml`): black/flake8 with line length 100. Note `pyproject.toml`'s `[project.dependencies]` is written as a TOML table rather than an array, so `pip install -e .` may fail; don't rely on it.
 
@@ -78,7 +78,7 @@ Models are defined once in `project/experiments/registry.py`: `MODELS` (`muad`, 
 
 ## Repo quirks
 
-- Large artifacts are committed to git: `.pkl` chunk files, `.pth` checkpoints, `__pycache__/*.pyc`, and many `experiments/runs/*` outputs — so `git status` is noisy with modified `.pyc`/`.pkl`. Don't stage those unintentionally.
-- `project/project/experiments/runs/` and `project/runs/` are older output directories from earlier runs (stale duplicates); the current output location is `project/experiments/runs/`. A stray `C:Usersas999OneDriveDesktoptrashimpl/` directory at the repo root is a path-mangling artifact.
+- Large artifacts are committed to git: `.pkl` chunk files (some modified locally, so `git status` is noisy) and `experiments/runs/*` outputs. Stage files explicitly by path; never `git add -A`. `.pyc` files were untracked on 2026-11-17 (`__pycache__/` is gitignored).
+- The only output location is `project/experiments/runs/`. `project/runs/` holds old HDFS runs. A stray, empty `C:Usersas999OneDriveDesktoptrashimpl/` folder at the repo root is a path-mangling artifact (untracked; delete it by hand, because the tool's safety check blocks removing it).
 - Main branch is `main`; other branches: `run_track_b_full`, `prog`, `backup-hdfs`.
 - `.kilo/` (gitignored) contains planning notes from another AI tool, not part of the codebase.
