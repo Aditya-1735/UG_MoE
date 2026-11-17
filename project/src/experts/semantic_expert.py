@@ -142,8 +142,6 @@ class LogSemanticExpert(nn.Module):
         Returns:
             [batch, hidden_dim] - graph-level semantic embedding
         """
-        num_nodes = 12
-        
         # Project node features
         x = self.node_projection(log_features)  # [batch*12, embed_dim]
         
@@ -151,7 +149,7 @@ class LogSemanticExpert(nn.Module):
         x = torch.clamp(x, -10, 10)
         
         # Reshape to [batch, 12, embed_dim]
-        x = x.view(batch_size, num_nodes, -1)
+        x = x.view(batch_size, -1, x.shape[-1])  # [batch, num_nodes, embed_dim]
         
         # Cross-node attention
         x = self.encoder(x)  # [batch, 12, embed_dim]

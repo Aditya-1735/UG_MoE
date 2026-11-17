@@ -133,6 +133,69 @@ def reconstruct_runs(chunks: Dict) -> List[List[str]]:
     return runs
 
 
+def assign_pipeline_runs(runs: List[Dict], frac_eval: float = 0.2) -> Dict[str, List[int]]:
+    """
+    Chronological run-level split for data built by data_pipeline.build_eadro:
+      fault runs sorted by start time -> the last ceil(frac_eval * n) are TEST, the
+      ceil(frac_eval * n) before them are VAL, the rest TRAIN (no future information in training);
+      SN (4 fault runs): 2 / 1 / 1, TT (9): 5 / 2 / 2.
+      Fault-free runs (recorded days later) are spread round-robin in the order train, test, val, so
+      the test split always contains purely-normal operation (SN: one each; TT: train + test).
+    """
+    fault = sorted((r for r in runs if r["kind"] == "fault"), key=lambda r: r["t0"])
+    normal = sorted((r for r in runs if r["kind"] == "normal"), key=lambda r: r["t0"])
+    n = len(fault)
+    k = max(1, int(np.ceil(frac_eval * n)))
+    if n < 3:
+        raise ValueError(f"need >= 3 fault runs for a train/val/test run split, got {n}")
+    if n - 2 * k < 1:
+        k = (n - 1) // 2
+    out = {"train": [r["index"] for r in fault[: n - 2 * k]],
+           "val": [r["index"] for r in fault[n - 2 * k: n - k]],
+           "test": [r["index"] for r in fault[n - k:]]}
+    for i, r in enumerate(normal):
+        out[("train", "test", "val")[i % 3]].append(r["index"])
+    return out
+
+
+def _load_pipeline_splits(data_dir: Path, batch_size: int, split_out: Optional[Path], normalize: str) -> Dict:
+    """load_splits() for directories produced by data_pipeline.build_eadro (chunks.pkl + metadata.json)."""
+    chunks, node_num, edges, metadata = load_data(str(data_dir / "chunks.pkl"), str(data_dir / "metadata.json"))
+    assignment = assign_pipeline_runs(metadata["runs"])
+    ids = {s: sorted(k for k, c in chunks.items() if c["run_index"] in set(assignment[s]))
+           for s in ("train", "val", "test")}
+    split_info = {"data_dir": str(data_dir), "split": "pipeline_runs", "system": metadata.get("system"),
+                  "runs": {s: [metadata["runs"][i]["name"] + f" ({metadata['runs'][i]['kind']})"
+                               for i in assignment[s]] for s in assignment}}
+    if split_out is not None:
+        split_out = Path(split_out)
+        split_out.parent.mkdir(parents=True, exist_ok=True)
+        with open(split_out, "w") as f:
+            json.dump({**split_info, **{f"{s}_ids": v for s, v in ids.items()}}, f)
+    if normalize == "train_zscore":
+        stats = fit_normalizer(chunks, ids["train"])
+        src = apply_normalizer(chunks, ids["train"] + ids["val"] + ids["test"], stats)
+        if split_out is not None:
+            with open(Path(split_out).with_name("normalization.json"), "w") as f:
+                json.dump({"method": normalize,
+                           "stats": {m: {k: v.tolist() for k, v in st.items()} for m, st in stats.items()}},
+                          f, indent=2)
+    else:
+        src = chunks
+    loaders = {}
+    for s in ("train", "val", "test"):
+        ds = ChunkDataset(src, ids[s], node_num, edges)
+        loaders[s] = create_dataloader(ds, batch_size=batch_size, shuffle=(s == "train"))
+
+    def _dist(keys):
+        vals, counts = np.unique([chunks[k]["culprit"] for k in keys], return_counts=True)
+        return {int(v): int(c) for v, c in zip(vals, counts)}
+
+    return {**loaders, "metadata": metadata, "sizes": {s: len(v) for s, v in ids.items()},
+            "normalization": {"method": normalize}, "split": split_info,
+            "culprit_dist": {s: _dist(v) for s, v in ids.items()}}
+
+
 def load_splits(
     data_dir: Path = DEFAULT_DATA_DIR,
     batch_size: int = 50,
@@ -175,6 +238,8 @@ def load_splits(
     if split not in ("run", "random"):
         raise ValueError(f"split must be 'run' or 'random', got {split!r}")
     data_dir = Path(data_dir)
+    if (data_dir / "chunks.pkl").exists():
+        return _load_pipeline_splits(data_dir, batch_size, split_out, normalize)
     train_all, node_num, edges, metadata = load_data(
         str(data_dir / "chunk_train.pkl"), str(data_dir / "metadata.json")
     )

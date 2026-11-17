@@ -141,7 +141,7 @@ class GraphTransformerExpert(nn.Module):
         # Handle input shape
         if node_features.dim() == 2:
             # [B*12, in_dim] -> [B, 12, in_dim]
-            node_features = node_features.view(batch_size, 12, -1)
+            node_features = node_features.view(batch_size, -1, node_features.shape[-1])
         
         B, N, _ = node_features.shape
         

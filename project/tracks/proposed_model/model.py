@@ -71,6 +71,7 @@ class GraphAwareMoE(nn.Module):
         # Training
         dropout: float = 0.1,
         dependency_expert_type: str = "gat",  # "gat" or "graph_transformer"
+        num_edges: int = 24,  # edges per sample graph (from metadata)
 
         # MUAD baseline compatibility
         muad_metric_encoder: Optional[nn.Module] = None,
@@ -188,6 +189,7 @@ class GraphAwareMoE(nn.Module):
             top_k=min(top_k, self.num_experts),
             use_graph=use_graph_routing,
             use_uncertainty=use_uncertainty_routing,
+            num_edges=num_edges,
         )
         
         # ============================================================
@@ -379,7 +381,7 @@ class GraphAwareMoE(nn.Module):
         ], dim=-1)  # [B, 3*hidden_dim]
         
         # Get routing weights
-        # Build graph_info: [B, 24*2] flattened edge list per subgraph
+        # Build graph_info: [B, 2 * num_edges] flattened edge list per subgraph
         src, dst = graph.edges()  # [E] global node IDs
         batch_num_edges = graph.batch_num_edges().tolist()
         src_split = torch.split(src, batch_num_edges)

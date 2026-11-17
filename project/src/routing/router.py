@@ -28,6 +28,7 @@ class ExpertRouter(nn.Module):
         use_graph: bool = True,
         use_uncertainty: bool = True,
         top_k: int = 2,  # Number of experts to route to
+        num_edges: int = 24,  # edges per sample graph (SN: 24); graph_info has 2 * num_edges values
     ):
         super().__init__()
         self.num_experts = num_experts
@@ -43,7 +44,7 @@ class ExpertRouter(nn.Module):
         # Graph encoder (if using graph structure)
         if use_graph:
             self.graph_encoder = nn.Sequential(
-                nn.Linear(24 * 2, hidden_dim),  # 24 edges * 2 (src, dst)
+                nn.Linear(num_edges * 2, hidden_dim),  # flattened (src, dst) edge list
                 nn.GELU(),
                 nn.Dropout(dropout),
                 nn.Linear(hidden_dim, hidden_dim),
@@ -375,7 +376,7 @@ def create_router(
     """
     # Filter kwargs based on router type
     if router_type == "base":
-        valid_keys = {'input_dim', 'hidden_dim', 'num_heads', 'dropout', 'temperature', 'use_graph', 'use_uncertainty', 'top_k', 'load_balancing_weight'}
+        valid_keys = {'input_dim', 'hidden_dim', 'num_heads', 'dropout', 'temperature', 'use_graph', 'use_uncertainty', 'top_k', 'load_balancing_weight', 'num_edges'}
     elif router_type == "graph_aware":
         valid_keys = {'node_feat_dim', 'hidden_dim', 'num_heads', 'dropout'}
     elif router_type == "uncertainty_guided":

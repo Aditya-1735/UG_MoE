@@ -263,7 +263,7 @@ class CrossModalExpertGraph(nn.Module):
             Dict with graph-level fused embeddings per modality
         """
         B = graph.batch_size
-        N = 12  # nodes per graph
+        N = graph.num_nodes() // B  # nodes per graph (12 for SN, 27 for TT)
         
         # Get node embeddings from graph
         metric_emb = graph.ndata.get("metric_emb", None)  # [B*12, D]

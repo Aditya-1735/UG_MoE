@@ -127,7 +127,7 @@ class TemporalExpertGraph(nn.Module):
         """
         # graph.batch_size gives B, graph.num_nodes() = B * 12
         B = graph.batch_size
-        N_per_graph = 12
+        N_per_graph = graph.num_nodes() // B  # 12 for SN, 27 for TT
         
         # Metrics: [B*12, 10, 7] -> reshape to [B, 12, 10, 7] -> [B*12, 10, 7]
         metrics = graph.ndata["metrics"]  # [B*12, 10, 7]

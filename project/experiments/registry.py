@@ -61,7 +61,8 @@ PLAIN_MOE_OVERRIDES = {
 def _ug_moe(metadata, overrides=None):
     config = DEFAULT_CONFIG.copy()
     config.update(
-        log_dim=metadata["event_num"], metric_dim=metadata["metric_num"], num_nodes=metadata["node_num"]
+        log_dim=metadata["event_num"], metric_dim=metadata["metric_num"], num_nodes=metadata["node_num"],
+        num_edges=len(metadata["edges"][0]),
     )
     config.update(overrides or {})
     if "expert_types" in (overrides or {}):

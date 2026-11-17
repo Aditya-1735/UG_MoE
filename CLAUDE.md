@@ -38,7 +38,7 @@ python experiments/run_robustness.py --device cuda                       # Exp. 
 All migrated scripts share the same CLI (`registry.add_common_args`: `--seeds` (default 42), `--epochs`, `--lr`, `--patience`, `--val-ratio`, `--split-seed`, `--data-dir`, `--device`) and write to `project/experiments/runs/<name>_<YYYYMMDD_HHMMSS>/`: `summary.json`, `split.json`, one `<model>_seed<N>.json` per run (with val history) and `<model>_seed<N>_best.pth`. Not yet migrated (they still select on test): `run_routing_analysis.py`, `run_uncertainty_fusion_analysis.py`, `run_track_a_al.py`. These are run on the GPU server (see workflow above), not locally.
 
 - **Tests**: there is no pytest suite wired up. `tracks/proposed_model/test_components.py` is an ad-hoc component shape check (`python tracks/proposed_model/test_components.py`, CPU, random tensors).
-- **Data validation**: `python validation/run_all_gates.py` runs 10 sequential gate scripts (raw integrity → parsed schema → chunk schema → tensor dims → labels → graph → split → artifact comparison → dataloader). Gate 1 hardcodes an absolute `raw_data/SN Dataset` path from the author's machine.
+- **Data checks**: `data_pipeline.build_eadro` prints per-run alignment diagnostics and writes `quality.json` (span / log clock offsets, fraction of events inside the run window, trace coverage, label counts). Check it after every build.
 - **Lint/format config** (`pyproject.toml`): black/flake8 with line length 100. Note `pyproject.toml`'s `[project.dependencies]` is written as a TOML table rather than an array, so `pip install -e .` may fail; don't rely on it.
 
 ## Architecture
@@ -67,11 +67,15 @@ Models are defined once in `project/experiments/registry.py`: `MODELS` (`muad`, 
 
 `run_comparison.py` is the reference for how experiments are wired: Track A is `vendor.muad.models.main_model.MainModel` trained on its own returned `loss` (MUAD objective), Track B is `GraphAwareMoE`, and both go through `common.train_and_select` with identical data, split and seeds. Data loading underneath is `vendor.muad.data.utils.load_data` (returns `train_data, node_num, edges, metadata`) → `ChunkDataset` → DGL dataloaders. Treat `project/vendor/` as third-party; avoid editing it unless a fix is required for both tracks.
 
+### Data pipeline (`project/data_pipeline/`)
+
+`python -m data_pipeline.fetch_eadro` downloads SN and TT from Zenodo 7615394 (MD5-verified) into `project/datasets/eadro/raw/` (gitignored). `python -m data_pipeline.build_eadro --system SN` (or `--system TT --stride 5`) builds `project/datasets/eadro/processed/<SYS>_w10_s<stride>/{chunks.pkl, metadata.json, quality.json}`: 10-s windows, raw metrics, log1p span latency, Drain3 template counts, labels from the fault files, per-run clock-offset detection, and per-chunk `run`, `t0`, `fault_type`, `culprit_service`, `trace_frac`. `common.load_splits` detects this format and splits by run chronologically (`assign_pipeline_runs`). Run `--data-dir datasets/eadro/processed/SN_w10_s1` with any experiment script. `systems.py` takes the service lists and graphs from vendored Eadro (`vendor/eadro/codes/preprocess/util.py`). The models no longer hard-code 12 services / 24 edges (`num_edges` comes from metadata), so TT (27 services / 44 edges) runs.
+
 ### Datasets (see `project/data_README.md`; **do not mix them**)
 
 - `project/recovered_artifact/` — original MUAD dataset (`chunk_{train,test}.pkl` + `metadata.json`, `event_num=15`, 12 nodes, 24 edges), built by Eadro's preprocessing: stride-1 10-second windows from 4 SN fault runs. Labels: culprit 0 normal, 1 cpu_load, 4 network_delay, 5 network_loss. **Use this for Track A vs Track B, always with the run-level split.** `vendor/muad/Dataset/chunk/` is a byte-identical copy.
 - `project/preprocessing/muad_compat/output/` — regenerated data with `event_num=14`; using it for one track and not the other invalidates the comparison.
-- SN (Eadro SocialNetwork): `preprocessing/raw_to_parsed/` (raw → `parsed_data/SN`); `preprocessing/sn/` holds `parse_sn.py` / `create_sequences.py` (unverified). `experiments/convert_sn_dataset.py` is **broken** (its output had wrong shapes and a single label, so it was deleted; see `PROJECT_STATUS.md` §3.11); chunks for Eadro in `vendor/eadro/codes/chunks/SN/`. Raw data (`raw_data/`, `SN_dataset/`, `hdfs_dataset/`) is gitignored.
+- Rebuilt SN / TT from `data_pipeline/` (above). The old SN pipelines (`preprocessing/`, `parsed_data/`, `validation/` gates, `convert_sn_dataset.py`, Eadro chunk copies) were deleted on 2026-11-17. Raw data folders at the repo root (`SN_dataset/`, `raw_data/`, `hdfs_dataset/`) are gitignored leftovers.
 
 ## Repo quirks
 

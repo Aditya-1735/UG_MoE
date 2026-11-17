@@ -62,3 +62,7 @@ tmp/
 
 hdfs_dataset/
 raw_data/
+SN_dataset/
+
+# Eadro datasets fetched / built by project/data_pipeline (re-creatable, MD5-verified)
+project/datasets/
