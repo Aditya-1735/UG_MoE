@@ -11,6 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-18 | **Rounds 16b / 16c (sensitivity, SN):** KL weight, routing temperature, learning rate and window all stay within 3.4 macro-F1 of the default, and the default is best in each (§4). Plan 8H complete on one seed. **Final multi-seed runs started** (seeds 42, 123, 456, 789, 999; `final_*` run directories; `make_report.py` pools seeds per (model, seed) and reuses the seed-42 runs that already used the final protocol). | ✅ |
 | 2026-11-18 | **Reporting:** `experiments/make_report.py` regenerates every table (`tables.md`) and figure (robustness curves, sensitivity panels, fusion weights with trace/log zoom, uncertainty change vs clean, routing heatmaps) from the saved runs listed in its `MANIFEST` (plan §10). Smoke-tested locally on synthetic run files. **Decision (user): modality dropout deferred.** It is not in the implementation guide; revisit only if time allows. The "fails without metrics" result is reported as a limitation. | n/a |
 | 2026-11-17 | **Rounds 12, 15b, 16a** (§4): modality ablation, every modality alone ≥ 0.83 on SN (traces 0.935), all three 0.987 (+2.8 over the best pair). TT ablations disagree with SN (TT needs graph / dynamic routing, SN needs MoE / UG routing / fusion); only the probabilistic representation matters on both; TT single-seed ablations unreliable. Sensitivity: ≥ 2 experts needed; hidden 64 best (32 −0.9, 128 −1.4), so keep 64. | ✅ |
 | 2026-11-17 | **Rounds 11, 14, 15a** (§4): w/o probabilistic representation loses 12.8 / 14.9 F1 at 20 / 40% masking on SN (same clean accuracy), so that component causes the robustness. TT: baselines miss network faults (recall 0.30–0.65 vs 0.88–0.90 for v2, at FPR 0.30 vs 0.13–0.17). TT robustness: v2 best up to 40% masking but the margin vanishes; uncertainty is overconfident under log noise and doesn't flag errors on TT. | ✅ |
@@ -483,6 +484,23 @@ better result).
 - Embedding size: 64 is best; every other size is within 1.4 points. Size sweep (step 13b): 32 loses
   0.9 test points, more than the 0.5-point threshold, so **keep hidden 64**. The 4× larger model is
   slightly worse, so capacity is not what drives the results.
+
+#### Rounds 16b and 16c: sensitivity, KL weight, routing temperature, learning rate, window (SN, 2026-11-18)
+
+`runs/round16b_sens_sn/`, `runs/round16c_sens_sn_{lr1e-4,lr1e-3,w5,w20}/`. Test macro-F1 (default marked *):
+
+| Parameter | Values → macro-F1 |
+|---|---|
+| KL weight λ | 0.001 → 0.979 · **0.01* → 0.987** · 0.1 → 0.953 · 1.0 → 0.972 |
+| Routing temperature | 0.5 → 0.969 · **1.0* → 0.987** · 2.0 → 0.983 |
+| Learning rate | 1e-4 → 0.982 · **5e-4* → 0.987** · 1e-3 → 0.985 |
+| Window (s) | 5 → 0.956 · **10* → 0.987** · 20 → 0.973 |
+
+Every setting stays within 3.4 points of the default (the worst is λ = 0.1). The defaults were fixed
+before these runs, not tuned on test, so no test-set tuning bias. The window runs use rebuilt datasets
+(`SN_w5_s1`, `SN_w20_s1`) with slightly different class balance (trivial macro-F1 0.281 / 0.305), so
+compare them with that in mind. Single seed; the KL-weight curve is non-monotonic (0.1 below 1.0),
+which is probably seed noise.
 
 #### Round 15a: robustness of `abl2:no_probabilistic` on SN (2026-11-17)
 

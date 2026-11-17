@@ -33,10 +33,13 @@ HERE = Path(__file__).resolve().parent
 # Each entry: glob(s) relative to --runs-dir. For baselines-style runs the directory holds summary.json
 # with {"models": {name: {"test": {metric: {"mean", "std", "values"}}, "n_params"}}}.
 MANIFEST = {
-    "main_sn": ["round5_sn/baselines_*", "round6_v2_sn/baselines_*"],
-    "main_tt": ["round7_tt/baselines_*", "round7_v2_tt/baselines_*"],
-    "ablation_sn": ["round9_abl2_sn/baselines_*"],
-    "ablation_tt": ["round15b_abl2_tt/baselines_*"],
+    # single-seed exploration rounds first, final multi-seed runs (final_*) last: same (model, seed) -> final wins
+    "main_sn": ["round5_sn/baselines_*", "round6_v2_sn/baselines_*", "final_sn_main*/baselines_*",
+                "final_sn_steps*/baselines_*"],
+    "main_tt": ["round7_tt/baselines_*", "round7_v2_tt/baselines_*", "final_tt_main*/baselines_*",
+                "final_tt_steps*/baselines_*"],
+    "ablation_sn": ["round9_abl2_sn/baselines_*", "final_sn_abl*/baselines_*"],
+    "ablation_tt": ["round15b_abl2_tt/baselines_*", "final_tt_abl*/baselines_*"],
     "modality_sn": ["round12_modality_sn/baselines_*"],
     "sens_sn": ["round16a_sens_sn/baselines_*", "round16b_sens_sn/baselines_*"],
     # single-model runs whose varied setting is not in the model name: (glob, parameter, value)
@@ -44,14 +47,18 @@ MANIFEST = {
                      ("round16c_sens_sn_lr1e-3/baselines_*", "lr", 1e-3),
                      ("round16c_sens_sn_w5/baselines_*", "window", 5),
                      ("round16c_sens_sn_w20/baselines_*", "window", 20)],
-    "robust_sn": {"ug_moe2:full": "round8_rob_sn_v2/robustness_*", "muad": "round8_rob_sn_muad/robustness_*",
-                  "ug_moe2:plain": "round8_rob_sn_plain/robustness_*",
+    # robustness: [single-seed pattern, final pattern]; the final one (all seeds averaged) wins if it exists
+    "robust_sn": {"ug_moe2:full": ["round8_rob_sn_v2/robustness_*", "final_rob_sn_full_s*/robustness_*"],
+                  "muad": ["round8_rob_sn_muad/robustness_*", "final_rob_sn_muad_s*/robustness_*"],
+                  "ug_moe2:plain": ["round8_rob_sn_plain/robustness_*", "final_rob_sn_plain_s*/robustness_*"],
                   "ug_moe2:graph": "round8_rob_sn_graph/robustness_*",
                   "ug_moe2:prob": "round8_rob_sn_prob/robustness_*",
                   "ug_moe2:ug_routing": "round8_rob_sn_ug_routing/robustness_*",
-                  "abl2:no_probabilistic": "round15a_rob_sn_noprob/robustness_*"},
-    "robust_tt": {"ug_moe2:full": "round14_rob_tt_v2/robustness_*", "muad": "round11_rob_tt_muad/robustness_*",
-                  "gat": "round11_rob_tt_gat/robustness_*"},
+                  "abl2:no_probabilistic": ["round15a_rob_sn_noprob/robustness_*",
+                                            "final_rob_sn_noprob_s*/robustness_*"]},
+    "robust_tt": {"ug_moe2:full": ["round14_rob_tt_v2/robustness_*", "final_rob_tt_full_s*/robustness_*"],
+                  "muad": ["round11_rob_tt_muad/robustness_*", "final_rob_tt_muad_s*/robustness_*"],
+                  "gat": ["round11_rob_tt_gat/robustness_*", "final_rob_tt_gat_s*/robustness_*"]},
     "analysis": {"sn": "round13_analysis_sn/analysis_*", "tt": "round14_analysis_tt/analysis_*"},
 }
 DEFAULTS = {"experts": 4, "hidden_dim": 64, "lambda_kl": 0.01, "routing_temperature": 1.0, "lr": 5e-4, "window": 10}
@@ -92,18 +99,52 @@ def load_json(path, name):
 
 
 def merged_models(runs_dir, patterns):
-    """{model: entry} from several baselines-style runs (later patterns override), plus the trivial row."""
-    models, trivial = {}, None
+    """
+    {model: entry} pooled over every run directory matching the patterns, one result per (model, seed)
+    read from the per-seed files <tag>_seed<N>.json. Later patterns / newer directories override the
+    same (model, seed), so a final multi-seed run replaces an earlier seed-42 run of the same model.
+    entry = {"test": {metric: {"mean", "std", "values"}}, "n_params", "seeds"}; plus the trivial row.
+    """
+    per, params, trivial = {}, {}, None
     for pat in patterns:
-        d = newest(runs_dir, pat)
-        if d is None:
+        hits = sorted(glob.glob(str(runs_dir / pat)))
+        if not hits:
             warn(f"no run matches {pat}")
-            continue
+        for d in map(Path, hits):
+            if (d / "summary.json").exists():
+                s = load_json(d, "summary.json")
+                trivial = trivial or (s or {}).get("trivial_always_anomalous_test")
+            for f in sorted(d.glob("*_seed*.json")):
+                with open(f) as fh:
+                    r = json.load(fh)
+                if "model" in r and "test" in r:
+                    per.setdefault(r["model"], {})[r["seed"]] = r["test"]
+                    params[r["model"]] = r.get("n_params")
+    models = {}
+    for n, by_seed in per.items():
+        test = {k: {"mean": float(np.mean([t[k] for t in by_seed.values()])),
+                    "std": float(np.std([t[k] for t in by_seed.values()])),
+                    "values": [t[k] for t in by_seed.values()]}
+                for k in METRICS if all(k in t for t in by_seed.values())}
+        models[n] = {"test": test, "n_params": params[n], "seeds": sorted(by_seed)}
+    return models, trivial
+
+
+def robustness_runs(runs_dir, pattern):
+    """Average every robustness run matching the pattern (one per seed / checkpoint), cell by cell."""
+    runs = {}
+    for d in map(Path, sorted(glob.glob(str(runs_dir / pattern)))):
         s = load_json(d, "summary.json")
         if s:
-            models.update(s["models"])
-            trivial = trivial or s.get("trivial_always_anomalous_test")
-    return models, trivial
+            runs[s.get("seed", d.name)] = s          # one per seed, newest wins
+
+    def avg(*xs):
+        if isinstance(xs[0], dict):
+            return {k: avg(*[x[k] for x in xs]) for k in xs[0] if all(k in x for x in xs)}
+        return float(np.mean(xs)) if isinstance(xs[0], (int, float)) else xs[0]
+    if not runs:
+        return None
+    return {"results": avg(*[r["results"] for r in runs.values()]), "seeds": sorted(map(str, runs))}
 
 
 def stat(entry, metric):
@@ -132,15 +173,14 @@ def nice(name):
 
 # ------------------------------------------------------------------------------------------- tables
 def main_table(models, trivial, title, order):
-    seeds = max((stat(e, "f1")[2] for e in models.values()), default=1)
-    out = [f"### {title}", "", f"Test set, checkpoint selected on validation macro-F1; {seeds} seed(s).", "",
-           "| Model | Params | " + " | ".join(HEAD) + " |", "|---|---|" + "---|" * len(HEAD)]
+    out = [f"### {title}", "", "Test set, checkpoint selected on validation macro-F1; mean ± std over seeds.", "",
+           "| Model | Params | Seeds | " + " | ".join(HEAD) + " |", "|---|---|---|" + "---|" * len(HEAD)]
     if trivial:
-        out.append("| " + NAMES["trivial"] + " | — | " + " | ".join(f"{trivial[k]:.4f}" for k in METRICS) + " |")
+        out.append("| " + NAMES["trivial"] + " | — | — | " + " | ".join(f"{trivial[k]:.4f}" for k in METRICS) + " |")
     for n in [n for n in order if n in models] + [n for n in models if n not in order]:
         e = models[n]
         p = e.get("n_params")
-        out.append(f"| {nice(n)} | {p / 1000:.0f}k | " if p else f"| {nice(n)} | — | ")
+        out.append(f"| {nice(n)} | {f'{p / 1000:.0f}k' if p else '—'} | {stat(e, 'f1')[2]} | ")
         out[-1] += " | ".join(fmt(e, k) for k in METRICS) + " |"
     return out + [""]
 
@@ -167,7 +207,9 @@ def robustness_table(rob, title):
         cells = [r["clean"]] + [r["drop_modality"][m] for m in ("metrics", "traces", "logs")]
         cells += [r["random_mask"][p] for p in ("0.1", "0.2", "0.4", "0.6")]
         cells += [r["noise"]["metrics+traces+logs"][lv] for lv in ("1.0", "2.0")]
-        out.append(f"| {nice(n)} | " + " | ".join(f"{c['macro_f1']:.3f} ({c['f1']:.3f})" for c in cells) + " |")
+        k = len(s.get("seeds", [])) or 1
+        out.append(f"| {nice(n)} ({k} seed{'s' if k > 1 else ''}) | "
+                   + " | ".join(f"{c['macro_f1']:.3f} ({c['f1']:.3f})" for c in cells) + " |")
     return out + [""]
 
 
@@ -433,13 +475,16 @@ def main():
     print("Robustness")
     for sysname, key in (("SN", "robust_sn"), ("TT", "robust_tt")):
         rob = {}
-        for n, pat in MANIFEST[key].items():
-            d = newest(runs, pat)
-            s = load_json(d, "summary.json") if d else None
+        for n, pats in MANIFEST[key].items():
+            s = None
+            for pat in ([pats] if isinstance(pats, str) else pats)[::-1]:   # the last (final) pattern wins
+                s = robustness_runs(runs, pat)
+                if s:
+                    break
             if s:
                 rob[n] = s
-            elif d is None:
-                warn(f"no run matches {pat}")
+            else:
+                warn(f"no robustness run for {n}")
         if rob:
             md += robustness_table(rob, f"Robustness, {sysname} (plan 8D + 8E)")
             names = {1: "cpu_load", 2: "network_delay", 3: "network_loss"}
