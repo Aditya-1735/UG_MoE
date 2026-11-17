@@ -10,7 +10,7 @@
 
 | Date | Change | Server-verified? |
 |---|---|---|
-| 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT; round 5 SN and round 6 SN were selected with the old rule and are rerun for consistency. | ❌ pending (server rerun) |
+| 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
 | 2026-11-17 | **Round 5 (rebuilt SN / TT)**, server, seed 42 (§4): SN macro-F1 legacy UG-MoE 0.984 > Graph-MoE 0.973 > plain MoE 0.969 > GAT 0.965 > MUAD 0.922. TT: 4 of 5 models collapsed to "all anomalous" because of the selection bug above; results void. | ✅ (TT void) |
 | 2026-11-17 | **Phase 0.1:** uncertainty blocks (`src/uncertainty/uncertainty.py`) now sample with reparameterization only in `train()` mode and return deterministic μ in `eval()`. Variance / log-variance clamps restored. Working-copy `model.py` semantic-expert fix (`expert(graph.ndata["logs"], B)`) kept. Fixes §3.6. | ❌ pending |
 | 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ❌ pending |
@@ -274,6 +274,22 @@ Baselines on the same split, seed and hyperparameters (`runs/baselines_20261117_
 **SN:** every model learns, so the "GAT / Graph-MoE collapse" of round 4 does not reproduce on the rebuilt data. The legacy UG-MoE is best (+6.2 macro-F1 over MUAD, +1.1 over Graph-MoE), and MUAD is last. SN is easy (test = 1 fault + 1 fault-free run).
 
 **TT is invalid: a protocol bug, not a model result.** Four of five models output "anomalous" for every test window (F1 identical to the trivial predictor), yet they rank well (PR-AUC 0.83–0.92, GAT's ROC-AUC 0.90). Cause: the TT validation split had **no fault-free run** (2 fault-free runs, round-robin train / test), so validation was **84.8% anomalous** and the trivial predictor scored **val F1 0.918**. Selecting on anomaly-F1 therefore picked degenerate all-anomalous epochs. MUAD escaped only because its objective never passes through that state. Fixed (log entry below); TT must be rerun. The same weakness probably affected round 4 (validation run 2 is ~83% anomalous; GAT and Graph-MoE were selected at epochs 4 and 2), so the "memorization" reading of round 4 is uncertain until it is rerun with the new rule.
+
+#### Round 6: UG-MoE v2 incremental steps (plan §12) on rebuilt SN (seed 42, 2026-11-17)
+
+`runs/round6_v2_sn/`, selection on val anomaly-F1. On SN that rule picks the same epochs as macro-F1 for every step except `ug_routing` (epoch 20 instead of 12, a tie on val macro-F1 at 0.9775), so these results are valid.
+
+| Step (adds) | Params | Test F1 | Recall | F1 normal | Macro-F1 | PR-AUC |
+|---|---|---|---|---|---|---|
+| plain (experts + router) | — | 0.9834 | 0.9740 | 0.9888 | 0.9861 | 0.9972 |
+| + graph (GAT context, dependency expert) | — | 0.9603 | 0.9307 | 0.9741 | 0.9672 | 0.9956 |
+| + prob (μ, σ, KL) | — | 0.9363 | 0.9030 | 0.9588 | 0.9475 | 0.9929 |
+| + ug_routing | — | 0.9340 | 0.8944 | 0.9578 | 0.9459 | 0.9936 |
+| **full (+ adaptive fusion)** | 166k | **0.9842** | 0.9732 | **0.9894** | **0.9868** | **0.9984** |
+| *ref: legacy UG-MoE (round 5)* | 4.4M | 0.9813 | 0.9775 | 0.9873 | 0.9843 | 0.9980 |
+| *ref: MUAD (round 5)* | 0.24M | 0.9041 | 0.8571 | 0.9397 | 0.9219 | 0.9691 |
+
+**Reading:** the full v2 model is the best model on SN (macro-F1 0.987, +6.5 over MUAD, level with the legacy UG-MoE at 1/25 of its size), but **it is not better than `plain`** (+0.07, noise). The intermediate steps lose 2–4 points, all through recall, and validation macro-F1 is ~0.98 for every step, so this is a val→test generalization gap rather than worse fitting. Adaptive fusion recovers all of it. Components only pay off together, so the §12 "each step adds value" story does not hold on SN. SN is near ceiling. TT (harder, 2 test fault runs) and the robustness experiments (Exp. D/E, where uncertainty-aware fusion should matter) are the decisive tests.
 
 #### Round 4: leak-free run-level split on `recovered_artifact` (seed 42, 2026-11-17)
 
