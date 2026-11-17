@@ -71,7 +71,7 @@ Models are defined once in `project/experiments/registry.py`: `MODELS` (`muad`, 
 
 - `project/recovered_artifact/` — original MUAD dataset (`chunk_{train,test}.pkl` + `metadata.json`, `event_num=15`, 12 nodes, 24 edges). **Use this for Track A vs Track B**; `vendor/muad/Dataset/chunk/` is a byte-identical copy.
 - `project/preprocessing/muad_compat/output/` — regenerated data with `event_num=14`; using it for one track and not the other invalidates the comparison.
-- SN (Eadro SocialNetwork): `preprocessing/raw_to_parsed/` (raw → `parsed_data/SN`); `preprocessing/sn/` holds SN chunks built by `experiments/convert_sn_dataset.py` (451 train / 113 test) plus `parse_sn.py` / `create_sequences.py` (unverified); chunks for Eadro in `vendor/eadro/codes/chunks/SN/`. Raw data (`raw_data/`, `SN_dataset/`, `hdfs_dataset/`) is gitignored.
+- SN (Eadro SocialNetwork): `preprocessing/raw_to_parsed/` (raw → `parsed_data/SN`); `preprocessing/sn/` holds `parse_sn.py` / `create_sequences.py` (unverified). `experiments/convert_sn_dataset.py` is **broken** (its output had wrong shapes and a single label, so it was deleted; see `PROJECT_STATUS.md` §3.11); chunks for Eadro in `vendor/eadro/codes/chunks/SN/`. Raw data (`raw_data/`, `SN_dataset/`, `hdfs_dataset/`) is gitignored.
 
 ## Repo quirks
 
