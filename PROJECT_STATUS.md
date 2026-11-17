@@ -11,6 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-17 | **Exp. F + G** (`experiments/run_analysis.py`, round 13, SN): uncertainty rises and the fusion weight falls for a corrupted modality (works in direction), but metrics keep ≥ 88% of the weight even when missing (too weak to fall back). Uncertainty is higher on wrong predictions. Metric routing specializes by fault type (normal → GAT expert 0.87, cpu → cross-modal 0.95, network → temporal). | ✅ |
 | 2026-11-17 | **Round 8 (robustness, SN)**, server, seed 42 (§4): UG-MoE v2 beats MUAD under masking and noise (p = 0.4 masking: 0.856 vs 0.716 F1; metric noise σ = 1: 0.964 vs 0.856), with about half the relative drop. Both collapse to trivial without metrics. **Attribution over the §12 steps:** full ≈ plain on clean data, but **full beats plain by +10.7 / +13.4 F1 at 20 / 40% masking**, and plain is no better than MUAD there. The robustness comes from the probabilistic representation plus adaptive fusion. | ✅ |
 | 2026-11-17 | **Round 5 (rebuilt SN / TT)**, server, seed 42 (§4): SN macro-F1 legacy UG-MoE 0.984 > Graph-MoE 0.973 > plain MoE 0.969 > GAT 0.965 > MUAD 0.922. TT: 4 of 5 models collapsed to "all anomalous" because of the selection bug above; results void. | ✅ (TT void) |
 | 2026-11-17 | **Phase 0.1:** uncertainty blocks (`src/uncertainty/uncertainty.py`) now sample with reparameterization only in `train()` mode and return deterministic μ in `eval()`. Variance / log-variance clamps restored. Working-copy `model.py` semantic-expert fix (`expert(graph.ndata["logs"], B)`) kept. Fixes §3.6. | ❌ pending |
@@ -356,6 +357,42 @@ are simply invisible on the test runs is now measured: `evaluate` reports per-fa
   claim robustness to *missing* data and moderate noise, not to extreme noise. Graph-aware routing on
   its own makes the model *more* fragile to noise (σ = 2: 0.635). Single seed; confirm with 5 seeds in
   the final runs.
+
+#### Round 13: routing and uncertainty analysis (Exp. F + G), UG-MoE v2 full, SN test (2026-11-17)
+
+`runs/round13_analysis_sn/analysis_ug_moe2_full_20261117_191831` (`run_analysis.py`, round 6 checkpoint).
+
+**G, fusion and uncertainty.** Mean fusion weight / mean predicted log-variance per modality:
+
+| Condition | F1 | w metric | w trace | w log | logvar metric | logvar trace | logvar log |
+|---|---|---|---|---|---|---|---|
+| clean | 0.984 | 0.959 | 0.029 | 0.013 | −0.22 | −0.03 | +0.03 |
+| drop metrics | 0.579 | 0.880 | 0.093 | 0.027 | **−0.02** | −0.09 | +0.04 |
+| drop traces | 0.979 | 0.972 | **0.015** | 0.013 | −0.23 | **+0.08** | +0.03 |
+| drop logs | 0.981 | 0.964 | 0.021 | 0.015 | −0.22 | +0.02 | **+0.15** |
+| mask 20% | 0.934 | 0.932 | 0.044 | 0.024 | −0.04 | −0.02 | +0.00 |
+| mask 40% | 0.846 | **0.889** | 0.068 | 0.043 | **+0.09** | +0.00 | −0.01 |
+| noise metrics σ=1 | 0.971 | **0.910** | 0.062 | 0.028 | **−0.07** | −0.03 | +0.03 |
+| noise all σ=1 | 0.960 | 0.874 | 0.094 | 0.032 | −0.07 | +0.03 | +0.06 |
+
+- **The mechanism works in the intended direction.** A perturbed modality's predicted uncertainty
+  rises (metrics −0.22 → −0.07 under noise, → +0.09 at 40% masking; traces −0.03 → +0.08 when dropped;
+  logs +0.03 → +0.15 when dropped), and its fusion weight falls while the others gain (metric weight
+  0.96 → 0.91 under metric noise, → 0.89 at 40% masking).
+- **But the shift is small.** On clean data metrics get 96% of the fusion weight. Even with metrics
+  dropped they keep 88%, which is why the model collapses without metrics: the uncertainty signal is
+  right but not strong enough to hand the decision to traces and logs. (Modality dropout in training
+  would address this; it is a deviation and needs a proposal.)
+- **Uncertainty flags errors:** fusion-weighted log-variance is −0.227 on correct predictions vs −0.042
+  on the 36 wrong ones.
+
+**F, expert routing (clean test).** Routing entropy (0 = a single expert, 1 = uniform): metric 0.41,
+trace 0.65, log 0.97.
+- **Metric routing specializes by fault type:** normal → dependency (GAT) expert 0.87; cpu_load →
+  cross-modal expert 0.95; network delay / loss → mainly temporal (0.52 / 0.49, entropy 0.83).
+- Trace routing favours the cross-modal expert (0.67), consistent with sparse traces drawing on the
+  other modalities. Log routing is near-uniform, matching the logs' tiny fusion weight (they are barely
+  used). The semantic expert is rarely chosen (0.03–0.19).
 
 #### Round 4: leak-free run-level split on `recovered_artifact` (seed 42, 2026-11-17)
 

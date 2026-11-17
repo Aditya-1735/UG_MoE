@@ -294,6 +294,31 @@ each column compares the models on identical perturbations. Test F1 (relative dr
 - Limit: under extreme noise on *all* modalities (σ = 2 × std), plain is better (0.835 vs 0.790). The
   claim is robustness to **missing data and moderate noise**.
 
+### 4.7 Does the uncertainty do what it is meant to? (plan Exp. F/G; `runs/round13_analysis_sn/`)
+We evaluated the trained full v2 model under perturbations and recorded, per modality, its predicted
+uncertainty (log-variance) and its fusion weight.
+
+| Condition | F1 | Fusion weight metric / trace / log | Uncertainty of the perturbed modality |
+|---|---|---|---|
+| clean | 0.984 | 0.959 / 0.029 / 0.013 | (metric −0.22, trace −0.03, log +0.03) |
+| noise on metrics (σ = 1) | 0.971 | **0.910** / 0.062 / 0.028 | metric −0.22 → **−0.07** |
+| 40% masking | 0.846 | **0.889** / 0.068 / 0.043 | metric −0.22 → **+0.09** |
+| traces dropped | 0.979 | 0.972 / **0.015** / 0.013 | trace −0.03 → **+0.08** |
+| logs dropped | 0.981 | 0.964 / 0.021 / 0.015 | log +0.03 → **+0.15** |
+| metrics dropped | 0.579 | 0.880 / 0.093 / 0.027 | metric −0.22 → −0.02 |
+
+- **Yes, in direction:** when a modality is corrupted, the model's uncertainty for that modality goes
+  up, and its fusion weight goes down in favour of the others. This is the behaviour the method claims,
+  and MUAD's code cannot produce it reliably (§2.2–2.3).
+- **Not in size:** metrics carry 96% of the weight on clean data and still 88% when they are missing,
+  so the shift is too small to hand the decision to traces and logs. This is why both models fail
+  without metrics (§4.5). The planned remedy is modality dropout during training.
+- **Uncertainty flags errors:** the uncertainty is higher on wrong predictions (−0.04) than on
+  correct ones (−0.23).
+- **The experts specialize by fault type** (metric routing): normal windows go mostly to the dependency
+  (GAT) expert (0.87), CPU-load faults to the cross-modal expert (0.95), network delay / loss mainly to the
+  temporal expert (~0.5). So the router learned fault-specific paths, as intended (plan Exp. F).
+
 ---
 
 ## 5. Why UG-MoE is better than MUAD, and how far the evidence goes
