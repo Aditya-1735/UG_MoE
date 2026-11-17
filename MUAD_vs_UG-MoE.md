@@ -25,9 +25,11 @@ can be checked. Things not yet shown are listed in §6.
      (MUAD: 240k).
 5. **Honest limit:** on SN the full UG-MoE v2 is level with its own "plain" variant (experts + router,
    no graph or uncertainty: 0.986). So the gain over MUAD currently comes from the **mixture-of-experts
-   architecture**. The uncertainty components still have to show their value where the plan says they
-   should: robustness to missing or noisy modalities (round 8, running) and the TT dataset (round 7,
-   running).
+   architecture**. The uncertainty components still have to show their own value.
+   **Robustness (round 8): UG-MoE v2 degrades about half as much as MUAD under masking and noise**
+   (e.g. 40% masking: 0.856 vs 0.716 F1). Whether that comes from the uncertainty components is being
+   checked against the "plain" variant. Both models still fail completely without metrics. TT
+   (round 7) is running.
 
 ---
 
@@ -247,6 +249,32 @@ Validation macro-F1 is about 0.98 for **every** step. The middle steps fit the d
 others, but generalize worse to the unseen test run. Adaptive fusion recovers the loss completely. On SN
 the components only help **together**, and the full model is not better than "plain" on clean data.
 
+### 4.5 Robustness on rebuilt SN (plan Exp. D/E; round 8, `runs/round8_rob_sn_v2/`, `runs/round8_rob_sn_muad/`)
+Saved checkpoints from §4.3, perturbed only at test time. The clean scores reproduce §4.3 exactly, which
+confirms the checkpoints loaded correctly. Masking = random (window, service, modality) entries set to
+zero; noise = Gaussian with σ = level × the training standard deviation per channel. Test F1 (relative drop):
+
+| Perturbation | UG-MoE v2 full | MUAD |
+|---|---|---|
+| Clean | 0.9842 | 0.9037 |
+| Random mask 10% | 0.962 (−2.3%) | 0.857 (−5.2%) |
+| Random mask 20% | 0.931 (−5.5%) | 0.809 (−10.5%) |
+| Random mask 40% | 0.856 (−13.0%) | 0.716 (−20.8%) |
+| Random mask 60% | 0.748 (−24.0%); macro-F1 0.763 | 0.662 (−26.8%); macro-F1 0.584 |
+| Noise on metrics, σ = 1 × std | 0.964 (−2.1%) | 0.856 (−5.3%) |
+| Noise on metrics, σ = 2 × std | 0.872 (−11.4%) | 0.742 (−17.9%) |
+| Noise on all three modalities, σ = 2 | 0.790 (−19.8%) | 0.699 (−22.7%) |
+| Drop traces / drop logs | 0.979 / 0.981 | 0.901 / 0.897 |
+| **Drop metrics** | **0.579 = trivial** | **0.579 = trivial** |
+
+- UG-MoE v2 is **more robust than MUAD in every masking and noise setting**: higher absolute F1, and
+  about **half the relative drop** at moderate perturbation (masking ≤ 40%, noise σ ≤ 1).
+- **Both models fail without metrics.** Traces and logs now contribute a little (they had no effect
+  before normalization, §2.5), but neither model can detect anomalies from them alone. Graceful
+  degradation when the dominant modality is missing is **not achieved by either model**.
+- Still open: does the robustness gain come from the uncertainty components or from the MoE
+  architecture? The same test on the "plain" variant answers it.
+
 ---
 
 ## 5. Why UG-MoE is better than MUAD, and how far the evidence goes
@@ -271,8 +299,9 @@ the components only help **together**, and the full model is not better than "pl
 **Not yet supported, so don't claim it yet:**
 - That the *uncertainty* components (probabilistic representation, uncertainty routing) improve accuracy:
   on SN the full model equals "plain" (§4.4).
-- Robustness to missing or noisy modalities (plan Exp. D/E), the main argument for those
-  components: **round 8 running** (UG-MoE v2 vs MUAD on SN).
+- That the *uncertainty* components cause the robustness gain over MUAD (§4.5): this needs the same
+  test on `ug_moe2:plain` (next run).
+- Graceful degradation when metrics are missing: neither model has it (§4.5).
 - TT results: **round 7 running**.
 
 ---

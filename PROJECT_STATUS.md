@@ -11,6 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-17 | **Round 8 (robustness, SN)**, server, seed 42 (§4): UG-MoE v2 beats MUAD under masking and noise (p = 0.4 masking: 0.856 vs 0.716 F1; metric noise σ = 1: 0.964 vs 0.856), with about half the relative drop. Both collapse to trivial without metrics. | ✅ |
 | 2026-11-17 | **Round 5 (rebuilt SN / TT)**, server, seed 42 (§4): SN macro-F1 legacy UG-MoE 0.984 > Graph-MoE 0.973 > plain MoE 0.969 > GAT 0.965 > MUAD 0.922. TT: 4 of 5 models collapsed to "all anomalous" because of the selection bug above; results void. | ✅ (TT void) |
 | 2026-11-17 | **Phase 0.1:** uncertainty blocks (`src/uncertainty/uncertainty.py`) now sample with reparameterization only in `train()` mode and return deterministic μ in `eval()`. Variance / log-variance clamps restored. Working-copy `model.py` semantic-expert fix (`expert(graph.ndata["logs"], B)`) kept. Fixes §3.6. | ❌ pending |
 | 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ❌ pending |
@@ -291,6 +292,27 @@ Baselines on the same split, seed and hyperparameters (`runs/baselines_20261117_
 | *ref: MUAD (round 5)* | 0.24M | 0.9041 | 0.8571 | 0.9397 | 0.9219 | 0.9691 |
 
 **Reading:** the full v2 model is the best model on SN (macro-F1 0.987, +6.5 over MUAD, level with the legacy UG-MoE at 1/25 of its size), but **it is not better than `plain`** (+0.07, noise). The intermediate steps lose 2–4 points, all through recall, and validation macro-F1 is ~0.98 for every step, so this is a val→test generalization gap rather than worse fitting. Adaptive fusion recovers all of it. Components only pay off together, so the §12 "each step adds value" story does not hold on SN. SN is near ceiling. TT (harder, 2 test fault runs) and the robustness experiments (Exp. D/E, where uncertainty-aware fusion should matter) are the decisive tests.
+
+#### Round 8: robustness (Exp. D/E) on rebuilt SN, UG-MoE v2 full vs MUAD (seed 42, 2026-11-17)
+
+`runs/round8_rob_sn_v2/`, `runs/round8_rob_sn_muad/` (round 6 / round 5 checkpoints; clean scores reproduce exactly: v2 0.9842 F1, MUAD 0.9037, MUAD varies by ±0.0005 because it samples at test time). Test F1, with relative drop in brackets.
+
+| Perturbation | UG-MoE v2 full | MUAD |
+|---|---|---|
+| Clean | 0.9842 (macro 0.9868) | 0.9037 (macro 0.9216) |
+| Drop metrics | 0.5787 = trivial (−41.2%) | 0.5787 = trivial (−36.0%) |
+| Drop traces | 0.9793 (−0.5%) | 0.9009 (−0.3%) |
+| Drop logs | 0.9811 (−0.3%) | 0.8968 (−0.8%) |
+| Random mask p = 0.1 / 0.2 / 0.4 / 0.6 | 0.962 / 0.931 / 0.856 / 0.748 (−2.3 / −5.5 / −13.0 / −24.0%) | 0.857 / 0.809 / 0.716 / 0.662 (−5.2 / −10.5 / −20.8 / −26.8%) |
+| Macro-F1 at p = 0.6 | 0.763 | 0.584 |
+| Noise on metrics σ = 1 / 2 × std | 0.964 / 0.872 (−2.1 / −11.4%) | 0.856 / 0.742 (−5.3 / −17.9%) |
+| Noise on all modalities σ = 1 / 2 | 0.960 / 0.790 (−2.5 / −19.8%) | 0.841 / 0.699 (−7.0 / −22.7%) |
+| Noise on traces / logs only, σ = 2 | 0.977 / 0.983 | 0.895 / 0.900 |
+
+**Reading:**
+- **UG-MoE v2 is more robust than MUAD under every perturbation except dropping a whole modality:** higher absolute F1 everywhere, and a relative drop about half MUAD's under masking (p ≤ 0.4) and metric noise (σ ≤ 1).
+- **Both models fail completely without metrics** (trivial predictor). Traces and logs are now used a little (dropping them costs 0.3–0.8 points; before normalization exactly 0), but neither model can fall back on them. So uncertainty-aware fusion does not give graceful degradation for a missing *dominant* modality. That is the plan's Exp. D claim, and it is not met by either model. The standard remedy is modality dropout during training, which would be a deviation (rule 7), so it needs a proposal first.
+- Whether the robustness gain comes from the *uncertainty* components or from the MoE architecture needs the same test on `ug_moe2:plain` (next run).
 
 #### Round 4: leak-free run-level split on `recovered_artifact` (seed 42, 2026-11-17)
 
