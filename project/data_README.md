@@ -57,11 +57,14 @@ What the builder does (details in `data_pipeline/build_eadro.py`):
 
 **Split** (`experiments/common.assign_pipeline_runs`, automatic for these directories): fault runs in
 chronological order, with the last ⌈20%⌉ as test, the ⌈20%⌉ before them as validation and the rest as
-training; fault-free runs are spread round-robin in the order train, test, val. No window crosses splits.
+training. Fault-free runs: with at least 3 (SN) they are assigned whole, round-robin train, test, val;
+with fewer (TT has 2) each one is cut chronologically into 60 / 20 / 20% train / val / test segments
+(windows straddling a cut are dropped), so every split contains normal operation. No window crosses splits.
 - **SN** (stride 1): train = 2 fault runs + 1 normal run (4,236 windows), val = 1 fault + 1 normal,
   test = 1 fault + 1 normal (~2,835 each); about 53% normal. A trivial "all anomalous" predictor gets
   test F1 ≈ 0.58 / macro-F1 ≈ 0.29.
-- **TT** (stride 5): train = 5 fault + 1 normal (8,075), val = 2 fault (2,582), test = 2 fault + 1 normal
-  (4,202). Trivial test F1 0.685 / macro-F1 0.343. **TT traces cover only 2–4% of seconds** (sparse
+- **TT** (stride 5): train = 5 fault runs + the first 60% of both fault-free runs (8,397), val = 2 fault
+  runs + 60–80% segments (3,228), test = 2 fault runs + last 20% segments (3,226); val / test ~68%
+  anomalous, trivial test F1 0.809 / macro-F1 0.404. **TT traces cover only 2–4% of seconds** (sparse
   spans), so TT is effectively a metrics + logs dataset. The two TT fault-free runs have identical
   request counts but different files (MD5), consistent with a replayed load generator, not duplicates.

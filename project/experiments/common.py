@@ -133,14 +133,19 @@ def reconstruct_runs(chunks: Dict) -> List[List[str]]:
     return runs
 
 
+NORMAL_SEGMENTS = (("train", 0.0, 0.6), ("val", 0.6, 0.8), ("test", 0.8, 1.0))
+
+
 def assign_pipeline_runs(runs: List[Dict], frac_eval: float = 0.2) -> Dict[str, List[int]]:
     """
     Chronological run-level split for data built by data_pipeline.build_eadro:
       fault runs sorted by start time -> the last ceil(frac_eval * n) are TEST, the
       ceil(frac_eval * n) before them are VAL, the rest TRAIN (no future information in training);
       SN (4 fault runs): 2 / 1 / 1, TT (9): 5 / 2 / 2.
-      Fault-free runs (recorded days later) are spread round-robin in the order train, test, val, so
-      the test split always contains purely-normal operation (SN: one each; TT: train + test).
+      Fault-free runs (recorded days later): every split must contain purely-normal operation.
+      With >= 3 of them (SN) they are assigned whole, round-robin train, test, val. With fewer (TT
+      has 2) each one is listed under "segmented" and cut chronologically into train / val / test
+      segments (NORMAL_SEGMENTS, see segment_normal_runs).
     """
     fault = sorted((r for r in runs if r["kind"] == "fault"), key=lambda r: r["t0"])
     normal = sorted((r for r in runs if r["kind"] == "normal"), key=lambda r: r["t0"])
@@ -152,9 +157,32 @@ def assign_pipeline_runs(runs: List[Dict], frac_eval: float = 0.2) -> Dict[str, 
         k = (n - 1) // 2
     out = {"train": [r["index"] for r in fault[: n - 2 * k]],
            "val": [r["index"] for r in fault[n - 2 * k: n - k]],
-           "test": [r["index"] for r in fault[n - k:]]}
-    for i, r in enumerate(normal):
-        out[("train", "test", "val")[i % 3]].append(r["index"])
+           "test": [r["index"] for r in fault[n - k:]], "segmented": []}
+    if len(normal) >= 3:
+        for i, r in enumerate(normal):
+            out[("train", "test", "val")[i % 3]].append(r["index"])
+    else:
+        out["segmented"] = [r["index"] for r in normal]
+    return out
+
+
+def segment_normal_runs(chunks: Dict, runs: List[Dict], run_ids: List[int], window: int) -> Dict[str, List[str]]:
+    """
+    Cut each fault-free run in run_ids chronologically at 60% / 80% of its duration into
+    train / val / test segments. A window is kept only if it lies entirely inside one segment;
+    windows straddling a cut are dropped so no second of data is shared between splits.
+    """
+    out = {s: [] for s, _, _ in NORMAL_SEGMENTS}
+    for ri in run_ids:
+        r = runs[ri]
+        for k, c in chunks.items():
+            if c["run_index"] != ri:
+                continue
+            a = c["t0"] - r["t0"]
+            for s, lo, hi in NORMAL_SEGMENTS:
+                if a >= lo * r["seconds"] and a + window <= hi * r["seconds"]:
+                    out[s].append(k)
+                    break
     return out
 
 
@@ -164,9 +192,14 @@ def _load_pipeline_splits(data_dir: Path, batch_size: int, split_out: Optional[P
     assignment = assign_pipeline_runs(metadata["runs"])
     ids = {s: sorted(k for k, c in chunks.items() if c["run_index"] in set(assignment[s]))
            for s in ("train", "val", "test")}
+    if assignment["segmented"]:
+        seg = segment_normal_runs(chunks, metadata["runs"], assignment["segmented"], int(metadata["chunk_lenth"]))
+        ids = {s: sorted(ids[s] + seg[s]) for s in ids}
     split_info = {"data_dir": str(data_dir), "split": "pipeline_runs", "system": metadata.get("system"),
                   "runs": {s: [metadata["runs"][i]["name"] + f" ({metadata['runs'][i]['kind']})"
-                               for i in assignment[s]] for s in assignment}}
+                               for i in assignment[s]] for s in assignment},
+                  "normal_segments": {s: [lo, hi] for s, lo, hi in NORMAL_SEGMENTS}
+                  if assignment["segmented"] else None}
     if split_out is not None:
         split_out = Path(split_out)
         split_out.parent.mkdir(parents=True, exist_ok=True)
@@ -374,9 +407,14 @@ def evaluate(model, loader, device, forward_fn: ForwardFn = default_forward) -> 
 
 
 def _selection_key(m: Dict[str, float]) -> Tuple[float, float]:
-    """Model selection on validation: F1 (anomaly class), ties broken by PR-AUC."""
+    """
+    Model selection on validation: macro-F1, ties broken by PR-AUC (guide §: "best checkpoint based
+    on validation F1 or PR-AUC"). Not anomaly-class F1: on an anomaly-heavy validation split the
+    trivial all-anomalous predictor scores F1 ~0.9 and wins selection (round 5 TT, PROJECT_STATUS),
+    whereas its macro-F1 is <= 0.5.
+    """
     pr = m["pr_auc"] if np.isfinite(m["pr_auc"]) else 0.0
-    return (m["f1"], pr)
+    return (m["macro_f1"], pr)
 
 
 def train_and_select(

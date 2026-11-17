@@ -10,6 +10,8 @@
 
 | Date | Change | Server-verified? |
 |---|---|---|
+| 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT; round 5 SN and round 6 SN were selected with the old rule and are rerun for consistency. | ❌ pending (server rerun) |
+| 2026-11-17 | **Round 5 (rebuilt SN / TT)**, server, seed 42 (§4): SN macro-F1 legacy UG-MoE 0.984 > Graph-MoE 0.973 > plain MoE 0.969 > GAT 0.965 > MUAD 0.922. TT: 4 of 5 models collapsed to "all anomalous" because of the selection bug above; results void. | ✅ (TT void) |
 | 2026-11-17 | **Phase 0.1:** uncertainty blocks (`src/uncertainty/uncertainty.py`) now sample with reparameterization only in `train()` mode and return deterministic μ in `eval()`. Variance / log-variance clamps restored. Working-copy `model.py` semantic-expert fix (`expert(graph.ndata["logs"], B)`) kept. Fixes §3.6. | ❌ pending |
 | 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ❌ pending |
 | 2026-11-17 | **Decision:** because of time constraints, all experiments run with a **single seed (42)** for now. Multi-seed runs (5 seeds plus paired t-test) are deferred to the final paper runs (Phase 3–4). Single-seed differences below about 1 F1 point are not evidence of improvement. | n/a |
@@ -255,6 +257,23 @@ Baselines on the same split, seed and hyperparameters (`runs/baselines_20261117_
 **Reading (baselines):** the best model on every metric is **plain MoE**, i.e. UG-MoE *with its proposed components switched off*. It beats full UG-MoE by +0.38 F1, +1.83 normal-class F1 and +1.11 macro-F1 points (seed 42 only, but the macro-F1 gap is above the ~1-point single-seed threshold). The components that make up the "UG" part (variational uncertainty blocks plus KL, the uncertainty-guided router with its undocumented loss term (§3.3), confidence fusion) are currently **hurting**. Phase 2 therefore has to show that each component, once fixed, adds value over plain MoE. That is the plan's own incremental order (§12 steps 6→10). Plain MoE also peaked at the last epoch (50), so a longer budget is needed in the next round.
 
 **Reading (Track A vs B):** with model selection moved off the test set, **the claimed UG-MoE advantage disappears.** On F1 and macro-F1 Track B is level with MUAD or marginally below it (−0.03 / −0.09 points, well within single-seed noise). It is slightly higher only on the ranking metrics (PR-AUC +0.06, ROC-AUC +0.32 points), and that is not a significant edge either. This happens with an 18× larger model. It is consistent with §3.1–3.3: as currently wired, the MoE parts contribute nothing. Track B's best epoch is 49 of 50, so it may still be improving; allow more epochs in the next comparison. The old-protocol numbers below (0.9896 vs 0.9918, "p = 0.005") should be treated as an artifact of test-set selection.
+
+#### Round 5: rebuilt Eadro SN / TT, chronological run split (seed 42, 2026-11-17)
+
+`runs/round5_sn/`, `runs/round5_tt/`. Selection was still on **val anomaly-F1** (the old rule). Test macro-F1:
+
+| Model | SN F1 | SN macro-F1 | SN PR-AUC | TT F1 | TT F1 normal | TT macro-F1 | TT PR-AUC | TT ROC-AUC |
+|---|---|---|---|---|---|---|---|---|
+| Trivial "all anomalous" | 0.5787 | 0.2893 | 0.4071 | 0.6852 | 0 | 0.3426 | 0.5212 | 0.5 |
+| UG-MoE (legacy) | **0.9813** | **0.9843** | **0.9980** | 0.6852 | 0 | 0.3426 (= trivial) | 0.8306 | 0.7626 |
+| Graph-MoE | 0.9681 | 0.9733 | 0.9936 | 0.6852 | 0 | 0.3426 (= trivial) | 0.8448 | 0.7891 |
+| Plain MoE | 0.9624 | 0.9690 | 0.9955 | 0.6852 | 0 | 0.3426 (= trivial) | 0.8315 | 0.7561 |
+| GAT | 0.9579 | 0.9650 | 0.9940 | 0.6853 | 0.001 | 0.3432 (≈ trivial) | **0.9167** | **0.8998** |
+| MUAD | 0.9041 | 0.9219 | 0.9691 | **0.7091** | **0.7471** | **0.7281** | 0.8453 | 0.7979 |
+
+**SN:** every model learns, so the "GAT / Graph-MoE collapse" of round 4 does not reproduce on the rebuilt data. The legacy UG-MoE is best (+6.2 macro-F1 over MUAD, +1.1 over Graph-MoE), and MUAD is last. SN is easy (test = 1 fault + 1 fault-free run).
+
+**TT is invalid: a protocol bug, not a model result.** Four of five models output "anomalous" for every test window (F1 identical to the trivial predictor), yet they rank well (PR-AUC 0.83–0.92, GAT's ROC-AUC 0.90). Cause: the TT validation split had **no fault-free run** (2 fault-free runs, round-robin train / test), so validation was **84.8% anomalous** and the trivial predictor scored **val F1 0.918**. Selecting on anomaly-F1 therefore picked degenerate all-anomalous epochs. MUAD escaped only because its objective never passes through that state. Fixed (log entry below); TT must be rerun. The same weakness probably affected round 4 (validation run 2 is ~83% anomalous; GAT and Graph-MoE were selected at epochs 4 and 2), so the "memorization" reading of round 4 is uncertain until it is rerun with the new rule.
 
 #### Round 4: leak-free run-level split on `recovered_artifact` (seed 42, 2026-11-17)
 
