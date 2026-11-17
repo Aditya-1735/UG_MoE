@@ -45,7 +45,7 @@ def main():
 
     summary = {
         "experiment": "baselines",
-        "protocol": "train/val/test; checkpoint selected on val F1 (tie: PR-AUC); test evaluated once",
+        "protocol": "train/val/test; checkpoint selected on val macro-F1 (tie: PR-AUC); test evaluated once",
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "config": vars(args),
         "sizes": loaders["sizes"],

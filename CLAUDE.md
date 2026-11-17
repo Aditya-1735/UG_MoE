@@ -33,6 +33,7 @@ python experiments/run_comparison.py --seeds 42,123,456,789,999          # multi
 python experiments/run_baselines.py --device cuda                        # Exp. A: muad, gat, plain_moe, graph_moe, ug_moe (--models to subset)
 python experiments/run_ablations.py --device cuda                        # ug_moe + all ablations (--ablations no_graph,no_fusion to subset)
 python experiments/run_robustness.py --device cuda                       # Exp. D+E on ug_moe (--model, --checkpoint <best.pth> to skip training)
+python experiments/make_report.py                                        # all paper tables (tables.md) + figures from saved runs (no GPU); edit MANIFEST to point at the final runs
 python experiments/run_analysis.py --device cuda --checkpoint <ug_moe2_full_seed42_best.pth> --data-dir <dir>   # Exp. F+G: routing heatmaps/entropy, fusion weights + uncertainty under perturbation (no training)
 ```
 
