@@ -33,6 +33,7 @@ python experiments/run_comparison.py --seeds 42,123,456,789,999          # multi
 python experiments/run_baselines.py --device cuda                        # Exp. A: muad, gat, plain_moe, graph_moe, ug_moe (--models to subset)
 python experiments/run_ablations.py --device cuda                        # ug_moe + all ablations (--ablations no_graph,no_fusion to subset)
 python experiments/run_robustness.py --device cuda                       # Exp. D+E on ug_moe (--model, --checkpoint <best.pth> to skip training)
+python experiments/run_analysis.py --device cuda --checkpoint <ug_moe2_full_seed42_best.pth> --data-dir <dir>   # Exp. F+G: routing heatmaps/entropy, fusion weights + uncertainty under perturbation (no training)
 ```
 
 All migrated scripts share the same CLI (`registry.add_common_args`: `--seeds` (default 42), `--epochs`, `--lr`, `--patience`, `--val-ratio`, `--split-seed`, `--data-dir`, `--device`) and write to `project/experiments/runs/<name>_<YYYYMMDD_HHMMSS>/`: `summary.json`, `split.json`, one `<model>_seed<N>.json` per run (with val history) and `<model>_seed<N>_best.pth`. Not yet migrated (they still select on test): `run_routing_analysis.py`, `run_uncertainty_fusion_analysis.py`, `run_track_a_al.py`. These are run on the GPU server (see workflow above), not locally.
