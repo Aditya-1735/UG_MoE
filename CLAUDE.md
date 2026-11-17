@@ -9,7 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 3. **Don't trust the docs, trust the code**: the project was previously developed with opencode. `UG-MoE-Research-Paper-Draft.md` is documentation produced from that work, and nobody knows whether it is correct against the plan. The baseline paper is `7. Uncertainty-Aware_Multimodal_Anomaly_Detection_for_Microservice_Systems_With_Active_Learning.pdf` (MUAD), and the supervisor's plan is `7. UG-MoE_Implementation_Guide.md`. It is unknown how much of the implementation actually follows them. Do not assume anything claimed in the `.md` files (status tables, reported results, "complete" markers) is true unless the Python code confirms it; the Python files are the primary source of truth. When code and plan disagree, flag it rather than silently picking one.
 4. **Existing results**: everything in `project/experiments/runs/` (logs and `summary.json` files) was produced on the `project/recovered_artifact` dataset (`event_num=15`).
 5. **Status tracking**: `PROJECT_STATUS.md` (repo root) is the code-verified record of what is done, broken, and next relative to the implementation guide. Read it before starting work and update it when a phase/step changes.
-6. **Keep it clean**: this is meant to become a research-paper codebase that works properly and follows the plan. Keep the directory tidy (no stray artifacts, scratch files or duplicate output dirs) and keep committing/pushing only what we are confident about.
+6. **Single seed for now** (time constraint, set 2026-11-17): every experiment runs with **seed 42 only**. Give the user single-seed commands (`--seeds 42`), make new scripts default to one seed, and don't propose multi-seed runs. Keep scripts *able* to take several seeds so final paper runs can use 5 seeds later. Single-seed results have no std or significance test, so compare them with that caveat and don't call sub-1-point F1 differences an improvement.
+7. **Keep it clean**: this is meant to become a research-paper codebase that works properly and follows the plan. Keep the directory tidy (no stray artifacts, scratch files or duplicate output dirs) and keep committing/pushing only what we are confident about.
 
 ## What this repo is
 
@@ -26,8 +27,8 @@ cd project
 # Environment: conda env "muad" (see ../activate_conda.sh: sets DGLBACKEND=pytorch and CUDA_VISIBLE_DEVICES=2).
 # Needs torch, dgl, numpy, scipy, scikit-learn, matplotlib. There is also a project/.venv on the author's machine.
 
-python experiments/run_comparison.py --seeds 42 --device cuda            # Track A vs Track B smoke test (paired t-test over seeds)
-python experiments/run_comparison.py --seeds 42,123,456,789,999          # full comparison
+python experiments/run_comparison.py --seeds 42 --device cuda            # Track A vs Track B (current standard: single seed)
+python experiments/run_comparison.py --seeds 42,123,456,789,999          # multi-seed + paired t-test (only for final paper runs)
 python experiments/run_ablations.py --seeds 42 --ablation no_graph       # one ablation (omit --ablation for all 6)
 python experiments/run_track_b_full.py                                   # Track B alone; Track A = run_track_a_full.py / run_track_a_al.py (active learning)
 python experiments/run_hdfs.py --config configs/hdfs_full.json           # HDFS log-only mode
