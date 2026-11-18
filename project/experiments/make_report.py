@@ -126,8 +126,31 @@ def merged_models(runs_dir, patterns):
                     "std": float(np.std([t[k] for t in by_seed.values()])),
                     "values": [t[k] for t in by_seed.values()]}
                 for k in METRICS if all(k in t for t in by_seed.values())}
-        models[n] = {"test": test, "n_params": params[n], "seeds": sorted(by_seed)}
+        models[n] = {"test": test, "n_params": params[n], "seeds": sorted(by_seed), "by_seed": by_seed}
     return models, trivial
+
+
+def significance_table(models, ref_name, title, metric="macro_f1"):
+    """Paired t-test over the seeds both models share: ref (UG-MoE v2 full) vs every other model."""
+    from scipy.stats import ttest_rel
+    ref = models.get(ref_name)
+    if ref is None:
+        return []
+    out = [f"### {title}", "", f"Paired t-test over shared seeds, test {metric}; Δ = {nice(ref_name)} − model.", "",
+           "| Model | Seeds | Δ mean | Δ std | p-value |", "|---|---|---|---|---|"]
+    for n, e in models.items():
+        if n == ref_name or "by_seed" not in e:
+            continue
+        common = sorted(set(ref["by_seed"]) & set(e["by_seed"]))
+        if len(common) < 2:
+            continue
+        a = np.array([ref["by_seed"][s][metric] for s in common])
+        b = np.array([e["by_seed"][s][metric] for s in common])
+        d = a - b
+        p = ttest_rel(a, b).pvalue if np.std(d) > 0 else float("nan")
+        out.append(f"| {nice(n)} | {len(common)} | {100 * d.mean():+.1f} | {100 * d.std(ddof=1):.1f} | "
+                   f"{p:.3f}{' *' if p < 0.05 else ''} |")
+    return out + ["", "(* p < 0.05. With 5 seeds the test has little power: treat p as indicative.)", ""]
 
 
 def robustness_runs(runs_dir, pattern):
@@ -442,6 +465,7 @@ def main():
         full[sysname] = models.get("ug_moe2:full")
         if models:
             md += main_table(models, trivial, f"Overall performance, {sysname} (plan 8A + §12 steps)", order)
+            md += significance_table(models, "ug_moe2:full", f"Significance vs UG-MoE v2, {sysname}")
 
     print("Ablations")
     no_moe_sn = None
@@ -451,6 +475,9 @@ def main():
             no_moe_sn = models.get("abl2:no_moe")
         if models:
             md += delta_table(models, full[sysname], f"Component ablation, {sysname} (plan 8B)", abl_order)
+            if full[sysname] is not None:
+                md += significance_table({**models, "ug_moe2:full": full[sysname]}, "ug_moe2:full",
+                                         f"Significance of each ablation, {sysname}")
 
     print("Modality ablation")
     models, _ = merged_models(runs, MANIFEST["modality_sn"])
