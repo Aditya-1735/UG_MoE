@@ -1,5 +1,25 @@
 # MUAD vs. UG-MoE: what is wrong with MUAD's numbers, and what our model actually shows
 
+> **Final 5-seed results (2026-11-18) supersede the single-seed numbers in §4 below.** Test macro-F1,
+> mean over seeds 42 / 123 / 456 / 789 / 999:
+>
+> | Model | SN | TT |
+> |---|---|---|
+> | MUAD | 0.925 | 0.626 |
+> | GAT | 0.931 | 0.661 |
+> | Plain MoE (v2 plain) | 0.971 | 0.698 |
+> | Graph-MoE (v2 graph) | 0.960 | 0.667 |
+> | **UG-MoE v2** | **0.972** | **0.723** |
+>
+> - UG-MoE v2 beats MUAD by **+4.7 (SN) / +9.7 (TT)** and GAT by +4.1 / +6.3.
+> - Against its own plain variant it gains +0.1 (SN) and +2.5 (TT). That is not an established
+>   clean-accuracy gain, because TT varies a lot between seeds.
+> - The single-seed TT margin over MUAD (+17.6, §4.4b) was optimistic.
+> - In the 5-seed ablations, **uncertainty-aware adaptive fusion is the only component whose removal
+>   hurts on both datasets (−2.4 SN, −3.3 TT)**. Most single-seed ablation effects (§4.4a) turned out to
+>   be seed noise.
+> - The robustness results (§4.5–4.6) are being re-run over 5 seeds.
+
 Status: 2026-11-17. All results are **single seed (42)**. Differences below about 1 macro-F1 point are
 treated as noise. Every claim below points to the paper text, a line of code, or a run directory, so it
 can be checked. Things not yet shown are listed in §6.

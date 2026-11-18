@@ -11,6 +11,7 @@
 | Date | Change | Server-verified? |
 |---|---|---|
 | 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-18 | **FINAL 5-seed main results + ablations** (§4): v2 full vs MUAD **+4.7 (SN, 0.972 vs 0.925) / +9.7 (TT, 0.723 vs 0.626)** macro-F1; vs GAT +4.1 / +6.3. Full ≈ plain on SN, +2.5 on TT (noisy). Adaptive fusion is the only component that helps on both datasets (−2.4 / −3.3 when removed). Most single-seed ablation effects were seed noise. Robustness over 5 seeds pending. | ✅ |
 | 2026-11-18 | **Rounds 16b / 16c (sensitivity, SN):** KL weight, routing temperature, learning rate and window all stay within 3.4 macro-F1 of the default, and the default is best in each (§4). Plan 8H complete on one seed. **Final multi-seed runs started** (seeds 42, 123, 456, 789, 999; `final_*` run directories; `make_report.py` pools seeds per (model, seed) and reuses the seed-42 runs that already used the final protocol). | ✅ |
 | 2026-11-18 | **Reporting:** `experiments/make_report.py` regenerates every table (`tables.md`) and figure (robustness curves, sensitivity panels, fusion weights with trace/log zoom, uncertainty change vs clean, routing heatmaps) from the saved runs listed in its `MANIFEST` (plan §10). Smoke-tested locally on synthetic run files. **Decision (user): modality dropout deferred.** It is not in the implementation guide; revisit only if time allows. The "fails without metrics" result is reported as a limitation. | n/a |
 | 2026-11-17 | **Rounds 12, 15b, 16a** (§4): modality ablation, every modality alone ≥ 0.83 on SN (traces 0.935), all three 0.987 (+2.8 over the best pair). TT ablations disagree with SN (TT needs graph / dynamic routing, SN needs MoE / UG routing / fusion); only the probabilistic representation matters on both; TT single-seed ablations unreliable. Sensitivity: ≥ 2 experts needed; hidden 64 best (32 −0.9, 128 −1.4), so keep 64. | ✅ |
@@ -484,6 +485,49 @@ better result).
 - Embedding size: 64 is best; every other size is within 1.4 points. Size sweep (step 13b): 32 loses
   0.9 test points, more than the 0.5-point threshold, so **keep hidden 64**. The 4× larger model is
   slightly worse, so capacity is not what drives the results.
+
+#### FINAL: 5-seed main results and ablations (seeds 42, 123, 456, 789, 999; 2026-11-18)
+
+`runs/final_sn_main_{a,b}`, `runs/final_tt_main_{a,b}` (+ TT seed 42 from round 7), `runs/final_{sn,tt}_abl_{a,b}`
+(+ seed 42 from rounds 9 / 15b). The means below were pooled by hand from the per-run means; the exact
+mean ± std comes from `make_report.py`. **These numbers supersede the single-seed tables above.**
+
+Test macro-F1, 5-seed mean:
+
+| Model | SN | TT |
+|---|---|---|
+| MUAD | 0.925 | 0.626 |
+| GAT | 0.931 | 0.661 |
+| v2 plain (= plain MoE) | 0.971 | 0.698 |
+| v2 graph (= Graph-MoE) | 0.960 | 0.667 |
+| **UG-MoE v2 full** | **0.972** | **0.723** |
+
+- **UG-MoE v2 beats MUAD on both datasets: +4.7 (SN) and +9.7 (TT) macro-F1**, and GAT by +4.1 / +6.3.
+- **Full vs plain: +0.1 (SN), +2.5 (TT).** Not established as a clean-accuracy gain. TT seeds vary a
+  lot (full ranges 0.65–0.82 across seeds; plain reached 0.84 on seed 123).
+- **The single-seed TT margin (+17.6 over MUAD) was optimistic; the 5-seed margin is +9.7.**
+
+Component ablations, 5-seed mean, Δ vs full:
+
+| Ablation | SN | Δ SN | TT | Δ TT |
+|---|---|---|---|---|
+| w/o graph | 0.978 | +0.6 | 0.741 | +1.8 |
+| w/o MoE | 0.965 | −0.6 | 0.724 | +0.1 |
+| w/o dynamic routing | 0.977 | +0.5 | 0.673 | **−5.0** |
+| w/o uncertainty routing | 0.974 | +0.2 | 0.698 | −2.6 |
+| w/o probabilistic | 0.980 | +0.8 | 0.704 | −1.9 |
+| **w/o adaptive fusion** | 0.948 | **−2.4** | 0.690 | **−3.3** |
+
+- **Adaptive (uncertainty-aware) fusion is the one component that helps clean accuracy on both
+  datasets** (−2.4 / −3.3 when removed). On SN it is the only consistent effect: every seed shows the
+  drop (0.946–0.950 vs ~0.97).
+- On TT, dynamic routing (−5.0) and uncertainty routing (−2.6) point the right way, but TT's per-seed
+  spread is large, so check the stds from `make_report.py` before claiming them.
+- **Several single-seed effects disappeared:** w/o MoE on SN (−7.8 → −0.6), w/o graph on TT
+  (−18.8 → +1.8), w/o uncertainty routing on SN (−3.9 → +0.2). The single-seed ablations were dominated
+  by seed noise, which is exactly why the final runs use 5 seeds.
+- The clean-accuracy role of the probabilistic representation is not significant. Its robustness role
+  (round 15a) is being re-checked over 5 seeds (final robustness runs).
 
 #### Rounds 16b and 16c: sensitivity, KL weight, routing temperature, learning rate, window (SN, 2026-11-18)
 
