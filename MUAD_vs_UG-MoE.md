@@ -1,28 +1,37 @@
 # MUAD vs. UG-MoE: what is wrong with MUAD's numbers, and what our model actually shows
 
-> **Final 5-seed results (2026-11-18) supersede the single-seed numbers in §4 below.** Test macro-F1,
-> mean over seeds 42 / 123 / 456 / 789 / 999:
+> **Final 5-seed results (2026-11-18) supersede the single-seed numbers in §4 below.** Source:
+> `make_report.py` → `runs/report_20261118_194054/tables.md`. Test macro-F1, mean ± std over seeds
+> 42 / 123 / 456 / 789 / 999; p = paired t-test over the seeds against UG-MoE v2 (5 seeds: indicative).
 >
-> | Model | SN | TT |
-> |---|---|---|
-> | MUAD | 0.925 | 0.626 |
-> | GAT | 0.931 | 0.661 |
-> | Plain MoE (v2 plain) | 0.971 | 0.698 |
-> | Graph-MoE (v2 graph) | 0.960 | 0.667 |
-> | **UG-MoE v2** | **0.972** | **0.723** |
+> | Model | SN | p | TT | p |
+> |---|---|---|---|---|
+> | MUAD | 0.925 ± 0.005 | **0.002** | 0.626 ± 0.032 | **0.042** |
+> | GAT | 0.931 ± 0.035 | **0.024** | 0.661 ± 0.044 | 0.281 |
+> | Plain MoE (v2 plain) | 0.971 ± 0.017 | 0.948 | 0.698 ± 0.073 | 0.724 |
+> | Graph-MoE (v2 graph) | 0.960 ± 0.018 | 0.241 | 0.667 ± 0.063 | 0.446 |
+> | **UG-MoE v2** | **0.972 ± 0.013** | — | **0.723 ± 0.090** | — |
 >
-> - UG-MoE v2 beats MUAD by **+4.7 (SN) / +9.7 (TT)** and GAT by +4.1 / +6.3.
-> - Against its own plain variant it gains +0.1 (SN) and +2.5 (TT). That is not an established
->   clean-accuracy gain, because TT varies a lot between seeds.
-> - The single-seed TT margin over MUAD (+17.6, §4.4b) was optimistic.
-> - In the 5-seed ablations, **uncertainty-aware adaptive fusion is the only component whose removal
->   hurts on both datasets (−2.4 SN, −3.3 TT)**. Most single-seed ablation effects (§4.4a) turned out to
->   be seed noise.
-> - The robustness results (§4.5–4.6) are being re-run over 5 seeds.
+> - **UG-MoE v2 beats MUAD by +4.6 (SN) / +9.7 (TT), significant on both**, and GAT by +4.1 / +6.3
+>   (significant on SN).
+> - **Why, by fault type:** on SN MUAD catches only 66% of `cpu_load` faults (v2: 98%); on TT v2 catches
+>   59% / 51% of network delay / loss faults vs MUAD's 33% / 27%, at 18% vs 11% false alarms. TT PR-AUC is
+>   not better (0.917 vs 0.914), so on TT the gain is in the operating point.
+> - **Missing data and noise (SN): v2 stays ahead of MUAD, and the gap grows** with corruption: +5.3 /
+>   +10.1 / +15.3 macro-F1 at 20 / 40 / 60% missing, +7.3 under strong noise on every modality.
+> - **Corrections to the single-seed story below:**
+>   - Full v2 vs its own plain variant is a **tie** (+0.1 SN, +2.5 TT, p ≥ 0.7), and no single
+>     component's ablation is significant. Adaptive fusion comes closest (−2.4 SN, p = 0.061; −3.3 TT).
+>   - The probabilistic representation does **not** explain the robustness (§4.6): over 5 seeds the model
+>     without it is level with the full model.
+>   - On TT, v2 is **less** robust than MUAD and GAT from 20% missing data (§4.8); two of five seeds
+>     collapse to "all anomalous".
+>   - The single-seed TT margin (+17.6) and network-fault recall (0.90 / 0.88 at 30% false alarms) came
+>     from one favourable seed.
 
-Status: 2026-11-17. All results are **single seed (42)**. Differences below about 1 macro-F1 point are
-treated as noise. Every claim below points to the paper text, a line of code, or a run directory, so it
-can be checked. Things not yet shown are listed in §6.
+Status of the sections below: single seed (42), 2026-11-17, kept as the record of how the results arrived.
+Differences below about 1 macro-F1 point there are noise. Every claim points to the paper text, a line of
+code, or a run directory, so it can be checked. Things not shown are listed in §5–§6.
 
 ---
 
@@ -38,20 +47,19 @@ can be checked. Things not yet shown are listed in §6.
    are ~6·10⁻¹⁰ in size, so **logs have no effect** on MUAD at all.
 3. **We reproduce MUAD's number under its own protocol** (0.988 vs. the paper's 0.993). So the gap to
    the paper is caused by the protocol, not by a broken reproduction.
-4. **On a leak-free protocol**, which we apply identically to every model:
-   - On MUAD's own data: UG-MoE and MUAD **tie** (macro-F1 0.933 vs 0.932).
-   - On SN rebuilt from the raw Eadro data (harder, includes fault-free runs): **UG-MoE v2 0.987
-     vs. MUAD 0.922 macro-F1 (+6.5 points)**, with recall 0.973 vs 0.857. It uses 166k parameters
-     (MUAD: 240k).
-   - On TrainTicket (TT, much harder): **UG-MoE v2 0.823 vs. MUAD 0.647 macro-F1 (+17.6)**, and +9.4
-     over the best baseline (GAT). Recall 0.92 vs 0.55: the baselines miss about half the anomalies (§4.4b).
-5. **Where the components matter:** on SN (near ceiling) the full UG-MoE v2 is level with its own
-   "plain" variant on clean data (0.987 vs 0.986). On TT the uncertainty components are decisive
-   (plain 0.667 → full 0.823; uncertainty-guided routing is the key step). The uncertainty components show their value under
-   **missing data**: UG-MoE v2 degrades about half as much as MUAD (40% masking: 0.856 vs 0.716 F1), and
-   **the plain variant does not** (0.722, no better than MUAD). So the robustness comes from the
-   probabilistic representation plus uncertainty-aware fusion (§4.6). Both models still fail completely
-   without metrics. TT (round 7) is running.
+4. **On a leak-free protocol**, which we apply identically to every model (5 seeds; the single-seed
+   numbers in §4 are history):
+   - On MUAD's own data: UG-MoE and MUAD **tie** (macro-F1 0.933 vs 0.932, single seed).
+   - On SN rebuilt from the raw Eadro data (harder, includes fault-free runs): **UG-MoE v2 0.972 vs.
+     MUAD 0.925 macro-F1 (+4.6, p = 0.002)**, mostly because MUAD misses a third of the CPU faults. It
+     uses 166k parameters (MUAD: 242k).
+   - On TrainTicket (TT, much harder): **UG-MoE v2 0.723 vs. MUAD 0.626 (+9.7, p = 0.042)**, and +6.3 over
+     GAT (not significant). It catches about twice as many network faults, at more false alarms.
+5. **Where the components matter:** nowhere individually, at 5 seeds. The full v2 ties its own plain
+   variant (SN +0.1, TT +2.5), and no ablation is significant; adaptive fusion is the most useful
+   (−2.4 / −3.3 when removed). **Under missing data on SN**, v2 degrades more slowly than MUAD (40%
+   masking: 0.811 vs 0.710 macro-F1), but that is not traceable to the probabilistic representation.
+   **On TT the clean lead is lost under perturbation.** Every model fails completely without metrics.
 
 ---
 
@@ -363,6 +371,13 @@ zero; noise = Gaussian with σ = level × the training standard deviation per ch
   before normalization, §2.5), but neither model can detect anomalies from them alone. Graceful
   degradation when the dominant modality is missing is **not achieved by either model**.
 ### 4.6 Where the robustness comes from: the same test on every incremental step (round 8)
+> **5-seed correction (2026-11-18, `runs/final_rob_*`):** the attribution below does **not** hold over 5
+> seeds. Test macro-F1, 5-seed mean, at 20 / 40 / 60% masking: full 0.903 / 0.811 / 0.696; w/o
+> probabilistic 0.902 / 0.797 / 0.663; plain 0.885 / 0.780 / 0.683; MUAD 0.850 / 0.710 / 0.543. Removing
+> the probabilistic representation makes no consistent difference (the seed-42 ablation checkpoint was a
+> fragile one), and full vs plain (+1.8 / +3.1) is not consistent across seeds. What survives is that
+> UG-MoE v2 degrades more slowly than MUAD. The single-seed table is kept as history.
+
 Same checkpoints as §4.4. The masks and noise are drawn from the same random seeds for every model, so
 each column compares the models on identical perturbations. Test F1 (relative drop):
 
@@ -423,8 +438,12 @@ therefore compare macro-F1:
 | GAT | 0.730 | 0.652 | 0.615 | 0.540 | 0.471 |
 | **UG-MoE v2** | **0.823** | **0.734** | **0.672** | **0.581** | 0.547 |
 
-- UG-MoE v2 stays best up to 40% missing data, but its lead shrinks from +9 / +18 points to about level.
-  **The large robustness advantage seen on SN does not carry over to TT.**
+- At seed 42, UG-MoE v2 stays best up to 40% missing data, but its lead shrinks from +9 / +18 points to
+  about level. **The large robustness advantage seen on SN does not carry over to TT.**
+- **5 seeds make this worse (2026-11-18):** macro-F1 clean / 20% / 40% / 60% masked: v2 0.723 / 0.573 /
+  0.506 / 0.471, MUAD 0.627 / 0.613 / 0.568 / 0.526, GAT 0.661 / 0.605 / 0.529 / 0.452. **From 20% missing
+  on, v2 is below both baselines.** Seeds 123 and 456 (the cautious ones, network-fault recall 0.14–0.36)
+  collapse to "all anomalous" at only 10% masking.
 - **The uncertainty mechanism works strongly on TT when metrics are missing:** metric uncertainty jumps
   (−0.28 → +0.80) and its fusion weight falls from 0.61 to 0.13, with traces taking over (0.79). Detection
   still fails, because TT traces cover only 2–4% of seconds: the modality the model falls back on is
@@ -438,13 +457,14 @@ therefore compare macro-F1:
 
 ## 5. Why UG-MoE is better than MUAD, and how far the evidence goes
 
-**Supported by the results:**
-1. **Higher accuracy on realistic data:** +6.5 macro-F1 over MUAD on rebuilt SN (§4.3), mostly
-   from recall (0.973 vs 0.857). With one seed, but far above the 1-point noise threshold.
-2. **Never worse than MUAD** on any leak-free setting so far (tie on MUAD's own data, §4.2).
-3. **More robust to missing and noisy data** (§4.5), and this comes from the uncertainty components
-   (§4.6: +10.7 / +13.4 F1 over the plain variant at 20 / 40% masking).
-4. **Smaller:** 166k parameters vs 240k for MUAD, and 25× smaller than our earlier 4.4M model with
+**Supported by the results (5 seeds):**
+1. **Higher accuracy on realistic data:** +4.6 macro-F1 over MUAD on rebuilt SN (p = 0.002) and +9.7 on
+   TT (p = 0.042); +4.1 over GAT on SN (p = 0.024).
+2. **Detects faults MUAD misses:** CPU faults on SN (0.98 vs 0.66 recall), network faults on TT (0.59 /
+   0.51 vs 0.33 / 0.27, at 18% vs 11% false alarms).
+3. **More robust to missing and noisy data on SN**, with a margin over MUAD that grows with the
+   corruption (+10.1 at 40% missing, +15.3 at 60%).
+4. **Smaller:** 166k parameters vs 242k for MUAD, and 25× smaller than our earlier 4.4M model with
    the same accuracy.
 
 **Supported by the design (verified in the code, `project/tracks/proposed_model/ug_moe_v2.py`):**
@@ -457,14 +477,14 @@ therefore compare macro-F1:
 4. **Fusion weighted by predicted uncertainty** at modality level, which is what plan §6 asks for.
 5. All models get normalized inputs, so logs and traces are actually visible (§2.5).
 
-**Not yet supported, so don't claim it yet:**
-- That the *uncertainty* components (probabilistic representation, uncertainty routing) improve accuracy:
-  on SN the full model equals "plain" (§4.4).
-- Graceful degradation when metrics are missing: neither model has it (§4.5).
-- Accuracy gains from the uncertainty components on *clean* data: none on SN (§4.4), large on TT
-  (§4.4b). Single seed, so the TT gain needs the 5-seed runs.
-- Robustness on TT beyond 20% missing data (§4.8), and reliable uncertainty under noise the model never
-  saw in training (the log-noise failure case, §4.8).
+**Not supported, so don't claim it:**
+- That any single UG component improves accuracy: full ≈ plain MoE, and no ablation is significant at
+  5 seeds (adaptive fusion is the closest, SN p = 0.061).
+- That the probabilistic representation causes the robustness (level with full over 5 seeds, §4.6).
+- Robustness on TT: v2 falls below MUAD and GAT from 20% missing data (§4.8).
+- Graceful degradation when metrics are missing: no model has it.
+- Reliable uncertainty under noise the model never saw in training (the log-noise failure case, §4.8).
+- Better ranking on TT: PR-AUC is level with the baselines; the gain is in the operating point.
 
 ---
 

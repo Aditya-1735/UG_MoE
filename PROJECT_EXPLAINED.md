@@ -219,19 +219,21 @@ per-service view still exists inside the model (the experts work per service).
 
 ---
 
-## Part 7. Results cheat sheet (5 seeds where marked)
+## Part 7. Results cheat sheet (5 seeds unless marked; p = paired t-test over seeds)
 
 | Question | Answer |
 |---|---|
-| Is UG-MoE v2 better than MUAD? | **Yes, on both datasets (5 seeds):** SN 0.972 vs 0.925 (+4.7), TT 0.723 vs 0.626 (+9.7) macro-F1 |
-| Better than GAT? | Yes: +4.1 (SN), +6.3 (TT), 5 seeds |
-| Which component matters most? | **Uncertainty-aware adaptive fusion**: removing it costs 2.4 (SN) / 3.3 (TT), 5 seeds |
-| Do the uncertainty parts improve clean accuracy over plain MoE? | Not clearly: +0.1 SN, +2.5 TT (TT seeds vary a lot) |
-| Where do they help? | **Missing data (SN, single seed, 5-seed rerun running):** at 40% missing, full 0.856 vs 0.707 without the probabilistic part; plain MoE is no better than MUAD |
-| Which anomalies does v2 catch that others miss? | Network faults on TT: recall 0.88–0.90 vs 0.30–0.65; but more false alarms (30% vs 13–17%) |
-| Do experts specialize? | Yes: e.g. CPU faults → cross-modal expert (0.95), normal → dependency expert (0.87) on SN |
-| Does the uncertainty behave sensibly? | In direction yes (a corrupted modality gets more uncertain and less weight). Too weakly when metrics vanish; overconfident under log noise on TT |
-| Is it sensitive to hyperparameters? | No: all settings within 3.4 points of the default |
+| Is UG-MoE v2 better than MUAD? | **Yes, on both datasets:** SN 0.972 vs 0.925 (+4.6, p = 0.002), TT 0.723 vs 0.626 (+9.7, p = 0.042) macro-F1 |
+| Better than GAT? | SN +4.1 (p = 0.024); TT +6.3 but not significant (p = 0.28) |
+| Why is it better? | It catches faults MUAD misses: SN CPU faults (recall 0.98 vs 0.66); TT network faults (0.59 / 0.51 vs 0.33 / 0.27), at more false alarms (18% vs 11%) |
+| Do the uncertainty parts improve clean accuracy over plain MoE? | **No:** +0.1 SN, +2.5 TT, p ≥ 0.7 (a tie) |
+| Which component matters most? | **Adaptive fusion**: removing it costs 2.4 (SN, p = 0.061) / 3.3 (TT). No single component is significant at 5 seeds |
+| Robust to missing data? | **On SN yes, vs MUAD**: the gap grows from +4.6 clean to +10.1 at 40% and +15.3 at 60% missing. **On TT no**: below MUAD and GAT from 20% missing |
+| Does the probabilistic part cause the robustness? | **No.** Seed 42 suggested it (−13 to −15 F1 without it); over 5 seeds the model without it is level with the full model |
+| Without metrics? | Every model fails (at or below the trivial score) |
+| Do experts specialize? (seed 42) | Yes: e.g. CPU faults → cross-modal expert (0.95), normal → dependency expert (0.87) on SN |
+| Does the uncertainty behave sensibly? (seed 42) | In direction yes (a corrupted modality gets more uncertain and less weight). Too weakly when metrics vanish; overconfident under log noise on TT |
+| Is it sensitive to hyperparameters? (seed 42) | No: defaults are best or within 0.2 points; only 1 expert (−7.8) and λ_KL = 0.1 (−3.4) hurt |
 | Why are our MUAD numbers below the paper's 0.99? | The paper's random split leaks and its test set is 83% anomalous; under its protocol we reproduce 0.988 |
 
 ---
@@ -247,17 +249,23 @@ Every model gets the identical split, normalization and selection rule. MUAD als
 paper hyperparameters (0.793 vs 0.922), so our settings favour it.
 
 **"Why does the full model not beat plain MoE on clean SN?"**
-SN is near its ceiling (0.97+). The uncertainty components pay off when data is missing (+13 points at
-40% missing on SN) and through adaptive fusion (the consistent ablation effect).
+It doesn't, on either dataset (p ≥ 0.7). SN is near its ceiling (0.97), and on TT the seed variance is
+larger than the gap. The honest contribution is the full model against the published baseline (MUAD) and
+GAT, plus adaptive fusion as the most useful component. Our single-seed run suggested the probabilistic part
+gave robustness to missing data; the 5-seed runs did not confirm it, and we report that.
 
 **"Why do your single-seed and 5-seed results differ?"**
-TT especially varies across seeds (the same model scored 0.65–0.82). That is why the paper uses 5 seeds
-and paired t-tests, and why we flag single-seed results.
+TT especially varies across seeds (the same model scored 0.62–0.84; some seeds flag many windows, others
+are cautious). Several single-seed effects (large ablation drops, "the probabilistic part causes
+robustness", TT network-fault recall 0.90) were one seed's luck. That is why the paper uses 5 seeds and
+paired t-tests.
 
 **"What are the limitations?"**
-- Both models fail when metrics are entirely missing (modality dropout would fix this; deferred).
+- Every model fails when metrics are entirely missing (modality dropout would fix this; deferred).
+- No individual component is significant; full ≈ plain MoE.
+- On TT, v2 is less robust than the baselines under missing data / noise, and has high seed variance.
 - Learned uncertainty can be overconfident on unfamiliar noise.
-- More false alarms on TT.
+- More false alarms on TT (18% vs 11–12%); TT PR-AUC is not better.
 - Small datasets (SN has 4 fault runs).
 - Single-seed analysis and sensitivity.
 

@@ -7,8 +7,9 @@ what we built, how, why, and what it shows**
 (`7. UG-MoE_Implementation_Guide.md`). No root-cause analysis.
 
 **Status (2026-11-18):** all experiments required by the guide (§8 A–H) are implemented and have been
-run. The main comparison and component ablations have **5 seeds**; robustness is being re-run with
-5 seeds (Tier 3). Modality ablation, routing and uncertainty analysis, and sensitivity are single-seed.
+run. The main comparison, component ablations and robustness have **5 seeds** with paired t-tests
+(`make_report.py`, `runs/report_20261118_194054`). Modality ablation, routing and uncertainty analysis,
+and sensitivity are single-seed.
 
 **How to read this document.** It follows the guide's structure section by section. For every step it
 says **what the guide asks**, **what we did**, **how** (with the file that does it) and **which concepts
@@ -562,44 +563,59 @@ The guide allows "validation F1 or PR-AUC"; macro-F1 is an F1.
 ## 9. Experiments and results (guide §8)
 
 All numbers are test **macro-F1** unless stated otherwise. "5 seeds" = mean over 42 / 123 / 456 / 789 /
-999. The exact means and stds come from `make_report.py`. The 5-seed means below were pooled from the
-per-run means.
+999, ± the standard deviation over seeds. All tables come from `make_report.py`
+(`runs/report_20261118_194054/tables.md`). p = paired t-test over the 5 seeds against UG-MoE v2 full; with
+5 seeds the test has little power, so p is indicative.
 
 ### A. Baseline comparison (5 seeds)
 
-| Model | SN | TT |
-|---|---|---|
-| Trivial (all anomalous) | 0.289 | 0.404 |
-| MUAD | 0.925 | 0.626 |
-| GAT | 0.931 | 0.661 |
-| Plain MoE (`ug_moe2:plain`) | 0.971 | 0.698 |
-| Graph-MoE (`ug_moe2:graph`) | 0.960 | 0.667 |
-| **UG-MoE v2 (full)** | **0.972** | **0.723** |
+| Model | Params | SN | p | TT | p |
+|---|---|---|---|---|---|
+| Trivial (all anomalous) | — | 0.289 | | 0.404 | |
+| MUAD | 242k | 0.925 ± 0.005 | **0.002** | 0.626 ± 0.032 | **0.042** |
+| GAT | 303k | 0.931 ± 0.035 | **0.024** | 0.661 ± 0.044 | 0.281 |
+| Plain MoE (`ug_moe2:plain`) | 115k | 0.971 ± 0.017 | 0.948 | 0.698 ± 0.073 | 0.724 |
+| Graph-MoE (`ug_moe2:graph`) | 144k | 0.960 ± 0.018 | 0.241 | 0.667 ± 0.063 | 0.446 |
+| **UG-MoE v2 (full)** | 166k | **0.972 ± 0.013** | — | **0.723 ± 0.090** | — |
 
-- **UG-MoE v2 is the best model on both datasets:** +4.7 / +9.7 points over MUAD and +4.1 / +6.3
-  over GAT.
-- **Over its own plain variant:** +0.1 on SN, +2.5 on TT. Not an established gain, because TT varies
-  strongly between seeds (full: 0.65–0.82).
-- **Which TT anomalies (single seed):** every model detects CPU faults (recall 0.95–1.00). MUAD and GAT
-  miss most network faults (delay 0.39 / 0.65, loss 0.30 / 0.49), which UG-MoE v2 detects (0.90 / 0.88).
-  The price is more false alarms: 30% of normal windows flagged vs 13–17%.
+- **UG-MoE v2 is the best model on both datasets:** +4.6 / +9.7 points over MUAD (significant on both)
+  and +4.1 / +6.3 over GAT (significant on SN).
+- **Over its own plain variant:** +0.1 on SN, +2.5 on TT, p ≥ 0.7: a tie. TT varies strongly between
+  seeds (std 0.09).
+- **On TT the PR-AUC is not better** (0.917 vs MUAD 0.914, GAT 0.925). The macro-F1 lead comes from the
+  operating point (more faults flagged), not from ranking windows better.
+- **Which anomalies (recall per fault type, 5 seeds):**
+
+  | | cpu_load | network_delay | network_loss | false alarms (normal) |
+  |---|---|---|---|---|
+  | SN: UG-MoE v2 | **0.984** | 0.954 | 0.891 | 0.7% |
+  | SN: MUAD | 0.658 | 0.988 | 0.910 | 1.8% |
+  | TT: UG-MoE v2 | 0.998 | **0.594** | **0.508** | 18.3% |
+  | TT: MUAD | 0.914 | 0.331 | 0.273 | 10.9% |
+  | TT: GAT | 0.876 | 0.461 | 0.353 | 11.9% |
+
+  On SN, MUAD misses a third of the CPU faults, which is most of the gap. On TT, UG-MoE v2 catches about
+  twice as many network faults as MUAD, at the cost of more false alarms. (Seed 42 alone gave 0.90 / 0.88
+  at 30% false alarms; that seed was favourable.)
 - **Reproducing MUAD's paper:** under the paper's own leaky protocol on its own data, our MUAD scores
   F1 0.988 (paper: 0.993). The gap to our leak-free numbers is the protocol (§3.5).
 
 ### B. Component ablation (5 seeds; change vs full)
 
-| Removed | SN | Δ | TT | Δ |
+| Removed | SN | Δ (p) | TT | Δ (p) |
 |---|---|---|---|---|
-| Graph | 0.978 | +0.6 | 0.741 | +1.8 |
-| MoE (single temporal expert) | 0.965 | −0.6 | 0.724 | +0.1 |
-| Dynamic routing (uniform weights) | 0.977 | +0.5 | 0.673 | −5.0 |
-| Uncertainty-guided routing | 0.974 | +0.2 | 0.698 | −2.6 |
-| Probabilistic representation | 0.980 | +0.8 | 0.704 | −1.9 |
-| **Adaptive fusion** | **0.948** | **−2.4** | **0.690** | **−3.3** |
+| Graph | 0.978 ± 0.008 | +0.6 (0.210) | 0.741 ± 0.082 | +1.8 (0.777) |
+| MoE (single temporal expert) | 0.965 ± 0.028 | −0.6 (0.752) | 0.724 ± 0.070 | +0.1 (0.968) |
+| Dynamic routing (uniform weights) | 0.977 ± 0.004 | +0.5 (0.428) | 0.673 ± 0.030 | −5.0 (0.435) |
+| Uncertainty-guided routing | 0.974 ± 0.015 | +0.2 (0.851) | 0.698 ± 0.071 | −2.6 (0.651) |
+| Probabilistic representation | 0.980 ± 0.008 | +0.8 (0.361) | 0.704 ± 0.068 | −1.9 (0.440) |
+| **Adaptive fusion** | **0.948 ± 0.012** | **−2.4 (0.061)** | **0.690 ± 0.132** | **−3.3 (0.684)** |
 
-- **Uncertainty-aware adaptive fusion is the one component whose removal hurts on both datasets.** On
-  SN, every seed shows the drop.
-- On TT, dynamic routing and uncertainty routing point the right way, within large seed variance.
+(Δ = ablation − full, so negative means the component helps.)
+
+- **No component is significant on its own at 5 seeds.** Uncertainty-aware adaptive fusion comes closest:
+  it is the only component whose removal hurts on both datasets, and on SN p = 0.061.
+- On TT, dynamic routing and uncertainty routing point the right way, but within large seed variance.
 - **Lesson:** the single-seed ablations (`PROJECT_STATUS.md`, rounds 9 and 15b) showed large effects
   that disappeared over 5 seeds. Examples: "w/o MoE" on SN went from −7.8 to −0.6, and "w/o graph" on
   TT from −18.8 to +1.8. Only multi-seed ablations should be cited.
@@ -618,31 +634,39 @@ per-run means.
 
 Every modality carries real signal on its own, and fusing all three adds +2.8 over the best pair.
 
-### D. Missing modality and E. Noise (single seed; 5-seed rerun in progress)
-Saved checkpoints are perturbed only at test time, with the same random masks for every model:
+### D. Missing modality and E. Noise (5 seeds)
+Saved checkpoints (one per seed) are perturbed only at test time, with the same random masks for every
+model:
 - D1: drop one modality entirely;
 - D2: zero each (window, service, modality) observation with probability p;
 - E: Gaussian noise with σ = level × training std per channel, on every modality combination.
 
-SN, test F1:
+Test macro-F1, 5-seed mean (`runs/final_rob_*`):
 
-| Model | Clean | 20% missing | 40% missing | Drop logs |
-|---|---|---|---|---|
-| MUAD | 0.904 | 0.809 | 0.716 | 0.897 |
-| v2 plain | 0.983 | 0.824 | 0.722 | 0.939 |
-| v2 full **without probabilistic representation** | 0.979 | 0.803 | 0.707 | 0.958 |
-| **UG-MoE v2 full** | **0.984** | **0.931** | **0.856** | **0.981** |
+| Model | Clean | 20% missing | 40% missing | 60% missing | Noise on all, σ = 2 | No metrics |
+|---|---|---|---|---|---|---|
+| SN: MUAD | 0.925 | 0.850 | 0.710 | 0.543 | 0.735 | 0.289 |
+| SN: v2 plain | 0.971 | 0.885 | 0.780 | 0.683 | 0.737 | 0.289 |
+| SN: v2 full w/o probabilistic | 0.980 | 0.902 | 0.797 | 0.663 | 0.810 | 0.289 |
+| **SN: UG-MoE v2 full** | 0.972 | **0.903** | **0.811** | **0.696** | **0.808** | 0.274 |
+| TT: MUAD | 0.627 | **0.613** | **0.568** | **0.526** | **0.537** | 0.243 |
+| TT: GAT | 0.661 | 0.605 | 0.529 | 0.452 | 0.523 | 0.404 |
+| TT: UG-MoE v2 full | **0.723** | 0.573 | 0.506 | 0.471 | 0.470 | 0.406 |
 
-- **On SN, the probabilistic representation is what makes the model robust to missing data.** Same
-  clean accuracy, but +12.8 / +14.9 F1 points with 20 / 40% of the data missing, compared with the
-  identical model without it. Plain MoE is no more robust than MUAD.
-- **Both models fail completely without metrics** (they fall to the trivial score). The full model
-  never sees a window without metrics in training, so it never learns to fall back on traces and logs,
-  even though a traces-only model reaches 0.935 (C). Modality dropout would address this; it was
-  deferred.
-- **On TT the robustness lead mostly disappears.** v2 is best up to 20% missing data (0.672 vs 0.616
-  and 0.615 macro-F1), level with MUAD at 40% and slightly below at 60%. On TT, macro-F1 must be used:
-  MUAD and GAT's anomaly-F1 rises under perturbation because they start out missing many anomalies.
+- **On SN, UG-MoE v2 stays ahead of MUAD under every perturbation, and the gap grows** with the amount
+  of corruption: +4.6 clean, +5.3 / +10.1 / +15.3 at 20 / 40 / 60% missing, +7.3 under strong noise.
+- **The probabilistic representation does not explain this.** At seed 42 the model without it lost
+  12.8 / 14.9 F1 points at 20 / 40% missing; over 5 seeds it is level with the full model (0.902 vs 0.903,
+  0.797 vs 0.811). That seed-42 checkpoint was a fragile one. Full vs plain MoE: +1.8 / +3.1 under
+  masking and +7.1 under strong noise, a trend that is not consistent across seeds.
+- **Every model fails completely without metrics** (at or below the trivial score). No model sees a
+  window without metrics in training, so none learns to fall back on traces and logs, even though a
+  traces-only model reaches 0.935 (C). Modality dropout would address this; it was deferred.
+- **On TT the clean lead does not survive perturbation.** From 20% missing on, UG-MoE v2 is below MUAD
+  and GAT. Two of its five seeds (123, 456, the cautious ones with low network-fault recall) collapse to
+  "everything is anomalous" at only 10% missing; the high-recall seeds (42, 789) degrade gradually. On
+  TT, macro-F1 must be used: the trivial predictor has anomaly-F1 0.809, so a collapsing model's
+  anomaly-F1 rises.
 
 ### F. Expert-routing analysis (single seed)
 - **Routing specializes by fault type.**
@@ -679,7 +703,8 @@ SN, test F1:
 | Learning rate | 1e-4 → 0.982 · **5e-4* → 0.987** · 1e-3 → 0.985 |
 | Window length (s) | 5 → 0.956 · **10* → 0.987** · 20 → 0.973 |
 
-- Every setting stays within 3.4 points of the default.
+- The defaults are best or within 0.2 points everywhere. Only a single expert (−7.8) and λ = 0.1 (−3.4)
+  hurt clearly; the rest is within single-seed noise.
 - The defaults were fixed before these runs, not tuned on test.
 - A 4× larger model (dimension 128) is not better, so capacity is not what drives the results. The
   planned shrinking check found dimension 32 0.9 points worse, so we keep 64.
@@ -773,22 +798,23 @@ Robustness tests perturb **inputs at test time only**, using a model trained on 
 | 6 | TT's first split had no fault-free run in validation, so validation was 85% anomalous and selection on anomaly-F1 picked "all anomalous" epochs (4 of 5 models) | selection on **validation macro-F1**; fault-free TT runs cut into train / val / test segments | TT results became valid |
 | 7 | Proposal: modality dropout to fix the "fails without metrics" weakness | **deferred** by decision (not in the guide) | reported as a limitation |
 | 8 | Graph library | DGL instead of PyTorch Geometric | same library as the vendored baselines |
-| 9 | Single-seed exploration for speed | final runs with 5 seeds | several single-seed "effects" shown to be noise |
+| 9 | Single-seed exploration for speed | final runs with 5 seeds | several single-seed "effects" shown to be noise: the large ablation effects, "the probabilistic representation causes robustness", and the TT robustness / network-fault-recall figures |
 | 10 | Sample definition | one graph per window (all services) instead of one sample per service | matches MUAD / Eadro and graph models |
 
 ---
 
 ## 12. Limitations and threats to validity
-1. **Variance on TT is high.** UG-MoE v2 ranges from 0.65 to 0.82 macro-F1 across seeds, so TT
-   conclusions need the standard deviations and t-tests from `make_report.py`.
-2. **Clean-accuracy gains of the uncertainty components are not established.** Full ≈ plain on SN; on
-   TT +2.5 within noise. The consistent effect is adaptive fusion (ablation B) and robustness to missing
-   data on SN (D).
-3. **No fall-back without metrics:** both models collapse when metrics are missing (deferred modality
+1. **Variance on TT is high.** UG-MoE v2 has std 0.09 macro-F1 across seeds (0.62–0.84), and its
+   seeds fall into two regimes (high recall with many false alarms vs cautious).
+2. **The individual UG components are not shown to add accuracy.** Full ≈ plain MoE (p ≥ 0.7) and no
+   ablation is significant at 5 seeds; adaptive fusion is the closest (SN p = 0.061).
+3. **The robustness on SN is not attributable to the probabilistic representation** (5-seed check), and
+   **on TT UG-MoE v2 is less robust than MUAD / GAT** from 20% missing data.
+4. **No fall-back without metrics:** every model collapses when metrics are missing (deferred modality
    dropout).
-4. **Learned uncertainty can be overconfident** on out-of-distribution inputs (log noise on TT).
-5. **More false alarms on TT:** 30% of normal windows flagged vs 13–17% for the baselines, the price
-   of catching network faults.
+5. **Learned uncertainty can be overconfident** on out-of-distribution inputs (log noise on TT).
+6. **More false alarms on TT:** 18% of normal windows flagged vs 11–12% for the baselines, the price
+   of catching network faults; TT PR-AUC is not better than the baselines'.
 6. **Split caveats:**
    - on TT, fault-free test segments come from the same runs as fault-free training segments;
    - there is no time gap at the cuts (adjacent windows share no seconds but are similar);
@@ -832,7 +858,7 @@ Every run directory contains:
 | Plain MoE and Graph-MoE under the same protocol | ✅ `ug_moe2:plain`, `ug_moe2:graph`, 5 seeds |
 | Full model runs without numerical instability | ✅ no NaN / skipped batches in any training log we inspected; log-variance clamped, variance ≥ 10⁻⁶ |
 | All required ablations completed | ✅ 6 ablations × 5 seeds × 2 datasets |
-| Missing-modality and noise experiments completed | ✅ single seed on SN + TT; 5-seed rerun in progress |
+| Missing-modality and noise experiments completed | ✅ 5 seeds on SN + TT |
 | Hyperparameter sensitivity plots generated | ✅ 6 parameters (SN), `sensitivity_sn.png` |
 | Final metrics reproducible from saved checkpoints and scripts | ✅ checkpoints per seed; `make_report.py` |
 
