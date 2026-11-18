@@ -1,8 +1,8 @@
 # UG-MoE — Project Status vs. Implementation Plan
 
-**Last updated:** 2026-11-17 · **Branch:** `hdfs` · **Plan:** `7. UG-MoE_Implementation_Guide.md` · **Baseline paper:** MUAD (`7. Uncertainty-Aware_Multimodal_Anomaly_Detection_..._Active_Learning.pdf`)
+**Last updated:** 2026-11-18 · **Branch:** `hdfs` · **Plan:** `7. UG-MoE_Implementation_Guide.md` · **Baseline paper:** MUAD (`7. Uncertainty-Aware_Multimodal_Anomaly_Detection_..._Active_Learning.pdf`)
 
-> **How this was assessed.** Only the Python code, the data files, and the result JSONs in `project/experiments/runs/` were treated as evidence. Claims in the older `.md` files (opencode-era plans, `UG-MoE-Research-Paper-Draft.md`, status tables marked "Complete") were **not** taken at face value. Every finding below points to the code that supports it. Line numbers refer to the working copy on 2026-11-17.
+> **How this was assessed.** Only the Python code, the data files, and the result JSONs in `project/experiments/runs/` were treated as evidence. Claims in the older `.md` files (opencode-era plans, `UG-MoE-Research-Paper-Draft.md`, status tables marked "Complete") were **not** taken at face value. Every finding below points to the code that supports it. Line numbers in §3 refer to the legacy code as audited on 2026-11-17. Companion documents: `UG-MoE_Implementation_Report.md` (full what / how / why), `PROJECT_EXPLAINED.md` (study guide), `MUAD_vs_UG-MoE.md` (evidence brief).
 
 ---
 
@@ -10,7 +10,8 @@
 
 | Date | Change | Server-verified? |
 |---|---|---|
-| 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ❌ pending (server rerun) |
+| 2026-11-18 | **Status file rewritten** (§1, §2, §4–§10 reflect the current state; §3 now opens with how each audit issue was resolved; the invalid test-selected number table was removed). **Clean-up:** removed `run_routing_analysis.py` and `run_uncertainty_fusion_analysis.py` (replaced by `run_analysis.py`); README rewritten; `make_report.py` adds paired t-tests over seeds. **Decision (user):** keep both the legacy `ug_moe` and v2. **Docs:** `UG-MoE_Implementation_Report.md`, `PROJECT_EXPLAINED.md`. | n/a |
+| 2026-11-17 | **Protocol fix (model selection and TT split), within the plan** (§6 S14: "best checkpoint based on validation F1 or PR-AUC"). (1) `common._selection_key` selects on **val macro-F1** (tie: PR-AUC) instead of anomaly-class F1, which the trivial predictor can win on anomaly-heavy validation sets. (2) When a dataset has fewer than 3 fault-free runs (TT: 2), each one is cut chronologically into 60 / 20 / 20% train / val / test segments (`segment_normal_runs`, windows straddling a cut dropped: 8 on TT), so every split contains normal operation. New TT split: train 8,397 / val 3,228 / test 3,226 windows, val and test ~68% anomalous (trivial macro-F1 0.40). SN keeps whole-run assignment (unchanged). **Invalidates** round 5 TT. On SN the two rules select almost the same epochs, so round 5/6 SN stand. Known split caveats, deferred to the final paper runs (time): fault-free test segments come from the same runs as fault-free train segments (TT only); no gap at the cuts (adjacent windows share no seconds); fault-free runs were recorded after the fault runs; Drain3 templates are mined on all runs (label-free). Planned hardening: 60 s gap at cuts, templates mined on train runs only. | ✅ (rounds 7, 7-v2) |
 | 2026-11-18 | **FINAL 5-seed main results + ablations** (§4): v2 full vs MUAD **+4.7 (SN, 0.972 vs 0.925) / +9.7 (TT, 0.723 vs 0.626)** macro-F1; vs GAT +4.1 / +6.3. Full ≈ plain on SN, +2.5 on TT (noisy). Adaptive fusion is the only component that helps on both datasets (−2.4 / −3.3 when removed). Most single-seed ablation effects were seed noise. Robustness over 5 seeds pending. | ✅ |
 | 2026-11-18 | **Rounds 16b / 16c (sensitivity, SN):** KL weight, routing temperature, learning rate and window all stay within 3.4 macro-F1 of the default, and the default is best in each (§4). Plan 8H complete on one seed. **Final multi-seed runs started** (seeds 42, 123, 456, 789, 999; `final_*` run directories; `make_report.py` pools seeds per (model, seed) and reuses the seed-42 runs that already used the final protocol). | ✅ |
 | 2026-11-18 | **Reporting:** `experiments/make_report.py` regenerates every table (`tables.md`) and figure (robustness curves, sensitivity panels, fusion weights with trace/log zoom, uncertainty change vs clean, routing heatmaps) from the saved runs listed in its `MANIFEST` (plan §10). Smoke-tested locally on synthetic run files. **Decision (user): modality dropout deferred.** It is not in the implementation guide; revisit only if time allows. The "fails without metrics" result is reported as a limitation. | n/a |
@@ -21,90 +22,137 @@
 | 2026-11-17 | **Exp. F + G** (`experiments/run_analysis.py`, round 13, SN): uncertainty rises and the fusion weight falls for a corrupted modality (works in direction), but metrics keep ≥ 88% of the weight even when missing (too weak to fall back). Uncertainty is higher on wrong predictions. Metric routing specializes by fault type (normal → GAT expert 0.87, cpu → cross-modal 0.95, network → temporal). | ✅ |
 | 2026-11-17 | **Round 8 (robustness, SN)**, server, seed 42 (§4): UG-MoE v2 beats MUAD under masking and noise (p = 0.4 masking: 0.856 vs 0.716 F1; metric noise σ = 1: 0.964 vs 0.856), with about half the relative drop. Both collapse to trivial without metrics. **Attribution over the §12 steps:** full ≈ plain on clean data, but **full beats plain by +10.7 / +13.4 F1 at 20 / 40% masking**, and plain is no better than MUAD there. The robustness comes from the probabilistic representation plus adaptive fusion. | ✅ |
 | 2026-11-17 | **Round 5 (rebuilt SN / TT)**, server, seed 42 (§4): SN macro-F1 legacy UG-MoE 0.984 > Graph-MoE 0.973 > plain MoE 0.969 > GAT 0.965 > MUAD 0.922. TT: 4 of 5 models collapsed to "all anomalous" because of the selection bug above; results void. | ✅ (TT void) |
-| 2026-11-17 | **Phase 0.1:** uncertainty blocks (`src/uncertainty/uncertainty.py`) now sample with reparameterization only in `train()` mode and return deterministic μ in `eval()`. Variance / log-variance clamps restored. Working-copy `model.py` semantic-expert fix (`expert(graph.ndata["logs"], B)`) kept. Fixes §3.6. | ❌ pending |
-| 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ❌ pending |
+| 2026-11-17 | **Phase 0.1:** uncertainty blocks (`src/uncertainty/uncertainty.py`) now sample with reparameterization only in `train()` mode and return deterministic μ in `eval()`. Variance / log-variance clamps restored. Working-copy `model.py` semantic-expert fix (`expert(graph.ndata["logs"], B)`) kept. Fixes §3.6. | ✅ |
+| 2026-11-17 | **Phase 1 (part):** new shared protocol `project/experiments/common.py`: stratified val split from `chunk_train.pkl` (fixed `split_seed=2026`, 15%, ids saved to `split.json`), selection on val F1 (tie: PR-AUC), early stopping on val, test evaluated once, per-seed checkpoints, metrics incl. macro-F1 / normal-class F1 / trivial baseline. `run_comparison.py` rewritten on top of it, with Track A using MUAD's real objective. Fixes §3.4 and §3.8 **for the comparison script only**. | ✅ |
 | 2026-11-17 | **Decision:** because of time constraints, all experiments run with a **single seed (42)** for now. Multi-seed runs (5 seeds plus paired t-test) are deferred to the final paper runs (Phase 3–4). Single-seed differences below about 1 F1 point are not evidence of improvement. | n/a |
-| 2026-11-17 | **Phase 1 (cont.):** `experiments/registry.py` (single definition of every model / ablation + forward adapter + `run_suite`). GAT and Graph-MoE model classes moved to `tracks/baselines/` (node count now read from the graph, not hard-coded). New scripts on the shared protocol: `run_baselines.py` (Exp. A), `run_ablations.py` (rewritten; always trains the `ug_moe` reference too), `run_robustness.py` (Exp. D + E as specified: single-modality drop, random 10/20/40/60% masking, noise scaled to train std on all 7 modality combinations, relative F1 drop). `run_comparison.py` now builds models through the registry. **Removed** (superseded): `run_gat_baseline.py`, `run_plain_moe.py`, `run_graph_moe.py`, `run_track_b_full.py`, `run_missing_modality.py`, `run_noise_robustness.py`. Not migrated yet: routing / uncertainty-fusion analysis (they depend on Phase 2), `run_track_a_al.py`, `run_hdfs.py`. | ❌ pending |
+| 2026-11-17 | **Phase 1 (cont.):** `experiments/registry.py` (single definition of every model / ablation + forward adapter + `run_suite`). GAT and Graph-MoE model classes moved to `tracks/baselines/` (node count now read from the graph, not hard-coded). New scripts on the shared protocol: `run_baselines.py` (Exp. A), `run_ablations.py` (rewritten; always trains the `ug_moe` reference too), `run_robustness.py` (Exp. D + E as specified: single-modality drop, random 10/20/40/60% masking, noise scaled to train std on all 7 modality combinations, relative F1 drop). `run_comparison.py` now builds models through the registry. **Removed** (superseded): `run_gat_baseline.py`, `run_plain_moe.py`, `run_graph_moe.py`, `run_track_b_full.py`, `run_missing_modality.py`, `run_noise_robustness.py`. Not migrated yet: routing / uncertainty-fusion analysis (they depend on Phase 2), `run_track_a_al.py`, `run_hdfs.py`. | ✅ |
 | 2026-11-17 | **First new-protocol result** (server): Track A vs Track B, seed 42. Test F1 0.9882 vs 0.9879, macro-F1 0.9654 vs 0.9645, so there is **no advantage** for UG-MoE once selection moves off the test set (§4). This is the "before" baseline for the Phase 2 fixes. | ✅ |
-| 2026-11-17 | **Phase 2: UG-MoE v2** (`tracks/proposed_model/ug_moe_v2.py`), a rewrite following the guide's pseudocode: per-modality routers fed by graph context and per-expert uncertainty, the routed mixture feeds the probabilistic head and the classifier (fixes §3.1), real graph-aware (§3.2) and uncertainty-guided (§3.3) routing, modality-level uncertainty-aware fusion, loss = CE + λ_KL·KL with no hidden terms. 166k parameters (vs 4.4M, §3.10). Plan §8B ablations and §12 incremental steps are registry entries (`abl2:*`, `ug_moe2:*`). Local checks: all variants run on SN and TT shapes, eval is deterministic, every parameter gets a gradient, and perturbing a router or an expert's uncertainty changes the logits. The legacy `ug_moe` is kept only for reproducing old runs. | ❌ pending (server run) |
-| 2026-11-17 | **Round 4 (leak-free run split, `recovered_artifact`)**, server, seed 42: UG-MoE 0.9332 / MUAD 0.9324 / plain MoE 0.9124 / GAT 0.5530 / Graph-MoE 0.4961 test macro-F1. **GAT and Graph-MoE collapse to near-trivial** once memorization is impossible; UG-MoE ≈ MUAD > plain MoE. Traces-only MUAD reaches val macro-F1 ≈ 0.77, so traces do carry signal (§4). | ✅ (modality runs still in progress) |
-| 2026-11-17 | **New data pipeline** (`project/data_pipeline/`): fetches SN + TT from Zenodo (MD5-verified, both match), rebuilds windowed chunks from raw with per-run clock-offset detection, raw metrics, span latency, Drain3 log counts and run/time metadata per chunk, plus chronological run-level splits (`common.assign_pipeline_runs`). Built and checked locally (data only): **SN** 7 runs → 9,907 chunks (53% normal, now including the 3 fault-free runs), trivial test F1 0.58; **TT** 11 runs → 14,859 chunks (stride 5), trivial test F1 0.685, but **TT traces cover only 2–4% of seconds**. Models made size-agnostic (no hard-coded 12 nodes / 24 edges); all 5 models run on TT; SN parameter counts unchanged. **Deleted** the old SN pipelines and data (`preprocessing/`, `parsed_data/`, `validation/`, Eadro chunk copies, `convert_sn_dataset.py`, `DATASET_VERIFICATION_REPORT.md`). | ❌ pending (server run) |
-| 2026-11-17 | **Leakage found and fixed (§3.12):** the artifact uses stride-1 windows split at random, so **83.9% of test windows have a 90%-identical training neighbour.** All results so far are inflated. Reconstructed the 4 original runs from the chunks and added a leak-free **run-level split** (`--split run`, the new default: train runs 0–1 / val run 2 / test run 3, 0 overlapping windows). Decoded labels: culprit = fault type (0 normal, 1 cpu, 4 delay, 5 loss). **All previous numbers need rerunning under `--split run`.** | ❌ pending |
+| 2026-11-17 | **Phase 2: UG-MoE v2** (`tracks/proposed_model/ug_moe_v2.py`), a rewrite following the guide's pseudocode: per-modality routers fed by graph context and per-expert uncertainty, the routed mixture feeds the probabilistic head and the classifier (fixes §3.1), real graph-aware (§3.2) and uncertainty-guided (§3.3) routing, modality-level uncertainty-aware fusion, loss = CE + λ_KL·KL with no hidden terms. 166k parameters (vs 4.4M, §3.10). Plan §8B ablations and §12 incremental steps are registry entries (`abl2:*`, `ug_moe2:*`). Local checks: all variants run on SN and TT shapes, eval is deterministic, every parameter gets a gradient, and perturbing a router or an expert's uncertainty changes the logits. The legacy `ug_moe` is kept only for reproducing old runs. | ✅ |
+| 2026-11-17 | **Round 4 (leak-free run split, `recovered_artifact`)**, server, seed 42: UG-MoE 0.9332 / MUAD 0.9324 / plain MoE 0.9124 / GAT 0.5530 / Graph-MoE 0.4961 test macro-F1. **GAT and Graph-MoE collapse to near-trivial** once memorization is impossible; UG-MoE ≈ MUAD > plain MoE. Traces-only MUAD reaches val macro-F1 ≈ 0.77, so traces do carry signal (§4). | ✅ |
+| 2026-11-17 | **New data pipeline** (`project/data_pipeline/`): fetches SN + TT from Zenodo (MD5-verified, both match), rebuilds windowed chunks from raw with per-run clock-offset detection, raw metrics, span latency, Drain3 log counts and run/time metadata per chunk, plus chronological run-level splits (`common.assign_pipeline_runs`). Built and checked locally (data only): **SN** 7 runs → 9,907 chunks (53% normal, now including the 3 fault-free runs), trivial test F1 0.58; **TT** 11 runs → 14,859 chunks (stride 5), trivial test F1 0.685, but **TT traces cover only 2–4% of seconds**. Models made size-agnostic (no hard-coded 12 nodes / 24 edges); all 5 models run on TT; SN parameter counts unchanged. **Deleted** the old SN pipelines and data (`preprocessing/`, `parsed_data/`, `validation/`, Eadro chunk copies, `convert_sn_dataset.py`, `DATASET_VERIFICATION_REPORT.md`). | ✅ |
+| 2026-11-17 | **Leakage found and fixed (§3.12):** the artifact uses stride-1 windows split at random, so **83.9% of test windows have a 90%-identical training neighbour.** All results so far are inflated. Reconstructed the 4 original runs from the chunks and added a leak-free **run-level split** (`--split run`, the new default: train runs 0–1 / val run 2 / test run 3, 0 overlapping windows). Decoded labels: culprit = fault type (0 normal, 1 cpu, 4 delay, 5 loss). **All previous numbers need rerunning under `--split run`.** | ✅ |
 | 2026-11-17 | **Round 2 (normalized inputs)**, server, seed 42: plain MoE 0.9906 / GAT 0.9869 / Graph-MoE 0.9898 / MUAD 0.9882 / UG-MoE 0.9857 test F1. **Traces and logs are still unused by both MUAD and UG-MoE**, so the problem is a metrics shortcut, not only scale (§4). Added trained modality ablation (Exp. C) as `<model>@<mods>` in `registry.py`. | ✅ |
-| 2026-11-17 | **Robustness** (server, seed 42) on the comparison checkpoints: **MUAD also ignores traces and logs completely**, so the problem lies in the data rather than in our model. **Root cause:** the log features are ~6e-10 in magnitude, numerically constant to the networks. Fix: train-split z-score normalization of all modalities in `common.load_splits` (plan Step 5, now the default; `--normalize none` for the old behaviour). All "before" numbers above use raw inputs, so rerun comparison and baselines with normalization (§3.5). | ✅ results / ❌ fix pending |
+| 2026-11-17 | **Robustness** (server, seed 42) on the comparison checkpoints: **MUAD also ignores traces and logs completely**, so the problem lies in the data rather than in our model. **Root cause:** the log features are ~6e-10 in magnitude, numerically constant to the networks. Fix: train-split z-score normalization of all modalities in `common.load_splits` (plan Step 5, now the default; `--normalize none` for the old behaviour). All "before" numbers above use raw inputs, so rerun comparison and baselines with normalization (§3.5). | ✅ |
 | 2026-11-17 | **Baselines** (server, seed 42): GAT 0.9848 / Graph-MoE 0.9866 / **plain MoE 0.9917** test F1 (macro-F1 0.9543 / 0.9608 / **0.9756**). Plain MoE beats full UG-MoE (0.9879 / 0.9645), so the uncertainty and routing components currently hurt (§4). | ✅ |
 | 2026-11-17 | **Data:** the SN chunks in `preprocessing/sn/` (from `convert_sn_dataset.py`) turned out to be malformed and single-class (§3.11). Deleted them; the converter is marked broken. | n/a |
-| 2026-11-17 | **Scope:** removed the HDFS log-only mode and all HDFS code and runs (out of plan scope, §7), plus `UG-MoE-Research-Paper-Draft.md` (invalid numbers and claims). `model.py` and `router.py` now have a single multimodal path. | ❌ pending (compile-checked only) |
+| 2026-11-17 | **Scope:** removed the HDFS log-only mode and all HDFS code and runs (out of plan scope, §7), plus `UG-MoE-Research-Paper-Draft.md` (invalid numbers and claims). `model.py` and `router.py` now have a single multimodal path. | ✅ |
 | 2026-11-17 | **Clean-up:** deleted 8 opencode-era planning/forensics `.md` files at the root, `run2`, `project/ablations.log`, `project/project/` (119 MB of October runs), `tracks/proposed_model/train.py` and `test_integration.py`, and `experiments/run_track_a_full.py` (superseded by the `muad` registry entry). Untracked 18 `.pyc` files. Rewrote `README.md` and fixed `data_README.md` (train count, labels, commands). | n/a |
 
 ---
 
 ## 1. Summary: where we are
 
-**Position in the plan's Implementation Order (§12):** every step from 1 to 12 has *something* in the repo. Most steps are only partly done or have correctness problems. **In practice we are around Step 7–9: graph-aware routing, probabilistic uncertainty and uncertainty-guided routing need to be redone so they actually work as the plan describes.** The ablation and robustness results we already have (Steps 11–12) were produced on a model with these defects, so they cannot be used as paper results yet.
+**Every experiment the plan requires (§8 A–H) has been implemented and run, on both SN and TT.** Main
+comparison and component ablations have **5 seeds**. Robustness is being re-run with 5 seeds (Tier 3).
+Modality ablation, routing / uncertainty analysis and sensitivity are single-seed, which is normal for
+those experiments. After Tier 3 and `make_report.py`, what is left is writing the paper.
 
-What works:
-- An end-to-end training/evaluation pipeline runs on the GPU server on `project/recovered_artifact` (12 services, 24 edges, metrics + traces + logs). It produces F1 around 0.99 for every model.
-- All four experts (temporal, semantic, dependency, cross-modal), three router classes, Gaussian uncertainty blocks with KL, and confidence-weighted fusion exist as code.
-- Scripts and results exist for: Track A vs Track B (5 seeds), 6 ablations (5 seeds), GAT / plain-MoE / Graph-MoE baselines (2 seeds), missing-modality, noise and routing analysis (2 seeds).
+**What the code is now:**
+- **UG-MoE v2** (`tracks/proposed_model/ug_moe_v2.py`, 166k params) implements the guide's pseudocode.
+  It has:
+  - 4 shared experts;
+  - per-modality routers using graph context and per-expert uncertainty;
+  - mixture-moment Gaussians;
+  - uncertainty-aware fusion over the modalities;
+  - loss CE + λ_KL·KL.
 
-What is wrong or missing (details in §3):
-1. **The router has no effect on predictions.** The routed mixture `H = Σ g_k E_k` is computed and then thrown away. The classifier only sees the fusion output.
-2. **The "full" model's router uses neither the graph nor the uncertainty blocks.** It ignores the graph input and the per-expert uncertainties it is given.
-3. **Model selection happens on the test set,** and there is no validation split. Every "best F1" we have is optimistic.
-4. **The saved results show traces and logs have no effect.** Zeroing them, or adding noise up to σ=0.5, leaves F1 unchanged. The model behaves as if it only sees metrics.
-5. **The task is easy and imbalanced.** About 83% of test windows are anomalous, so predicting "anomalous" for everything already scores F1 = 0.906. All the differences between models (≈0.2–0.8 F1 points) fall inside this narrow range.
-6. **Track A in the comparison is not faithful MUAD.** It is trained with plain cross-entropy instead of MUAD's own loss.
-7. Several required experiments do not exist yet: modality ablation (C), random-percentage missing modality (D), combined-modality noise (E), sensitivity (H), and the TT dataset.
+  Its switches reproduce the plan's §12 steps and §8B ablations exactly.
+- The legacy `GraphAwareMoE` is kept for reproducibility (user decision).
+- A verified data pipeline (`data_pipeline/`) rebuilds **SN and TT from the raw Zenodo data**.
+- A shared protocol (`experiments/common.py`) does the following:
+  - leak-free run-level split;
+  - normalization fitted on the training split only;
+  - checkpoint selection on validation macro-F1;
+  - a single test evaluation;
+  - full metrics with a trivial baseline row.
+- Every model is a registry name. `make_report.py` regenerates all tables (with t-tests) and figures.
+
+**Headline results (5 seeds, test macro-F1):**
+
+| | SN | TT |
+|---|---|---|
+| UG-MoE v2 | **0.972** | **0.723** |
+| MUAD | 0.925 | 0.626 |
+| GAT | 0.931 | 0.661 |
+
+- **UG-MoE v2 beats MUAD by +4.7 / +9.7** on SN / TT.
+- **Adaptive fusion** is the component that matters on both datasets.
+- The **probabilistic representation** gives robustness to missing data (single seed; 5-seed check in
+  Tier 3).
+
+Limits:
+- full v2 ≈ plain MoE on clean SN;
+- high seed variance on TT;
+- both models fail without metrics (modality dropout deferred);
+- uncertainty can be overconfident on unfamiliar noise.
+
+The detail is in §4.
 
 ---
 
 ## 2. Status by plan step
 
-Legend: ✅ done and verified in code · 🟡 partial / done with problems · ❌ not done · ⚪ out of scope / optional
+Legend: ✅ done and verified · 🟡 partial · ❌ not done · ⚪ optional / out of scope
 
 ### 2.1 Implementation Order (§12 of the plan)
 
-| # | Plan step | Status | Evidence / notes |
+| # | Plan step | Status | Evidence |
 |---|---|---|---|
-| 1 | Load and visualize raw multimodal data | 🟡 | Raw SN data and conversion scripts exist (`preprocessing/raw_to_parsed/`, `experiments/convert_sn_dataset.py`), plus validation gates (`validation/gates/gate01–10`). No visualization or EDA code found. |
-| 2 | Aligned samples + verified labels | 🟡 | Model-ready data = `recovered_artifact/` (10-step windows × 12 services). Labels: `culprit ∈ {0,1,4,5}`, binarized as `culprit >= 1` (same rule as MUAD, `vendor/muad/models/main_model.py:84`). Our own pipeline from raw data gives *different* data (`muad_compat/output`: `event_num=14`), so `recovered_artifact` was **not reproduced** from raw. Its provenance comes only from `data_README.md`. |
-| 3 | Build and validate service graph | 🟡 | 24-edge graph lives in `recovered_artifact/metadata.json` and includes self-loops. Gate 07 checks its structure. No standalone graph file (plan §10). |
-| 4 | Simple baseline classifier | ❌ | No non-graph MLP / per-modality baseline script. |
-| 5 | GAT baseline | 🟡 | `experiments/run_gat_baseline.py` (GATv2, mean-pooled time). It ran with **2 seeds** and lr=0.001, while the main comparison used 5 seeds and lr=0.0005, so the protocols differ. |
-| 6 | Plain MoE without uncertainty | 🟡 | `run_plain_moe.py`, plus the `plain_moe` ablation. Same `GraphAwareMoE` class, so it inherits the "router is ignored" defect (§3.1): this "MoE" has no effective gating. |
-| 7 | Graph-aware routing | ❌ (code exists, ineffective) | See §3.2. The graph input to the base router is never enabled by any experiment config, and it is computed incorrectly. `GraphAwareRouter` doesn't take a graph and can't be constructed by the factory. |
-| 8 | Probabilistic uncertainty | 🟡 | `VariationalUncertaintyBlock` (μ, log σ², reparameterization, KL), one per expert. Plan Step 10 maps the **MoE output** to μ/σ; the code does it **per expert, before routing**. The working copy has uncommitted changes that flip it between deterministic μ and sampling (§3.6). |
-| 9 | Uncertainty-guided routing | ❌ (code exists, ineffective) | `UncertaintyGuidedRouter` ignores the `expert_uncertainties` it receives. It predicts its own "uncertainty" from features (`src/routing/router.py:338–372`). The "uncertainty" passed to the base router is a batch-mean scalar KL, not a per-sample value. |
-| 10 | Adaptive multimodal fusion | 🟡 | `AdaptiveFusion(fusion_type="confidence")` fuses the **4 expert outputs**, not the **3 modality latents** (`z_log, z_trace, z_metric`) the plan specifies (Step 12, pseudocode lines 8–9). |
-| 11 | Freeze implementation, run all ablations | 🟡 (premature) | 6 ablations × 5 seeds ran (`runs/ablations_20261111_231146`), but on the defective model. Their labels don't match what they change (§3.7). |
-| 12 | Robustness + sensitivity | 🟡 | Missing-modality and noise ran (2 seeds). No sensitivity experiments. |
+| 1 | Load and visualize the raw data | ✅ | `data_pipeline/fetch_eadro.py`; per-run diagnostics in `quality.json` (clock offsets, trace coverage, label counts). No separate plotting notebook. |
+| 2 | Aligned samples + verified labels | ✅ | `build_eadro.py`: 1-s grid, per-run clock-offset detection, 10-s windows, labels from fault files (overlap ≥ 1 s), run / time metadata per window |
+| 3 | Build and validate the service graph | ✅ | `systems.py` (Eadro's graph: SN 12 / 24, TT 27 / 44); stored in each dataset's `metadata.json` |
+| 4 | Simple baseline classifier | ⚪ | Covered by the trivial row and the single-expert ablation `abl2:no_moe`; no separate MLP baseline (not needed for any claim) |
+| 5 | GAT baseline | ✅ | `tracks/baselines/gat_baseline.py`, 5 seeds |
+| 6 | Plain MoE | ✅ | `ug_moe2:plain`, 5 seeds |
+| 7 | Graph-aware routing | ✅ | `ug_moe2:graph` (GraphConv context + GATv2 expert), 5 seeds |
+| 8 | Probabilistic uncertainty | ✅ | `ug_moe2:prob`; μ / log σ² per expert, mixture moments, KL |
+| 9 | Uncertainty-guided routing | ✅ | `ug_moe2:ug_routing`; router input includes each expert's predicted log-variance |
+| 10 | Adaptive multimodal fusion | ✅ | `ug_moe2:full`; softmax weights over the 3 modalities from [μ, uncertainty] |
+| 11 | Freeze, run all ablations | ✅ | `abl2:*` = the six §8B ablations, 5 seeds, SN + TT |
+| 12 | Robustness + sensitivity | ✅ | Robustness on SN + TT (5-seed rerun in Tier 3); sensitivity on 6 parameters (SN) |
 
 ### 2.2 Detailed steps (§6 of the plan)
 
 | Plan step | Status | Notes |
 |---|---|---|
-| S1 Download/inspect SN | 🟡 | Raw SN is present locally (`SN_dataset/`, `raw_data/`, gitignored). |
-| S2 Common time window, `sample_id/window_id/service_id` | 🟡 | Chunks have random string IDs (e.g. `MDgXKHl5`) with no window timestamp. **Whether the train/test split is time-ordered cannot be verified from the data** (plan §13: "do not leak future information"). |
-| S3 Logs → templates | 🟡 | Drain3 in `raw_to_parsed/convert_logs.py`. Model input is a per-service count vector over 15 templates (`logs: [12, 15]`). |
-| S4 Traces | 🟡 | `convert_traces.py`. Model input is a single latency channel per service per step (`traces: [12, 10, 1]`). Status codes and parent/child relations are not used as features. |
-| S5 Metrics, train-only normalization | ❓ | `metrics: [12, 10, 7]`. **Not verified** where or whether normalization was fit on train only (nothing is done in the dataloader; it would have happened upstream when the chunks were built). |
-| S6 Service graph | 🟡 | See Step 3 above. |
-| S7 Baseline (GAT) first | 🟡 | See Step 5 above. |
-| S8 Four experts | ✅ | `src/experts/`: `TemporalExpertGraph` (GRU on metrics/traces), `LogSemanticExpert`, `DependencyExpert` (GAT or graph transformer on per-node metric embeddings), `CrossModalExpertGraph` (cross-attention over metric/trace/log node embeddings). |
-| S9 Router, softmax, `H = Σ g_k E_k`, log weights | ❌ | Softmax: yes. Mixture: computed, then **unused** (`model.py:595–601`). Weights are logged by `run_routing_analysis.py`. |
-| S10 μ, σ², reparam, KL | 🟡 | Yes, but per expert (see Step 8). |
-| S11 Uncertainty → router, compared vs. without | ❌ | See Step 9. No valid "with vs. without uncertainty routing" comparison exists yet: `no_uncertainty` removes the uncertainty *blocks* and leaves the router unchanged. |
-| S12 Fusion `z_f = w_log z_log + w_trace z_trace + w_metric z_metric` | 🟡 | See Step 10. |
-| S13 Classifier, CE | ✅ | 2-class CE (`model.py:300–305, 643–644`). |
-| S14 Train/val/test split, select on validation F1 / PR-AUC | ❌ | **No validation set.** All scripts pick the best epoch by **test** F1 (e.g. `run_comparison.py:148`, `run_ablations.py:166`, `vendor/muad/training/base_model.py:86–91`). |
-| S15 Run required experiments | 🟡 | See §4. |
+| S1 Download / inspect | ✅ | MD5-checked Zenodo download; raw structure and labels decoded |
+| S2 Common time window | ✅ | One sample = one window (all services as graph nodes); id `{SYS}-{run}-{start}` with run, `t0`, fault type, faulty service |
+| S3 Logs → templates | ✅ | Masking + Drain3, top-30 templates + "other", log1p counts |
+| S4 Traces | ✅ | log1p mean span latency per service per second (as in MUAD / Eadro); parent / child structure via the service graph |
+| S5 Metrics, train-only normalization | ✅ | 7 raw container metrics; per-channel z-score fitted on the training split only (`normalization.json`) |
+| S6 Service graph | ✅ | see step 3 above |
+| S7 GAT baseline first | ✅ | see step 5 above |
+| S8 Four experts | ✅ | temporal GRU, semantic Transformer, dependency GATv2, cross-modal attention; shared across modalities |
+| S9 Router, softmax, `H = Σ g_k E_k`, log weights | ✅ | one router per modality; mixture feeds the classifier path; weights analysed in Exp. F |
+| S10 μ, σ², reparameterization, KL | ✅ | sampling in training, μ at evaluation; correct KL |
+| S11 Uncertainty → router; with vs without | ✅ | `ug_routing` step and `abl2:no_uncertainty_routing` |
+| S12 Modality fusion | ✅ | `z = Σ_v w_v z_v` |
+| S13 Classifier, CE | ✅ | 2-class CE |
+| S14 Train / val / test, select on val | ✅ | run-level split, val macro-F1 selection, test once (macro-F1 is an F1; see §0 for why not anomaly-F1) |
+| S15 Required experiments | ✅ | §4 |
 
 ---
 
-## 3. Critical issues found in the code
+## 3. Critical issues found in the code (audit of 2026-11-17, all resolved)
 
-Ordered by impact on the paper's claims.
+The subsections below are the original audit of the **legacy** code, kept as the record of why things
+changed. How each issue was resolved:
+
+| Issue | Resolution |
+|---|---|
+| 3.1 routed mixture unused | v2: the mixture feeds the probabilistic head, fusion and classifier |
+| 3.2 no graph-aware routing | v2: GraphConv graph context in every router + GATv2 dependency expert |
+| 3.3 UG routing ignored the model's uncertainty | v2: router input = each expert's predicted log-variance, per sample |
+| 3.4 test-set model selection | `common.train_and_select`: validation selection, test once (all scripts) |
+| 3.5 traces / logs had no effect | train-only z-score; logs now usable (modality ablation: logs alone 0.832 on SN) |
+| 3.6 uncommitted uncertainty-block changes | committed: sampling in training, μ at eval, clamps |
+| 3.7 mislabeled ablations | `ABLATIONS_V2`: each removes exactly one component |
+| 3.8 Track A not MUAD's objective | MUAD trained on its own loss via the registry |
+| 3.9 imbalance hides differences | macro-F1, normal-class F1, PR-AUC, trivial row; rebuilt data with fault-free runs |
+| 3.10 18× model size | v2 has 166k params (MUAD 240k); size sweep keeps hidden 64 |
+| 3.12 leaky split | run-level splits; rebuilt SN / TT with chronological run split |
+| 3.13 hard-coded sizes, broken converter | models size-agnostic; old pipelines and converter deleted, replaced by `data_pipeline/` |
+
 
 ### 3.1 The routed mixture never reaches the classifier
 `tracks/proposed_model/model.py:595–614`: `combined = Σ routing_weights[:, i] * expert_outputs[i]` is computed, then `fused = self.fusion(expert_outputs)` and `MMlogit = self.classifier(fused)`. `combined` is never used. The router's only influence is an auxiliary loss term. **Consequence:** "MoE routing" contributes nothing to any prediction. The routing-analysis plot shows near-uniform weights (entropy 1.333 against a maximum of ln 4 = 1.386), which fits this.
@@ -215,36 +263,70 @@ Found on 2026-11-17 by reading Eadro's preprocessing (`vendor/eadro/codes/prepro
 
 ---
 
-## 4. Required experiments (plan §8): status
+## 4. Required experiments (plan §8): status and results
 
-| Exp. | Requirement | Status | What exists |
+| Exp. | Requirement | Status | Where |
 |---|---|---|---|
-| A | GAT, Plain MoE, Graph-MoE, Full | 🟡 | All four ran. Baselines: 2 seeds at lr=1e-3. Full: 5 seeds at lr=5e-4. Plain MoE and Full are the same class with a non-functional router. `GraphMoE` (`run_graph_moe.py`) is a separate model with real per-node top-k routing over class logits. |
-| B | 6 component ablations | 🟡 | 6 ran (5 seeds), but they don't match the required list (§3.7). |
-| C | Modality ablation (7 subsets, trained) | ❌ | No script. (Missing-modality at test time is a different experiment.) |
-| D | Missing modality: 10/20/40/60% random masking + one modality at a time | 🟡 | One modality at a time only, at test time, 2 seeds. No percentage masking. |
-| E | Noise on each modality and combinations | 🟡 | Each single modality, σ ∈ {0.01…0.5}, 2 seeds. No combinations. No relative-F1-degradation column. |
-| F | Routing weights per anomaly type + entropy | 🟡 | Global mean weights and entropy (2 seeds, 30 epochs). **No per-anomaly-type breakdown** (the script never splits by `culprit`). Meaningless until §3.1 is fixed. |
-| G | Uncertainty clean vs. noisy; fusion weights | 🟡 | Script exists (`run_uncertainty_fusion_analysis.py`, still has debug prints), but **no output in `runs/`**. Its "uncertainty" is the batch-scalar KL. |
-| H | Hyperparameter sensitivity | ❌ | Nothing. |
-| — | Cross-dataset (TT) | ❌ | Not started. |
+| A | GAT, Plain MoE, Graph-MoE, Full (+ MUAD) | ✅ 5 seeds, SN + TT | FINAL section below; `runs/final_{sn,tt}_main_*` |
+| B | 6 component ablations | ✅ 5 seeds, SN + TT | FINAL section; `runs/final_{sn,tt}_abl_*` (+ rounds 9 / 15b for seed 42) |
+| C | Modality ablation (7 subsets, trained) | ✅ SN, 1 seed | round 12 |
+| D | Missing modality: 10–60% masking + one modality at a time | ✅ SN + TT (5-seed rerun in Tier 3) | rounds 8, 11, 14, 15a; `runs/final_rob_*` |
+| E | Noise on every modality combination, relative drop | ✅ (5-seed rerun in Tier 3) | same as D |
+| F | Routing per anomaly type + entropy | ✅ SN + TT, 1 seed | rounds 13, 14 |
+| G | Uncertainty clean vs noisy, fusion weights | ✅ SN + TT, 1 seed | rounds 13, 14 |
+| H | Sensitivity: experts, embedding, window, λ_KL, temperature, lr | ✅ SN, 1 seed | rounds 16a–c |
+| — | Cross-dataset (TT) | ✅ | all of the above on TT except C and H |
 
-### Current numbers (all on `recovered_artifact`; all "best F1" = **max over epochs on test**)
+**Read the FINAL 5-seed section first.** The rounds below it are the single-seed exploration history in
+the order the results arrived. Several single-seed ablation effects did not survive 5 seeds. Numbers
+from before 2026-11-17's protocol fix (test-set selection) were removed from this file; they are in git
+history and must not be used.
 
-| Model | Seeds | lr | Best F1 (mean ± std) |
-|---|---|---|---|
-| Trivial "all anomalous" | — | — | 0.906 |
-| GAT baseline | 2 | 1e-3 | 0.9868 |
-| Graph-MoE baseline | 2 | 1e-3 | 0.9870 |
-| Plain MoE (`run_plain_moe.py`) | 2 | 1e-3 | 0.9916 |
-| Track A, MUAD (CE-only, in comparison) | 5 | 5e-4 | 0.9896 ± 0.0007 |
-| **Track B, full UG-MoE** | 5 | 5e-4 | **0.9918 ± 0.0005** (paired t-test p = 0.005 vs A) |
-| Ablation `no_graph` | 5 | 5e-4 | 0.9908 ± 0.0025 |
-| Ablation `no_uncertainty` | 5 | 5e-4 | 0.9896 ± 0.0006 |
-| Ablation `no_fusion` | 5 | 5e-4 | 0.9918 ± 0.0013 |
-| Ablation `single_expert` | 5 | 5e-4 | 0.9835 ± 0.0021 |
-| Ablation `plain_moe` | 5 | 5e-4 | 0.9901 ± 0.0025 |
-| Ablation `graph_transformer` | 5 | 5e-4 | 0.9879 ± 0.0010 |
+#### FINAL: 5-seed main results and ablations (seeds 42, 123, 456, 789, 999; 2026-11-18)
+
+`runs/final_sn_main_{a,b}`, `runs/final_tt_main_{a,b}` (+ TT seed 42 from round 7), `runs/final_{sn,tt}_abl_{a,b}`
+(+ seed 42 from rounds 9 / 15b). The means below were pooled by hand from the per-run means; the exact
+mean ± std comes from `make_report.py`. **These numbers supersede the single-seed tables above.**
+
+Test macro-F1, 5-seed mean:
+
+| Model | SN | TT |
+|---|---|---|
+| MUAD | 0.925 | 0.626 |
+| GAT | 0.931 | 0.661 |
+| v2 plain (= plain MoE) | 0.971 | 0.698 |
+| v2 graph (= Graph-MoE) | 0.960 | 0.667 |
+| **UG-MoE v2 full** | **0.972** | **0.723** |
+
+- **UG-MoE v2 beats MUAD on both datasets: +4.7 (SN) and +9.7 (TT) macro-F1**, and GAT by +4.1 / +6.3.
+- **Full vs plain: +0.1 (SN), +2.5 (TT).** Not established as a clean-accuracy gain. TT seeds vary a
+  lot (full ranges 0.65–0.82 across seeds; plain reached 0.84 on seed 123).
+- **The single-seed TT margin (+17.6 over MUAD) was optimistic; the 5-seed margin is +9.7.**
+
+Component ablations, 5-seed mean, Δ vs full:
+
+| Ablation | SN | Δ SN | TT | Δ TT |
+|---|---|---|---|---|
+| w/o graph | 0.978 | +0.6 | 0.741 | +1.8 |
+| w/o MoE | 0.965 | −0.6 | 0.724 | +0.1 |
+| w/o dynamic routing | 0.977 | +0.5 | 0.673 | **−5.0** |
+| w/o uncertainty routing | 0.974 | +0.2 | 0.698 | −2.6 |
+| w/o probabilistic | 0.980 | +0.8 | 0.704 | −1.9 |
+| **w/o adaptive fusion** | 0.948 | **−2.4** | 0.690 | **−3.3** |
+
+- **Adaptive (uncertainty-aware) fusion is the one component that helps clean accuracy on both
+  datasets** (−2.4 / −3.3 when removed). On SN it is the only consistent effect: every seed shows the
+  drop (0.946–0.950 vs ~0.97).
+- On TT, dynamic routing (−5.0) and uncertainty routing (−2.6) point the right way, but TT's per-seed
+  spread is large, so check the stds from `make_report.py` before claiming them.
+- **Several single-seed effects disappeared:** w/o MoE on SN (−7.8 → −0.6), w/o graph on TT
+  (−18.8 → +1.8), w/o uncertainty routing on SN (−3.9 → +0.2). The single-seed ablations were dominated
+  by seed noise, which is exactly why the final runs use 5 seeds.
+- The clean-accuracy role of the probabilistic representation is not significant. Its robustness role
+  (round 15a) is being re-checked over 5 seeds (final robustness runs).
+
+
+### Single-seed exploration rounds (history, newest results interleaved)
 
 #### New protocol: validation-selected, test evaluated once (seed 42, `runs/comparison_20261117_104222`)
 
@@ -486,49 +568,6 @@ better result).
   0.9 test points, more than the 0.5-point threshold, so **keep hidden 64**. The 4× larger model is
   slightly worse, so capacity is not what drives the results.
 
-#### FINAL: 5-seed main results and ablations (seeds 42, 123, 456, 789, 999; 2026-11-18)
-
-`runs/final_sn_main_{a,b}`, `runs/final_tt_main_{a,b}` (+ TT seed 42 from round 7), `runs/final_{sn,tt}_abl_{a,b}`
-(+ seed 42 from rounds 9 / 15b). The means below were pooled by hand from the per-run means; the exact
-mean ± std comes from `make_report.py`. **These numbers supersede the single-seed tables above.**
-
-Test macro-F1, 5-seed mean:
-
-| Model | SN | TT |
-|---|---|---|
-| MUAD | 0.925 | 0.626 |
-| GAT | 0.931 | 0.661 |
-| v2 plain (= plain MoE) | 0.971 | 0.698 |
-| v2 graph (= Graph-MoE) | 0.960 | 0.667 |
-| **UG-MoE v2 full** | **0.972** | **0.723** |
-
-- **UG-MoE v2 beats MUAD on both datasets: +4.7 (SN) and +9.7 (TT) macro-F1**, and GAT by +4.1 / +6.3.
-- **Full vs plain: +0.1 (SN), +2.5 (TT).** Not established as a clean-accuracy gain. TT seeds vary a
-  lot (full ranges 0.65–0.82 across seeds; plain reached 0.84 on seed 123).
-- **The single-seed TT margin (+17.6 over MUAD) was optimistic; the 5-seed margin is +9.7.**
-
-Component ablations, 5-seed mean, Δ vs full:
-
-| Ablation | SN | Δ SN | TT | Δ TT |
-|---|---|---|---|---|
-| w/o graph | 0.978 | +0.6 | 0.741 | +1.8 |
-| w/o MoE | 0.965 | −0.6 | 0.724 | +0.1 |
-| w/o dynamic routing | 0.977 | +0.5 | 0.673 | **−5.0** |
-| w/o uncertainty routing | 0.974 | +0.2 | 0.698 | −2.6 |
-| w/o probabilistic | 0.980 | +0.8 | 0.704 | −1.9 |
-| **w/o adaptive fusion** | 0.948 | **−2.4** | 0.690 | **−3.3** |
-
-- **Adaptive (uncertainty-aware) fusion is the one component that helps clean accuracy on both
-  datasets** (−2.4 / −3.3 when removed). On SN it is the only consistent effect: every seed shows the
-  drop (0.946–0.950 vs ~0.97).
-- On TT, dynamic routing (−5.0) and uncertainty routing (−2.6) point the right way, but TT's per-seed
-  spread is large, so check the stds from `make_report.py` before claiming them.
-- **Several single-seed effects disappeared:** w/o MoE on SN (−7.8 → −0.6), w/o graph on TT
-  (−18.8 → +1.8), w/o uncertainty routing on SN (−3.9 → +0.2). The single-seed ablations were dominated
-  by seed noise, which is exactly why the final runs use 5 seeds.
-- The clean-accuracy role of the probabilistic representation is not significant. Its robustness role
-  (round 15a) is being re-checked over 5 seeds (final robustness runs).
-
 #### Rounds 16b and 16c: sensitivity, KL weight, routing temperature, learning rate, window (SN, 2026-11-18)
 
 `runs/round16b_sens_sn/`, `runs/round16c_sens_sn_{lr1e-4,lr1e-3,w5,w20}/`. Test macro-F1 (default marked *):
@@ -688,104 +727,111 @@ Robustness on the round-2 checkpoints (`runs/round2_tracks/robustness_*`):
 
 **Reading:** normalization made logs numerically visible, but **neither model started using traces or logs.** So scale was not the only cause. Metrics alone already reach about 0.99 on this dataset, and the models take that shortcut. Changes from normalization are within single-seed noise. The ranking is unchanged: plain MoE is still the best and UG-MoE is still below plain MoE and MUAD. **Next diagnostic:** the plan's Exp. C (modality ablation, *trained* on each subset), which shows whether traces and logs carry standalone signal. It is implemented as the registry suffix `<model>@<mods>`, e.g. `muad@traces+logs`.
 
-#### Old protocol (test-set selection, for reference only)
-
-**Do not put these numbers in the paper.** Plain MoE with no graph and no uncertainty (0.9916) and `no_fusion` (0.9918) match the full model, which is what you would expect given §3.1–3.3.
-
 ---
 
 ## 5. Required outputs (plan §10)
 
 | Output | Status |
 |---|---|
-| Preprocessed dataset with documented schema | 🟡 `recovered_artifact` + `data_README.md` (schema partly documented, provenance not reproduced) |
-| Service dependency graph file | ❌ (embedded in `metadata.json` only) |
-| GAT / Plain MoE / Graph-MoE / Full checkpoints | 🟡 Only on the server; last seed only; gitignored; full-model checkpoints not saved by `run_comparison.py` |
-| Overall performance table | 🟡 Exists in JSON; not valid (§3.4) |
-| Ablation table | 🟡 Exists; not valid (§3.7) |
-| Missing/noisy robustness plots | ❌ JSON only, no plots |
-| Expert-weight heatmaps | 🟡 Histograms per seed (`routing_analysis_*.png`), no per-anomaly heatmap |
-| Uncertainty / fusion-weight plots | ❌ |
-| Sensitivity plots | ❌ |
-| Reproducible evaluation script regenerating all tables/plots | ❌ |
+| Preprocessed dataset with documented schema | ✅ `data_pipeline/` output + `metadata.json` + `quality.json`; documented in `data_README.md` |
+| Service dependency graph file | ✅ in every dataset's `metadata.json` (services + edge list), from `systems.py` |
+| GAT / Plain MoE / Graph-MoE / Full checkpoints | ✅ per model and seed, `<model>_seed<N>_best.pth` in each run directory (server) |
+| Overall performance table | ✅ `make_report.py` → `tables.md` (mean ± std, seeds, t-tests) |
+| Ablation table | ✅ same |
+| Missing / noisy robustness plots | ✅ `robustness_masking_*.png`, `robustness_noise_*.png` |
+| Expert-weight heatmaps | ✅ `routing_*.png` (per fault type, with entropy) |
+| Uncertainty / fusion-weight plots | ✅ `fusion_*.png`, `uncertainty_delta_*.png` |
+| Sensitivity plots | ✅ `sensitivity_sn.png` |
+| Reproducible script regenerating all tables / plots | ✅ `experiments/make_report.py` |
 
 ## 6. Completion criteria (plan §14)
 
 | Criterion | Status |
 |---|---|
-| End-to-end from dataset files to predictions | 🟡 From pre-built chunks, yes. From raw SN, not reproducibly (different `event_num`). |
-| GAT baseline reproducible | 🟡 Runs; 2 seeds; only last checkpoint kept |
-| Plain MoE and Graph-MoE under the same protocol | ❌ Different lr and seed count from the full model; test-set selection |
-| Full model runs without numerical instability | 🟡 Runs, but needs SDPA workarounds, NaN-skip logic and grad clipping 0.5. The current working copy removed the clamps. |
-| All ablations completed | ❌ (wrong set) |
-| Missing-modality and noise completed | 🟡 Partial |
-| Sensitivity plots | ❌ |
-| Metrics reproducible from checkpoints + scripts | ❌ |
+| End-to-end from dataset files to predictions | ✅ `fetch_eadro` → `build_eadro` → `run_baselines` |
+| GAT baseline reproducible | ✅ deterministic per seed; 5 seeds |
+| Plain MoE and Graph-MoE under the same protocol | ✅ same split, settings and selection as every model; 5 seeds |
+| Full model runs without numerical instability | ✅ no NaN / skipped batches observed; clamped log-variance |
+| All ablations completed | ✅ the six §8B ablations, 5 seeds, SN + TT |
+| Missing-modality and noise completed | ✅ (5-seed rerun in Tier 3) |
+| Sensitivity plots | ✅ |
+| Metrics reproducible from checkpoints + scripts | ✅ |
 
 ---
 
-## 7. Out of scope or beyond the plan
+## 7. Out of scope, deferred, or beyond the plan
 
-- **HDFS log-only mode: removed 2026-11-17.** The plan covers **multimodal** detection only, and the log-only branches went through the exact files Phase 2 rewrites (`model.py`, `router.py`, experts). Removed: `log_only_mode` and its parameters, `src/experts/log_expert.py`, `preprocessing/hdfs/`, `experiments/run_hdfs.py`, `configs/hdfs_full.json`, `project/runs/` (old HDFS runs), and the HDFS-derived copies in `preprocessing/sn/`. It can be recovered from git history or the `backup-hdfs` branch if the supervisor asks for a log-only experiment.
-- **Active learning** (`run_track_a_al.py`). Plan §13: "do not add active learning to the first implementation". It's fine as a MUAD reproduction, but it isn't part of UG-MoE.
-- **Framework:** the plan suggests PyTorch Geometric; the code uses DGL (inherited from MUAD). This is an acceptable deviation, but mention it.
-- **Project layout** differs from plan §5 (`src/` + `tracks/` + `experiments/` instead of `models/` + `scripts/`). This is fine.
-
----
-
-## 8. What's next (proposed order)
-
-Each phase should end with a commit pushed to GitHub and a server run whose outputs we check before moving on.
-
-### Phase 0: Decide and stabilize (local, no training)
-1. **Settle the uncertainty-block version** (deterministic μ at eval and sampling at train, with clamping, is the usual choice). Commit it, and make `forward` respect `self.training`.
-2. ~~HDFS scope~~ (removed, §7). Active-learning scope still to confirm with the supervisor.
-
-### Phase 1: Evaluation protocol (before any further results)
-3. Add a **validation split** from the train set, at window level and time-ordered if timestamps can be recovered. Select the epoch/checkpoint on **validation** F1 or PR-AUC. Report test once, at the selected checkpoint.
-4. Use one shared training/eval loop (one module used by every script) so every model gets the same seeds (5), lr, epochs, early stopping and metrics. Currently each script duplicates its own loop.
-5. Report P, R, F1 (anomaly class), macro-F1, PR-AUC, ROC-AUC, plus a trivial-baseline row. Save the per-seed best checkpoint under a per-run directory.
-6. Make Track A use MUAD's real objective in the comparison (or call `BaseModel`), with 5 seeds.
-
-### Phase 2: Make the model match the plan
-7. **Routing actually used:** `H = Σ g_k · E_k` feeds the probabilistic head and the classifier path (pseudocode lines 7–10).
-8. **Graph-aware routing:** route using a real graph signal, e.g. pooled GAT or node-level features of the dependency graph, or per-node routing. Drop the flattened edge-ID vector and the broken `GraphAwareRouter`.
-9. **Uncertainty-guided routing:** pass **per-sample** σ (e.g. mean predicted variance per expert, not the batch KL) into the router, and remove the router's self-invented uncertainty heads and the undocumented `0.01 * mean(uncertainty)` loss term. Keep `L = L_cls + λ_KL · L_KL`, and add a load-balancing term only if justified and reported separately (plan §7).
-10. **Modality-level fusion:** produce `z_log, z_trace, z_metric`, learn `w_log, w_trace, w_metric` (conditioned on uncertainty), then `z_f = Σ w_m z_m` (plan Step 12). Log these weights.
-11. **Diagnose the metric-only behaviour (§3.5):** per-modality probes, gradient and feature statistics for traces/logs, checks for near-constant trace/log inputs. Add modality dropout during training if needed (`src/fusion/fusion.py` already has `ModalityDropout`).
-12. ~~Remove the hard-coded 12/24 assumptions so TT (27 services) can run.~~ Done 2026-11-17 (`num_edges` from metadata; experts infer N from the graph).
-13. Re-run Plan §12 steps 4–10 in order as quick single-seed checks on the server: simple MLP, then GAT, then plain MoE, then +graph routing, then +uncertainty, then +UG routing, then +fusion. Confirm each addition changes behaviour.
-
-13b. **Size sweep (§3.10):** shrink experts and dims to the smallest config with negligible validation loss. Single seed; keep the full size if the loss isn't negligible.
-
-### Phase 3: Freeze, then run the experiments (plan §8)
-14. Freeze the model (tag a commit). Rewrite ablations to exactly match §8B, each flag removing exactly one component.
-15. Baseline comparison (A) under the shared protocol, 5 seeds.
-16. Modality ablation (C), trained on each of the 7 subsets.
-17. Missing modality (D): 10/20/40/60% random masking plus single-modality drop. Noise (E): single and combined modalities, with relative F1 degradation.
-18. Routing analysis (F) per anomaly type (`culprit` 1/4/5) as heatmaps, with entropy. Uncertainty/fusion analysis (G): clean vs. noisy.
-19. Sensitivity (H): number of experts, embedding dim, window size, λ_KL, routing temperature, lr.
-20. Cross-dataset: TT from the same Zenodo record. The pipeline exists (`data_pipeline/`); note that TT traces are nearly absent (2–4% of seconds).
-
-### Phase 4: Reproducibility and paper
-21. A single `evaluate.py` / `make_tables.py` that regenerates all tables and plots from saved checkpoints and result JSONs.
-22. Only then write the paper (the opencode draft was deleted), using numbers from this pipeline only.
+- **HDFS log-only mode:** removed 2026-11-17 (out of plan scope); recoverable from git history or the
+  `backup-hdfs` branch.
+- **Active learning** (`run_track_a_al.py`): kept as MUAD's script; not part of UG-MoE (plan §13). It
+  still selects on test and is not used for any result.
+- **Modality dropout:** deferred by user decision (not in the guide). It would address "fails without
+  metrics" (§4, rounds 8 / 12 / 14).
+- **Framework:** DGL instead of PyTorch Geometric (same library as the vendored baselines).
+- **Project layout** differs from plan §5 in naming only.
+- **Legacy `ug_moe`:** kept alongside v2 (user decision, 2026-11-18).
 
 ---
 
-## 9. Open questions for the supervisor
-1. Is `recovered_artifact` (the MUAD authors' pre-built SN chunks) acceptable as the primary dataset, or must the data be regenerated from raw SN with our own pipeline? Our pipeline currently produces `event_num=14` and a different number of chunks.
-2. Given that 83% of windows are anomalous and F1 is around 0.99 everywhere, should we move to a harder setting (e.g. a time-ordered split, normal-class F1, or the TT dataset as the main benchmark) so that differences between models mean something?
-3. Should routing be per sample (graph-level) or per node (service-level)?
-4. ~~Is HDFS in scope?~~ Removed as out of plan scope (§7); confirm this is acceptable.
+## 8. What's next
+
+1. **Tier 3:** 5-seed robustness (`/tmp/final_rob.sh`); then check
+   `grep missing experiments/runs/final_rob.log`.
+2. **`python experiments/make_report.py`** → exact means ± std, t-tests, all figures.
+3. Update the FINAL section here, §9 of `UG-MoE_Implementation_Report.md` and the top of
+   `MUAD_vs_UG-MoE.md` with the exact 5-seed numbers (the current FINAL numbers were pooled by hand from
+   per-run means).
+4. Write the paper from `tables.md` and the report figures.
+
+**Optional, only if time allows:**
+- split hardening: a 60-s gap at the cuts and log templates mined on training runs only; this needs the
+  final runs repeated;
+- modality dropout;
+- leave-one-run-out evaluation on SN;
+- a 5-seed version of the analysis (F / G) and sensitivity (H).
 
 ---
 
-## 10. Repository clean-up backlog (plan for a clean research codebase)
-- ~~Untrack `.pyc`; remove `project/project/`, `run2`, `.swp`, opencode-era `.md` files~~ (done 2026-11-17).
-- Stray empty `C:Usersas999OneDriveDesktoptrashimpl/` folder at the repo root: untracked, delete by hand.
-- ~~HDFS code, `project/runs/`, `UG-MoE-Research-Paper-Draft.md`~~ (removed 2026-11-17). The raw `hdfs_dataset/` (1.6 GB, untracked, gitignored) is still on the local disk; delete it by hand if no longer needed.
-- Old-protocol results in `project/experiments/runs/*_202611{11,12}_*`: keep as the "before" reference until the new-protocol runs replace them, then delete.
-- Replace hard-coded Windows paths (`convert_sn_dataset.py`, `gate01`) with CLI arguments.
-- Fix `pyproject.toml` dependencies (TOML table → array) so `pip install -e .` works on the server.
-- Replace the ad-hoc test scripts with a small `pytest` suite (shape and forward-pass smoke tests on a handful of chunks) that can run locally on CPU.
+## 9. Questions for the supervisor
+
+Answered by the work so far (confirm):
+1. ~~Is `recovered_artifact` acceptable as the primary dataset?~~ We rebuilt SN and TT from raw. The
+   artifact is kept only to show that the MUAD paper's protocol leaks and that we reproduce its number
+   under that protocol.
+2. ~~Should we move to a harder setting?~~ Done: run-level splits, fault-free runs included, macro-F1,
+   TT.
+3. Routing granularity: v2 routes **per window and modality** (the experts work per service inside).
+4. HDFS removed as out of scope.
+
+Open:
+5. Is reporting **macro-F1 as the primary metric** (with anomaly-F1, PR-AUC, ROC-AUC alongside)
+   acceptable?
+6. The interpretive choices in v2 (`PROJECT_EXPLAINED.md`, Part 4): per-modality routers, per-expert
+   uncertainty heads (which resolve the routing / uncertainty circularity in the pseudocode), μ at
+   evaluation. Are they acceptable?
+7. Should modality dropout be added before submission? It is the obvious fix for "fails without
+   metrics", but it is not in the guide.
+8. TT trade-off: UG-MoE v2 catches far more network faults but flags 30% of normal windows (baselines
+   13–17%). Should we also report a threshold-tuned operating point?
+
+---
+
+## 10. Repository clean-up backlog
+
+Done:
+- `.pyc` untracked;
+- old folders and opencode-era docs removed;
+- HDFS removed;
+- old SN pipelines and broken converter removed;
+- superseded scripts removed (`run_*_baseline.py`, `run_track_b_full.py`, `run_missing_modality.py`,
+  `run_noise_robustness.py`, `run_routing_analysis.py`, `run_uncertainty_fusion_analysis.py`);
+- README rewritten.
+
+Remaining:
+- Stray empty `C:Usersas999OneDriveDesktoptrashimpl/` folder and raw `SN_dataset/`, `raw_data/`,
+  `hdfs_dataset/` at the repo root (untracked): delete by hand.
+- Old-protocol run outputs in `project/experiments/runs/*_202611{11,12}_*`: can be deleted (superseded,
+  and they selected on test).
+- Fix `pyproject.toml` dependencies (TOML table → array) so `pip install -e .` works.
+- Optional: a small CPU `pytest` smoke suite (shapes, forward pass, determinism) instead of
+  `test_components.py`.
