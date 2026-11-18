@@ -323,7 +323,20 @@ def robustness_figures(rob, system, out):
 
 
 def sensitivity_points(models, single_runs, full_entry, no_moe_entry):
-    """{param: [(value, macro_f1)]} including the default (full model) point."""
+    """
+    {param: [(value, macro_f1)]} including the default (full model) point. The sweep runs are single-seed,
+    so the default and 1-expert points use the same seeds as the sweep (not the 5-seed mean of the final
+    runs), otherwise the default would be compared at a different seed from every other point.
+    """
+    sweep_seeds = {s for e in models.values() for s in e.get("seeds", [])}
+    sweep_seeds |= {s for _, _, e in single_runs for s in e.get("seeds", [])}
+
+    def seed_matched(e):
+        shared = sorted(sweep_seeds & set(e.get("by_seed", {}))) if sweep_seeds else []
+        if not shared:
+            return stat(e, "macro_f1")[0]
+        return float(np.mean([e["by_seed"][s]["macro_f1"] for s in shared]))
+
     pts = {k: [] for k in DEFAULTS}
     for n, e in models.items():
         if "#" not in n:
@@ -338,9 +351,9 @@ def sensitivity_points(models, single_runs, full_entry, no_moe_entry):
         pts[k].append((v, stat(e, "macro_f1")[0]))
     if full_entry is not None:
         for k, v in DEFAULTS.items():
-            pts[k].append((v, stat(full_entry, "macro_f1")[0]))
+            pts[k].append((v, seed_matched(full_entry)))
     if no_moe_entry is not None:
-        pts["experts"].append((1, stat(no_moe_entry, "macro_f1")[0]))
+        pts["experts"].append((1, seed_matched(no_moe_entry)))
     return {k: sorted(v) for k, v in pts.items() if len(v) > 1}
 
 
@@ -493,7 +506,9 @@ def main():
             single.append((k, v, next(iter(m.values()))))
     pts = sensitivity_points(models, single, full["SN"], no_moe_sn)
     if pts:
-        md += ["### Hyperparameter sensitivity, SN (plan 8H)", "", "| Parameter | Value | Test macro-F1 |", "|---|---|---|"]
+        md += ["### Hyperparameter sensitivity, SN (plan 8H)", "",
+               "One-at-a-time sweep from the defaults, single seed; the default (and 1-expert) point is taken "
+               "at the same seed, not the 5-seed mean.", "", "| Parameter | Value | Test macro-F1 |", "|---|---|---|"]
         for k, v in pts.items():
             md += [f"| {k} | {x:g}{' (default)' if x == DEFAULTS[k] else ''} | {y:.4f} |" for x, y in v]
         md.append("")
