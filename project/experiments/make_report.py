@@ -208,15 +208,28 @@ def main_table(models, trivial, title, order):
     return out + [""]
 
 
+def ref_on_seeds(ref, seeds, metric="macro_f1"):
+    """Mean of `metric` for the reference model over the given seeds only (None if it has none of them).
+    Comparisons against a single-seed run must use the reference at that seed, not its multi-seed mean."""
+    shared = sorted(set(seeds) & set(ref.get("by_seed", {})))
+    if not shared:
+        return None
+    return float(np.mean([ref["by_seed"][s][metric] for s in shared]))
+
+
 def delta_table(models, ref, title, order):
+    """Δ = model − full, with the full model taken on the seeds each row has (seed-matched)."""
     if ref is None:
         return [f"### {title}", "", "_reference model missing_", ""]
-    r = stat(ref, "macro_f1")[0]
-    out = [f"### {title}", "", "| Model | Macro-F1 | Δ vs full | F1 | Recall |", "|---|---|---|---|---|",
-           f"| UG-MoE v2 (full) | {fmt(ref, 'macro_f1')} | — | {fmt(ref, 'f1')} | {fmt(ref, 'recall')} |"]
+    out = [f"### {title}", "", "Δ = model − full, with the full model evaluated on the same seeds as the row.", "",
+           "| Model | Seeds | Macro-F1 | Δ vs full | F1 | Recall |", "|---|---|---|---|---|---|",
+           f"| UG-MoE v2 (full) | {len(ref.get('seeds', []))} | {fmt(ref, 'macro_f1')} | — | {fmt(ref, 'f1')} | "
+           f"{fmt(ref, 'recall')} |"]
     for n in [n for n in order if n in models] + [n for n in models if n not in order]:
         e = models[n]
-        out.append(f"| {nice(n)} | {fmt(e, 'macro_f1')} | {100 * (stat(e, 'macro_f1')[0] - r):+.1f} | "
+        r = ref_on_seeds(ref, e.get("seeds", []))
+        d = "—" if r is None else f"{100 * (stat(e, 'macro_f1')[0] - r):+.1f}"
+        out.append(f"| {nice(n)} | {len(e.get('seeds', []))} | {fmt(e, 'macro_f1')} | {d} | "
                    f"{fmt(e, 'f1')} | {fmt(e, 'recall')} |")
     return out + [""]
 
@@ -332,10 +345,8 @@ def sensitivity_points(models, single_runs, full_entry, no_moe_entry):
     sweep_seeds |= {s for _, _, e in single_runs for s in e.get("seeds", [])}
 
     def seed_matched(e):
-        shared = sorted(sweep_seeds & set(e.get("by_seed", {}))) if sweep_seeds else []
-        if not shared:
-            return stat(e, "macro_f1")[0]
-        return float(np.mean([e["by_seed"][s]["macro_f1"] for s in shared]))
+        r = ref_on_seeds(e, sweep_seeds) if sweep_seeds else None
+        return stat(e, "macro_f1")[0] if r is None else r
 
     pts = {k: [] for k in DEFAULTS}
     for n, e in models.items():
