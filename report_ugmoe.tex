@@ -1,0 +1,477 @@
+\RequirePackage[T1]{fontenc}
+\documentclass[11pt,a4paper,onecolumn]{IEEEtran}
+\usepackage{booktabs,array,float}
+
+\setlength{\textwidth}{160mm}
+\setlength{\textheight}{245mm}
+\setlength{\oddsidemargin}{\dimexpr(\paperwidth-\textwidth)/2-1in\relax}
+\setlength{\evensidemargin}{\oddsidemargin}
+\setlength{\topmargin}{\dimexpr25mm-1in-\headheight-\headsep\relax}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+\setlength{\emergencystretch}{1em}
+\raggedbottom
+\pagestyle{plain}
+
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\renewcommand{\refname}{Sources}
+
+\title{\bfseries UG-MoE for Multimodal\\Microservice Anomaly Detection}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{plain}
+
+\section{Project overview}
+
+I built \textbf{UG-MoE v2}, an uncertainty-guided, graph-aware mixture of experts that classifies each
+10-second window of metrics, traces, and logs as \textbf{normal or anomalous}. I also audited the MUAD
+baseline and rebuilt the evaluation from raw recordings. Under the shared protocol, UG-MoE v2 improved test
+macro-F1 over MUAD by \textbf{4.6 points on SocialNetwork} and \textbf{9.7 points on TrainTicket}.
+
+\section{MUAD audit and evaluation changes}
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{MUAD audit findings and project responses.}
+\begin{tabular}{@{}P{0.48\linewidth}P{0.48\linewidth}@{}}
+\toprule
+\textbf{Finding} & \textbf{Project response} \\
+\midrule
+In the recovered SocialNetwork split, \textbf{83.87\% of test windows} (1,882 of 2,244) had a training neighbor sharing nine of ten seconds of metrics. &
+  Keep fault recordings in separate sets. For TrainTicket's fault-free recordings, use nonoverlapping time blocks and discard windows that cross the cuts. \\
+The released MUAD trainer chooses its checkpoint using test F1. &
+  Use validation macro-F1 for checkpoint selection in \textbf{both models}. Use the test set for final scoring. \\
+On the recovered test set, an always-anomalous predictor gets \textbf{0.9064 anomaly F1} and \textbf{0.4532 macro-F1}. &
+  Lead with macro-F1, which averages normal-class and anomaly-class F1. Report the constant baseline. \\
+MUAD's released model mixes up variance and log-variance in its uncertainty penalty and samples at prediction time. &
+  UG-MoE v2 uses the correct Gaussian KL formula and uses the latent mean in evaluation. The MUAD baseline retains its published implementation's sampling and KL behavior. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In the local audit, MUAD scored \textbf{0.9882 anomaly F1} on the recovered random split and \textbf{0.9767}
+on a whole-recording split of the recovered data. The second run also changed normalization and which
+windows were tested, so the score drop does not isolate the impact of overlap. The 83.87\% measurement
+applies to the recovered files. The paper does not specify how it selected the checkpoint for its published
+score~\cite{muad-paper,muad-audit}.
+
+\section{Implementation and experimental setup}
+
+I aligned the Eadro recordings to a one-second grid and labeled a window anomalous when it overlapped an
+injected fault by at least one second. The inputs are seven container metrics, span latency, and Drain3
+log-template counts per service. Each window uses the benchmark's service dependency graph. Normalization
+was fitted on training data only~\cite{eadro,implementation-report}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{Benchmark datasets and evaluation splits.}
+\begin{tabular}{@{}P{0.25\linewidth}cccc@{}}
+\toprule
+\textbf{Benchmark} & \textbf{\shortstack{Fault / fault-free\\recordings}} & \textbf{\shortstack{Services /\\edges}} & \textbf{\shortstack{Window /\\stride}} & \textbf{\shortstack{Train / validation /\\test windows}} \\
+\midrule
+SocialNetwork (SN) &
+  4 / 3 &
+  12 / 24 &
+  10 s / 1 s &
+  4,236 / 2,834 / 2,837 \\
+TrainTicket (TT) &
+  9 / 2 &
+  27 / 44 &
+  10 s / 5 s &
+  8,397 / 3,228 / 3,226 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+UG-MoE v2 encodes each modality and applies four shared experts. A GRU models \textbf{changes over time},
+self-attention models \textbf{relationships across services}, GATv2 uses \textbf{service dependencies}, and
+cross-modal attention combines \textbf{signals from the same service}. A router weights the experts using
+features, graph context, and estimated uncertainty. A second set of learned weights combines the three
+modalities for binary classification~\cite{implementation-report}.
+
+\section{Final results}
+
+The main comparison uses the same data and evaluation rules across models. Scores are \textbf{mean
+\ensuremath{\pm} standard deviation across five training seeds} on fixed test sets. The constant predictor
+has no training seed~\cite{experiment-results}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{Test F1 on the rebuilt benchmarks. Trained models show mean and standard deviation across five seeds.}
+\begin{tabular}{@{}P{0.24\linewidth}rrrr@{}}
+\toprule
+\textbf{Model} & \textbf{\shortstack[r]{SN\\macro-F1}} & \textbf{\shortstack[r]{SN\\anomaly F1}} & \textbf{\shortstack[r]{TT\\macro-F1}} & \textbf{\shortstack[r]{TT\\anomaly F1}} \\
+\midrule
+Always predict anomaly &
+  0.2893 &
+  0.5787 &
+  0.4044 &
+  0.8087 \\
+MUAD &
+  0.9251 \ensuremath{\pm} 0.0049 &
+  0.9075 \ensuremath{\pm} 0.0065 &
+  0.6262 \ensuremath{\pm} 0.0316 &
+  0.6456 \ensuremath{\pm} 0.0491 \\
+GAT &
+  0.9309 \ensuremath{\pm} 0.0347 &
+  0.9136 \ensuremath{\pm} 0.0451 &
+  0.6609 \ensuremath{\pm} 0.0440 &
+  0.6917 \ensuremath{\pm} 0.0606 \\
+Plain MoE &
+  0.9709 \ensuremath{\pm} 0.0170 &
+  0.9646 \ensuremath{\pm} 0.0213 &
+  0.6981 \ensuremath{\pm} 0.0727 &
+  0.7353 \ensuremath{\pm} 0.0920 \\
+Graph MoE &
+  0.9598 \ensuremath{\pm} 0.0177 &
+  0.9509 \ensuremath{\pm} 0.0222 &
+  0.6666 \ensuremath{\pm} 0.0628 &
+  0.6883 \ensuremath{\pm} 0.0875 \\
+\textbf{UG-MoE v2} &
+  \textbf{0.9715 \ensuremath{\pm} 0.0128} &
+  \textbf{0.9656 \ensuremath{\pm} 0.0158} &
+  \textbf{0.7234 \ensuremath{\pm} 0.0899} &
+  \textbf{0.7656 \ensuremath{\pm} 0.1169} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Compared with MUAD, the macro-F1 gains had paired p-values of \textbf{0.0021 (SN)} and \textbf{0.0420 (TT)}.
+UG-MoE used about \textbf{31\% fewer parameters}. On SN, CPU-load recall rose from \textbf{65.8\% to
+98.4\%}. On TT, recall rose from \textbf{33.1\% to 59.4\%} for network delay and from \textbf{27.3\% to
+50.8\%} for network loss. TT false alarms rose from \textbf{10.9\% to 18.3\%}, and PR-AUC was close to
+MUAD's (\textbf{0.9167 vs. 0.9143})~\cite{experiment-results}.
+
+\textbf{Additional test metrics for MUAD and UG-MoE v2 (five-seed means)}~\cite{experiment-results}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{Additional test metrics for MUAD and UG-MoE v2.}
+\begin{tabular}{@{}P{0.36\linewidth}rrrr@{}}
+\toprule
+\textbf{Dataset and model} & \textbf{Precision} & \textbf{Recall} & \textbf{PR-AUC} & \textbf{ROC-AUC} \\
+\midrule
+SN, MUAD &
+  0.9699 &
+  0.8530 &
+  0.9679 &
+  0.9649 \\
+SN, UG-MoE v2 &
+  0.9896 &
+  0.9430 &
+  0.9963 &
+  0.9977 \\
+TT, MUAD &
+  0.9082 &
+  0.5041 &
+  0.9143 &
+  0.8372 \\
+TT, UG-MoE v2 &
+  0.9030 &
+  0.6997 &
+  0.9167 &
+  0.8283 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Component ablations}
+
+Five-seed means. Macro-F1 \ensuremath{\Delta} is the change in points from full UG-MoE v2. Anomaly F1 is the
+variant's test score~\cite{experiment-results}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{Component ablation results (five-seed means).}
+\begin{tabular}{@{}P{0.36\linewidth}rrrr@{}}
+\toprule
+\textbf{Component removed} & \textbf{\shortstack[r]{SN\\macro-F1 $\Delta$}} & \textbf{\shortstack[r]{SN\\anomaly F1}} & \textbf{\shortstack[r]{TT\\macro-F1 $\Delta$}} & \textbf{\shortstack[r]{TT\\anomaly F1}} \\
+\midrule
+Full model (reference) &
+  --- &
+  0.9656 &
+  --- &
+  0.7656 \\
+Graph context and dependency expert &
+  +0.6 &
+  0.9729 &
+  +1.8 &
+  0.7901 \\
+Mixture of experts &
+  \ensuremath{-}0.6 &
+  0.9573 &
+  +0.1 &
+  0.7790 \\
+Dynamic routing &
+  +0.5 &
+  0.9719 &
+  \ensuremath{-}5.0 &
+  0.7047 \\
+Uncertainty input to router &
+  +0.2 &
+  0.9685 &
+  \ensuremath{-}2.6 &
+  0.7312 \\
+Probabilistic representation &
+  +0.8 &
+  0.9757 &
+  \ensuremath{-}1.9 &
+  0.7483 \\
+Adaptive fusion &
+  \ensuremath{-}2.4 &
+  0.9359 &
+  \ensuremath{-}3.3 &
+  0.7221 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Adaptive fusion helped on average on both datasets. Every component test had p \ensuremath{>} 0.05, and
+Plain MoE scored close to the full model~\cite{experiment-results}.
+
+\subsection{Modality subsets}
+
+Each model was trained and tested with the listed inputs on SocialNetwork (seed 42). All three inputs
+performed best on both scores~\cite{experiment-results}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{SocialNetwork modality subsets, trained and tested at seed 42.}
+\begin{tabular}{@{}P{0.48\linewidth}rr@{}}
+\toprule
+\textbf{Training inputs} & \textbf{SN macro-F1} & \textbf{SN anomaly F1} \\
+\midrule
+Logs &
+  0.8318 &
+  0.7788 \\
+Traces &
+  0.9353 &
+  0.9232 \\
+Metrics &
+  0.8829 &
+  0.8500 \\
+Traces + logs &
+  0.9379 &
+  0.9237 \\
+Metrics + logs &
+  0.9587 &
+  0.9499 \\
+Metrics + traces &
+  0.9292 &
+  0.9120 \\
+All three &
+  0.9868 &
+  0.9842 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Missing and noisy inputs}
+
+Five-seed mean test scores. Each cell is \textbf{macro-F1 (anomaly F1)}. Masking zeros each
+service--modality observation with the stated probability. Strong Gaussian noise uses twice the training
+standard deviation per channel. The saved sweep covers all seven nonempty modality combinations at five
+noise levels~\cite{experiment-results}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{Missing-input and noise tests. Cells show macro-F1 (anomaly F1).}
+\begin{tabular}{@{}P{0.31\linewidth}rrrr@{}}
+\toprule
+\textbf{Test condition} & \textbf{SN UG-MoE} & \textbf{SN MUAD} & \textbf{TT UG-MoE} & \textbf{TT MUAD} \\
+\midrule
+10\% random masking &
+  0.942 (0.931) &
+  0.898 (0.878) &
+  0.616 (0.812) &
+  0.622 (0.676) \\
+20\% random masking &
+  0.903 (0.889) &
+  0.850 (0.831) &
+  0.573 (0.804) &
+  0.613 (0.706) \\
+40\% random masking &
+  0.811 (0.797) &
+  0.710 (0.721) &
+  0.506 (0.785) &
+  0.568 (0.694) \\
+60\% random masking &
+  0.696 (0.708) &
+  0.543 (0.645) &
+  0.471 (0.777) &
+  0.526 (0.616) \\
+Metrics removed &
+  0.274 (0.545) &
+  0.289 (0.579) &
+  0.406 (0.706) &
+  0.243 (0.000) \\
+Traces removed &
+  0.973 (0.968) &
+  0.915 (0.895) &
+  0.711 (0.759) &
+  0.628 (0.647) \\
+Logs removed &
+  0.967 (0.960) &
+  0.922 (0.904) &
+  0.676 (0.720) &
+  0.654 (0.690) \\
+Strong noise on metrics &
+  0.856 (0.834) &
+  0.784 (0.734) &
+  0.575 (0.744) &
+  0.548 (0.727) \\
+Strong noise on traces &
+  0.941 (0.937) &
+  0.910 (0.890) &
+  0.651 (0.801) &
+  0.626 (0.645) \\
+Strong noise on logs &
+  0.971 (0.965) &
+  0.923 (0.905) &
+  0.584 (0.827) &
+  0.659 (0.697) \\
+Strong noise on all three &
+  0.808 (0.802) &
+  0.735 (0.687) &
+  0.470 (0.783) &
+  0.537 (0.749) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At 40\% masking, the \textbf{mean relative anomaly-F1 drop} from clean SN was \textbf{17.6\% for UG-MoE} and
+\textbf{20.5\% for MUAD}. On TT, anomaly F1 rose by \textbf{4.9\%} and \textbf{7.5\%}, respectively, while
+\textbf{macro-F1 fell by 30.1\% and 9.2\%}. These are averages of the per-seed relative changes. The TT
+example shows why both classes matter under corruption~\cite{experiment-results}.
+
+Removing metrics brought UG-MoE close to the constant baseline on both datasets. Under strong all-stream
+noise on SN, the variant without probabilistic modeling scored \textbf{0.810 (0.796)}, close to the full
+model's \textbf{0.808 (0.802)}, in macro-F1 (anomaly F1). The source of the robustness gain remains
+unresolved~\cite{experiment-results}.
+
+\subsection{Expert routing and uncertainty}
+
+Seed-42 diagnostics describe what the model learned in one
+run~\cite{implementation-report,experiment-results}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{Expert routing and uncertainty diagnostics at seed 42.}
+\begin{tabular}{@{}P{0.26\linewidth}P{0.71\linewidth}@{}}
+\toprule
+\textbf{Diagnostic} & \textbf{Observation} \\
+\midrule
+\textbf{Routing by fault type} &
+  On SN, metrics favored the dependency expert for normal windows (0.87 mean weight), the cross-modal expert for CPU load (0.95), and the temporal expert for network faults (about 0.50). On TT, CPU-load metrics favored the semantic expert (0.996). \\
+\textbf{Normalized routing entropy} &
+  SN metrics were more concentrated than SN logs (0.41 vs. 0.97). A value of 0 means one expert receives all the weight, while 1 means uniform weights. \\
+\textbf{Uncertainty and fusion} &
+  With metric noise on SN, metric log-variance rose from \ensuremath{-}0.22 to \ensuremath{-}0.07 and fusion weight fell from 0.96 to 0.91. On TT, log noise reduced log-variance from \ensuremath{-}0.03 to \ensuremath{-}0.14 and increased the log weight from 0.11 to 0.65. Anomaly F1 fell from 0.894 to 0.817. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Hyperparameter sensitivity}
+
+One parameter was varied at a time on SocialNetwork (seed 42). \textbf{Bold} marks the
+default~\cite{experiment-results}.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{SocialNetwork hyperparameter sensitivity at seed 42.}
+\begin{tabular}{@{}P{0.26\linewidth}P{0.71\linewidth}@{}}
+\toprule
+\textbf{Hyperparameter} & \textbf{Setting \ensuremath{\rightarrow} macro-F1 (anomaly F1)} \\
+\midrule
+Number of experts &
+  1 \ensuremath{\rightarrow} 0.9089 (0.8845) \ensuremath{\cdot} 2 \ensuremath{\rightarrow} 0.9883 (0.9861) \ensuremath{\cdot} 3 \ensuremath{\rightarrow} 0.9835 (0.9804) \ensuremath{\cdot} \textbf{4 \ensuremath{\rightarrow} 0.9868 (0.9842)} \\
+Embedding dimension &
+  16 \ensuremath{\rightarrow} 0.9798 (0.9758) \ensuremath{\cdot} 32 \ensuremath{\rightarrow} 0.9783 (0.9739) \ensuremath{\cdot} \textbf{64 \ensuremath{\rightarrow} 0.9868 (0.9842)} \ensuremath{\cdot} 128 \ensuremath{\rightarrow} 0.9728 (0.9672) \\
+Window size (seconds) &
+  5 \ensuremath{\rightarrow} 0.9563 (0.9464) \ensuremath{\cdot} \textbf{10 \ensuremath{\rightarrow} 0.9868 (0.9842)} \ensuremath{\cdot} 20 \ensuremath{\rightarrow} 0.9732 (0.9692) \\
+Uncertainty-loss weight (KL) &
+  0.001 \ensuremath{\rightarrow} 0.9787 (0.9746) \ensuremath{\cdot} \textbf{0.01 \ensuremath{\rightarrow} 0.9868 (0.9842)} \ensuremath{\cdot} 0.1 \ensuremath{\rightarrow} 0.9525 (0.9418) \ensuremath{\cdot} 1 \ensuremath{\rightarrow} 0.9724 (0.9668) \\
+Routing temperature &
+  0.5 \ensuremath{\rightarrow} 0.9690 (0.9626) \ensuremath{\cdot} \textbf{1 \ensuremath{\rightarrow} 0.9868 (0.9842)} \ensuremath{\cdot} 2 \ensuremath{\rightarrow} 0.9828 (0.9793) \\
+Learning rate &
+  0.0001 \ensuremath{\rightarrow} 0.9817 (0.9782) \ensuremath{\cdot} \textbf{0.0005 \ensuremath{\rightarrow} 0.9868 (0.9842)} \ensuremath{\cdot} 0.001 \ensuremath{\rightarrow} 0.9850 (0.9822) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The largest observed macro-F1 drops were with one expert (\textbf{\ensuremath{-}7.8 points}) and KL weight
+0.1 (\textbf{\ensuremath{-}3.4 points}). Two experts slightly exceeded four at this seed. The default
+settings were set before the sweep, and these results are
+exploratory~\cite{implementation-report,experiment-results}.
+
+\section{Conclusion and limitations}
+
+The evidence supports a higher clean macro-F1 than MUAD on both rebuilt benchmarks and better robustness on
+SocialNetwork. Individual component gains remain inconclusive. TrainTicket results vary across seeds and
+trade higher fault recall for more false alarms. The number of held-out recordings is small, the TrainTicket
+normal sets share source recordings without gaps at the cuts, and the label-free log vocabulary uses all
+runs. The performance of a separately tuned MUAD with a corrected KL term remains
+open~\cite{muad-audit,implementation-report,experiment-results}.
+
+\section*{Saved outputs}
+
+The repository contains processed data and graph metadata, baseline and UG-MoE checkpoints, and the guide's
+performance tables, ablations, robustness plots, routing and fusion plots, and sensitivity plot. The script
+\texttt{make\_report.py} regenerates the tables and plots from saved
+results~\cite{implementation-report,experiment-results,implementation-guide}.
+
+\begin{thebibliography}{9}
+\bibitem{muad-paper}
+H. Dou et al. \emph{Uncertainty-Aware Multimodal Anomaly Detection for Microservice Systems With Active
+Learning}. IEEE Transactions on Services Computing, 2026. DOI 10.1109/TSC.2026.3672587. MUAD reference
+implementation.
+
+\bibitem{eadro}
+C. Lee et al. \emph{Eadro: An End-to-End Troubleshooting Framework for Microservices on Multi-Source Data}.
+ICSE, 2023. Benchmark dataset, Zenodo record 7615394.
+
+\bibitem{muad-audit}
+\emph{MUAD-gaps.md}. Baseline audit and reproducible checks.
+
+\bibitem{implementation-report}
+\emph{UG-MoE\_Implementation\_Report.md}. Data, model, evaluation protocol, and code references.
+
+\bibitem{experiment-results}
+\emph{UG-MoE consolidated experiment results}. 18 November 2026, 20:16.
+
+\bibitem{implementation-guide}
+\emph{UG-MoE Implementation Guide}, sections 8--10. Experiment plan, evaluation metrics, and required
+outputs.
+
+\end{thebibliography}
+\end{document}

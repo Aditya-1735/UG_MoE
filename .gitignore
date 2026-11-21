@@ -66,3 +66,5 @@ SN_dataset/
 
 # Eadro datasets fetched / built by project/data_pipeline (re-creatable, MD5-verified)
 project/datasets/
+
+project/experiments/runs
