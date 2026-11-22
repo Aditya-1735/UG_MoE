@@ -2,7 +2,7 @@
 
 Updated 2026-11-22 on `hdfs` · GPU server · Conda environment `muad`
 
-**Injection records audited and telemetry storage measured.** The pinned telemetry requires about 3.81 GiB compressed and 29.41 GiB fully extracted. The acquisition plan now keeps the telemetry as split ZIPs and streams members during preprocessing. Bulk download, clock alignment, final label rules, implementation, and GAIA experiments are pending.
+**All GAIA archives verified.** Initial checks found ten shared service IDs, supported UTC+8 as the text timestamp interpretation, and confirmed streaming from the split ZIPs. The coverage audit module passed a bounded check. The full coverage scan, final labels and split, adapter, and GAIA experiments are pending.
 
 This file is the working record for the third dataset. Update the checklist and append a dated journal entry after each implementation step or server run. Record what changed, how it was verified, and where the evidence lives. Keep proposed settings marked as such until the data audit supports them. Use `muad` for Python commands. Codex runs short checks and records verified checkpoints locally. Publishing to `origin/hdfs` uses the project user's own GitHub identity with write access. The user launches long downloads, data builds, and GPU experiments with `nohup`.
 
@@ -33,7 +33,7 @@ AnoFusion used GAIA for instance-level failure detection under its own split and
 | Done | Plan the integration and confirm upstream release and current runner interfaces. | Release link, exact commit, code references, and initial journal entry. |
 | Done | Fetch, test, and extract the injection-record archive. | Pinned commit verified. `7z t` passed. The archive extracted one 3,643,229-byte CSV. [Retry log](project/experiments/runs/gaia_fetch_run_v1_retry_20261122_145518.log) |
 | Done | Measure the archive and extraction footprint and verify split-ZIP streaming. | [Size log](project/experiments/runs/gaia_telemetry_sizes_20261122_145949.log), three terminal-volume indexes, and a local streaming probe. |
-| Pending | Fetch and verify the remaining compressed MicroSS telemetry. | All 81 files match the pinned Git blobs. Each archive passes `7z t`. |
+| Done | Fetch and verify the remaining compressed MicroSS telemetry. | All 81 files present. The downloader checked blob hashes, all three `7z t` checks passed, and the completion marker was printed. [Bulk download log](project/experiments/runs/gaia_fetch_telemetry_v1_git_20261122_153224.log) |
 | Pending | Audit telemetry, topology, and fault records. | Common date range, time conversions, cadence, node mapping, coverage, parsed and unresolved incident counts. |
 | Pending | Freeze the GAIA feature schema, label rules, and chronological split. | Selected window and stride, cut dates and gaps, coverage policy, topology provenance, split manifest. |
 | Pending | Implement the adapter and verify shared loader and baseline compatibility. | Commit, edited files, compilation result, user-run build log, and data and loader checks. |
@@ -81,6 +81,14 @@ The 695 explicit 600-second records are an initial candidate set, based on the s
 ### Preliminary metric cadence
 
 Four Docker metric CSVs for `mobservice1` and `logservice2` were readable from the metric archive's terminal volume. Their extracted bytes matched the ZIP entry sizes and CRCs. CPU, disk I/O, and network samples all had a modal interval of **30 seconds**, with duplicates, gaps, or out-of-order rows in some files. The 10-second Eadro setting is unsuitable for these series at their native cadence. Audit the selected channels before freezing a GAIA grid and a window that spans multiple real observations.
+
+### Archive schemas and clock evidence
+
+- The archives contain 6,640 metric CSVs, ten trace CSVs, and ten business-log CSVs. Metric filenames, trace `service_name`, business `service`, and injection records agree on ten application service IDs. Metric filenames map each of these IDs to one host. The coverage scan selects seven Docker channels available for all ten services across both metric date ranges.
+- Metrics use Unix epoch milliseconds. Use `start_time` for trace events and the timestamp embedded in the message for business logs. The top-level business `datetime` field is date-only in the observed files.
+- For early July memory injections, interpreting the `run/` timestamps as UTC+8 gave 49 rises above 0.5 GiB in 50 events with enough surrounding metric data. Interpreting them as UTC gave zero such rises in 56 events with enough metric data. The aligned median rise under UTC+8 was 1.002 GiB.
+- In the business-log sample, all 880 parseable embedded epoch timestamps agreed within one second with the message clock interpreted as UTC+8. The trace and business event clocks also agreed within one second for 19,230 of 19,330 sampled trace-ID matches within the same service. Use UTC+8 for the local calendar and retain the metric epoch values as absolute times.
+- [The coverage audit](project/data_pipeline/audit_gaia.py) records each selected member's row range, daily occupied 30-second bins, invalid timestamps, and service mismatches. On the GPU server, a 128-row prefix from every selected member passed in `muad` with no invalid timestamps or service mismatches. A complete metric member also streamed successfully. The broad date range and split feasibility depend on the full scan.
 
 ## 4. Data contract and preprocessing
 
@@ -136,7 +144,7 @@ After verification, add GAIA paths and the GAIA label map to the report workflow
 
 | Decision | Current proposal | Recorded outcome |
 | --- | --- | --- |
-| Exact dates and time zone | Common July period after aligning all sources. | Pending audit. |
+| Exact dates and time zone | Common July period after aligning all sources. | UTC+8 supported by cross-source checks. The common date range is pending the full coverage scan. |
 | Node granularity and topology | Use verified service instances where possible. Infer the fixed graph from training call spans. | Pending entity and trace audit. |
 | Metric channels, cadence, and windows | Start from the Eadro feature definitions where GAIA has equivalent channels. Evaluate 30-second bins. | Four sampled series show 30-second cadence. Final channel set, window, and stride are pending the broader audit. |
 | Label and exclusion rules | Use explicit injection intervals, with an audit of ambiguous cases and overlap rules. | Pending review of `run/` records. |
@@ -232,6 +240,25 @@ echo "PID=$!  Log=$GAIA_LOG"
 tail -f "$GAIA_LOG"
 ```
 
+### Run the streaming coverage audit
+
+Run after `All three telemetry archives verified` appears in the download log. The scan reads the selected metric members and the trace and business-log members without writing expanded CSVs. Use the report to choose the chronological split and identify days with insufficient coverage.
+
+```bash
+cd "$HOME/AHA_BTP/UG_MoE/project"
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate muad
+GAIA_AUDIT="experiments/runs/gaia_coverage_$(date +%Y%m%d_%H%M%S)"
+
+nohup "$CONDA_PREFIX/bin/python" -u -m data_pipeline.audit_gaia \
+  --output "$GAIA_AUDIT/coverage.json" > "$GAIA_AUDIT.log" 2>&1 < /dev/null &
+
+echo "PID=$!  Log=$GAIA_AUDIT.log"
+tail -f "$GAIA_AUDIT.log"
+```
+
+The job finishes with `GAIA coverage audit saved to ...`. Record the JSON and log paths. Use the full scan for split decisions. The `--rows-per-member` option is intended for bounded checks.
+
 ### First seed-42 training job
 
 Run after the GAIA adapter and shared loader are implemented and the processed data and split pass the checks above. The example uses the proposed processed root. Replace it with the recorded path if the build uses a different root.
@@ -277,6 +304,9 @@ The `Saved to:` line identifies the timestamped results directory. Check `models
 | 2026-11-22 | GitHub publication blocked | Committed the plan and storage audit as `f7541b5` and the downloader as `2ce7707`. HTTPS required GitHub authentication. The shared server identity lacked write access to `Aditya-1735/UG_MoE`. The project user directed that future publishing use their own identity. | The local `hdfs` checkpoints are ready for publication through the project user's authorized GitHub access. |
 | 2026-11-22 | User published the first GAIA checkpoints | The user pushed `hdfs`. A read-only GitHub check confirmed `2ce7707` on the remote, with the plan and downloader committed. The revised publishing note was still a working-tree edit at the time of that push. | Publish the revised note in a follow-up commit on `hdfs`. |
 | 2026-11-22 | First telemetry download timed out | The raw GitHub route stalled on `business_split.z01` at connection setup. An independent Git HTTPS probe downloaded that 51,380,224-byte volume and matched its pinned Git blob hash. Cached the verified part and switched the downloader to Git HTTPS with its temporary object store on `/tmp`. A small split-archive fixture verified retry, reuse, integrity checks, and scratch cleanup. | [Failed download log](project/experiments/runs/gaia_fetch_telemetry_v1_20261122_152540.log) · [Retry command](#fetch-and-verify-the-compressed-telemetry). Retry and verify all three archives. |
+| 2026-11-22 | Freed space for GAIA telemetry | At the user's request, removed the 2.1 GiB extracted Eadro `raw/` directory after verifying both pinned source archive checksums and checking the processed SN and TT files. | `/DATA` showed 8.9 GiB free after removal. The Eadro directory now uses 443 MiB for archives and processed data. |
+| 2026-11-22 | All telemetry archives verified | The user ran the revised downloader. All 81 parts were present and all three archives passed `7z t`. `/DATA` showed 7.5 GiB free after completion. | [Bulk download log](project/experiments/runs/gaia_fetch_telemetry_v1_git_20261122_153224.log). Keep the archives compressed. |
+| 2026-11-22 | Clock and coverage checks | Confirmed the ten common application service IDs and gathered evidence for UTC+8 from memory injections, embedded business-log times, and trace-to-log matches. Added a streaming coverage audit and checked 128 rows from 160 real archive members plus a complete metric member in `muad`. | [Clock evidence](#archive-schemas-and-clock-evidence) · [Coverage command](#run-the-streaming-coverage-audit). Run the full coverage audit before freezing the split. |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 
