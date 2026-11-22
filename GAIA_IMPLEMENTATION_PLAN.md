@@ -2,13 +2,13 @@
 
 Updated 2026-11-22 on `hdfs` · GPU server · Conda environment `muad`
 
-**GAIA seed-42 experiment complete.** Full UG-MoE v2 achieved test anomaly F1 **0.6571** and macro-F1 **0.8058** on the frozen chronological split. [Verified result](#seed-42-result) · [AnoFusion comparison](#anofusion-comparison)
+**GAIA seed-42 experiment complete.** Full UG-MoE v2 achieved test anomaly F1 **0.6571** and macro-F1 **0.8058** on the frozen chronological split. The matched comparison uses the same checkpoint and a separate AnoFusion run. [Verified result](#seed-42-result) · [Matched protocol](#matched-gaia-evaluation)
 
 This file is the working record for the third dataset. Update the checklist and append a dated journal entry after each implementation step or server run. Record what changed, how it was verified, and where the evidence lives. Keep proposed settings marked as such until the data audit supports them. Use `muad` for Python commands. Codex runs short checks and records verified checkpoints locally. Publishing to `origin/hdfs` uses the project user's own GitHub identity with write access. The user launches long downloads, data builds, and GPU experiments with `nohup`.
 
 ## 1. Objective and benchmark scope
 
-Train `ug_moe2:full` on GAIA MicroSS at **seed 42** and evaluate normal-versus-anomalous classification on a later GAIA period. Each sample is one time window containing a graph of monitored service instances. Report this as supervised evaluation on a third system. This is the only model scheduled for GAIA training.
+Train `ug_moe2:full` on GAIA MicroSS at **seed 42** and evaluate normal-versus-anomalous classification on a later GAIA period. Each sample is one time window containing a graph of monitored service instances. Report this as supervised evaluation on a third system. The matched comparison reuses this checkpoint and fits AnoFusion once at seed 42 for each monitored instance.
 
 Use the **July 2021 MicroSS data** from CloudWise's `release-v1.0`, at `5f1d772a7845dd93e4ab04dfc0ee725bf0ca933a`. Use `metric/`, `trace/`, and `business/` as feature sources and `run/` as the source for injection records. CloudWise's August update omits August traces. The benchmark period will be the audited intersection of available July telemetry and label coverage. [Pinned release](https://github.com/CloudWise-OpenSource/GAIA-DataSet/releases/tag/release-v1.0) · [Release notes](https://github.com/CloudWise-OpenSource/GAIA-DataSet/releases) · [Upstream schema](https://github.com/CloudWise-OpenSource/GAIA-DataSet#micross)
 
@@ -40,6 +40,7 @@ Use the **July 2021 MicroSS data** from CloudWise's `release-v1.0`, at `5f1d772a
 | Done | Build and check the full GAIA artifacts. | [Build log](project/experiments/runs/gaia_build_20261122_170933.log) · [Quality report](project/datasets/gaia/processed/micross_v1/quality.json) · [Split manifest](project/datasets/gaia/processed/micross_v1/split_manifest.json). |
 | Done | Complete the full-v2 training run at seed 42. | [Run record](#run-log) · [Runner summary](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/summary.json). |
 | Done | Report the seed-42 result alongside the published AnoFusion reference. | [Both results and scoring protocols](#anofusion-comparison). |
+| In progress | Run a matched comparison on the same GAIA windows. | [Shared protocol](#matched-gaia-evaluation) · [Server commands](#run-the-matched-gaia-comparison). |
 
 ## 3. Acquisition and raw-data audit
 
@@ -168,6 +169,22 @@ The published `mobservice2` label file has one binary label per second across Ju
 
 The prediction units, label coverage, splits, and scoring protocols differ. The table places the single-seed UG-MoE result alongside the published reference. [UG-MoE runner summary](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/summary.json) · [AnoFusion paper, Table 3](KDD23-AnoFusion.pdf)
 
+### Matched GAIA evaluation
+
+Evaluate both models on the frozen system-window manifest and its injection-derived labels. Use the same 1,141 validation and 1,194 test windows. Each two-minute window receives one binary prediction per model. Report the adapted AnoFusion result with its features and thresholds, and use Table 3 as the published reference under its original protocol.
+
+| Script | Role |
+| --- | --- |
+| `data_pipeline/export_gaia_anofusion.py` | Reuse the frozen metrics and trace arrays. Stream the compressed business members to compute log severity counts per 30-second bin. Verify that the reconstructed counts reproduce the saved two-minute log features, then export 13 channels for each instance in each bin. |
+| `experiments/run_gaia_anofusion.py` | Train the pinned AnoFusion network on the retained training bins per instance. Export forecast scores with timestamps and manifest hashes. |
+| `experiments/compare_gaia.py` | Regenerate UG-MoE scores from the seed-42 checkpoint. Verify the split and normalization, align AnoFusion scores to the identical window IDs, and save shared metrics and per-window predictions. |
+
+The AnoFusion model source is pinned at `ae3c4ea98509008844a3eecf7c0bd1529faaba67`. Use the exported GAIA features, the network's 20-bin history, and its six modality-pair graph relations. Fit the max-absolute scaling and the mutual-information graph for each instance on training bins. Estimate mutual information after discretizing the channels with training deciles. Initialize the upstream graph aggregation weights from a seeded uniform distribution and select the forecasting checkpoint by validation MSE, with a 100-epoch cap and patience 10. Set the device from the runner instead of the demo's fixed CUDA index. [AnoFusion network](https://github.com/AIOps-Lab-NKU/AnoFusion/blob/ae3c4ea98509008844a3eecf7c0bd1529faaba67/model/AnoFusion.py) · [Demo runner](https://github.com/AIOps-Lab-NKU/AnoFusion/blob/ae3c4ea98509008844a3eecf7c0bd1529faaba67/utils/main.py)
+
+Restart forecast history at timestamp gaps and split cuts. Pad short histories with their first observed bin. Every retained window has at least three forecast targets after this reset rule. Convert the demo's normalized forecast error to a per-instance percentile using training errors. Take the maximum percentile across all scored bins and all ten instances in each window. This yields one system score per window. Require score coverage from every instance for every validation and test window.
+
+Choose each model's highest threshold among those that maximize validation macro-F1. Report precision, recall, anomaly F1, normal F1, macro-F1, PR-AUC, and ROC-AUC on the frozen test windows. The original seed-42 result above uses the checkpoint's argmax decisions. UG-MoE trains with binary window labels. AnoFusion trains on telemetry forecasts and uses the same validation labels for its final threshold.
+
 ## 6. Decisions
 
 | Decision | Recorded outcome |
@@ -176,8 +193,8 @@ The prediction units, label coverage, splits, and scoring protocols differ. The 
 | Node granularity and topology | Ten service instances with directed parent-to-child calls from the first common training trace hour and one self-loop per instance. |
 | Features and windows | Seven metric channels, mean trace span latency, and five fixed business-log severity counts. Thirty-second bins in non-overlapping two-minute windows. |
 | Label and exclusion rules | Confirmed memory and file-moving intervals supply positives. Mask bounded CPU and permission intervals, exclude July 26 onward, and leave two-minute margins around both cuts. |
-| AnoFusion benchmark | Cite the paper's published D1 precision, recall, and F1 with its original evaluation protocol. |
-| GAIA experiment scope | Full UG-MoE v2 at seed 42, followed by the published comparison. |
+| AnoFusion benchmark | Use the published D1 scores as a reference and run the pinned network under the same system-window scoring as UG-MoE. |
+| GAIA experiment scope | Full UG-MoE v2 at seed 42 and one adapted AnoFusion run at seed 42 across the ten instances. |
 
 ## 7. Server commands
 
@@ -339,6 +356,79 @@ tail -f "$GAIA_RUN.log"
 
 The `Saved to:` line identifies the timestamped results directory. Check `models["ug_moe2:full"].errors` in `summary.json`, the epoch history in `ug_moe2_full_seed42.json`, and the corresponding `_best.pth` file. Record the executed launch and test metrics in the journal, then report precision, recall, and anomaly F1 alongside the published reference.
 
+### Run the matched GAIA comparison
+
+Run from `project/` with `muad` active. The input export reads the frozen dataset and streams the business archive. Retain the `GAIA_MATCH` value for the later commands.
+
+```bash
+cd "$HOME/AHA_BTP/UG_MoE/project"
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate muad
+
+GAIA_MATCH="experiments/runs/gaia_matched_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$GAIA_MATCH"
+
+nohup "$CONDA_PREFIX/bin/python" -u -m data_pipeline.export_gaia_anofusion \
+  --output "$GAIA_MATCH/observations.npz" \
+  > "$GAIA_MATCH/export.log" 2>&1 < /dev/null &
+echo "PID=$!  Log=$GAIA_MATCH/export.log"
+tail -f "$GAIA_MATCH/export.log"
+```
+
+After `Exported 5520 GAIA windows` appears, use the available GPU and the pinned checkout at `experiments/runs/gaia_anofusion_source`. The runner verifies the checkout revision and tracks the completed scores for all ten instances.
+
+To recreate that checkout in a fresh workspace, fetch the pinned public source and materialize only its model directory.
+
+```bash
+(
+  set -euo pipefail
+  export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/bin/false
+  ANO_SOURCE=experiments/runs/gaia_anofusion_source
+  ANO_REV=ae3c4ea98509008844a3eecf7c0bd1529faaba67
+  git -c credential.helper= -c protocol.version=2 clone --depth=1 --filter=blob:none --no-checkout \
+    https://github.com/AIOps-Lab-NKU/AnoFusion.git "$ANO_SOURCE"
+  git -C "$ANO_SOURCE" -c credential.helper= -c protocol.version=2 fetch --depth=1 --filter=blob:none origin "$ANO_REV"
+  git -C "$ANO_SOURCE" sparse-checkout init --cone
+  git -C "$ANO_SOURCE" sparse-checkout set model
+  git -C "$ANO_SOURCE" -c credential.helper= -c protocol.version=2 checkout --detach "$ANO_REV"
+)
+```
+
+```bash
+nvidia-smi
+read -r -p 'Available GPU index: ' GAIA_GPU
+
+CUDA_VISIBLE_DEVICES="${GAIA_GPU:?Enter an available GPU index}" \
+  nohup "$CONDA_PREFIX/bin/python" -u -m experiments.run_gaia_anofusion \
+  --source experiments/runs/gaia_anofusion_source \
+  --observations "$GAIA_MATCH/observations.npz" \
+  --output-dir "$GAIA_MATCH/anofusion" \
+  --device cuda --seed 42 \
+  > "$GAIA_MATCH/anofusion.log" 2>&1 < /dev/null &
+echo "PID=$!  Log=$GAIA_MATCH/anofusion.log"
+tail -f "$GAIA_MATCH/anofusion.log"
+```
+
+After `AnoFusion scores saved to` appears, run the matched evaluator on CPU.
+
+```bash
+export DGLBACKEND=pytorch
+CUDA_LIBS="$CONDA_PREFIX/lib/python3.11/site-packages/nvidia"
+export LD_LIBRARY_PATH="$CUDA_LIBS/cuda_nvrtc/lib:$CUDA_LIBS/cuda_runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+UG_RUN=experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136
+
+OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  nohup "$CONDA_PREFIX/bin/python" -u experiments/compare_gaia.py \
+  --ug-run "$UG_RUN" \
+  --ano-run "$GAIA_MATCH/anofusion" \
+  --output-dir "$GAIA_MATCH/comparison" \
+  > "$GAIA_MATCH/comparison.log" 2>&1 < /dev/null &
+echo "PID=$!  Log=$GAIA_MATCH/comparison.log"
+tail -f "$GAIA_MATCH/comparison.log"
+```
+
+The evaluator writes `comparison/summary.json` and `comparison/predictions.csv`. Record the final run paths and the shared-window results here.
+
 ## 8. Implementation journal
 
 | Date | Milestone | What was done and how | Evidence and next step |
@@ -362,6 +452,7 @@ The `Saved to:` line identifies the timestamped results directory. Check `models
 | 2026-11-22 | Full GAIA build completed and verified | The user ran the build on `hdfs` at `4caf3f9` in `muad`. It completed in about 24 minutes and saved 5,520 windows. Checked every saved feature array for correct shape and finite values, verified all window IDs against the disjoint chronological split and cut margins, and confirmed 30 cross-service arcs and ten self-loops. Checked the saved normalization against the training data and ran full UG-MoE v2 on one real CPU batch of 50 from each split with finite outputs and loss. | [Build log](project/experiments/runs/gaia_build_20261122_170933.log) · [Quality report](project/datasets/gaia/processed/micross_v1/quality.json) · [Seed-42 launch](#first-seed-42-training-job). GPU training is pending. |
 | 2026-11-22 | Seed-42 launches recorded | The initial launch stopped at CUDA initialization. The retry completed and its artifacts passed the checkpoint, split, history, and metric checks. | [Run log](#run-log). |
 | 2026-11-22 | Published comparison recorded | Paired the verified seed-42 scores with AnoFusion's reported GAIA D1 scores and documented the evaluation protocols. | [AnoFusion comparison](#anofusion-comparison). |
+| 2026-11-22 | Matched comparison implemented | Added the input exporter, pinned AnoFusion runner, and shared window scorer. The three scripts compiled in `muad`. A small compressed fixture exercised the exporter and one CPU training epoch for each of the ten instances using the public network. Mock AnoFusion scores on the real manifest exercised the complete window join and reproduced the saved UG-MoE F1 at its original threshold. Checked the validation threshold search against an exhaustive sweep. | The pinned source checkout is available in the ignored `project/experiments/runs/gaia_anofusion_source` directory. Start the full export and baseline training with the [matched run commands](#run-the-matched-gaia-comparison). |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 
