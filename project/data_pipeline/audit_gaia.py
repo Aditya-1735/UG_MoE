@@ -32,23 +32,29 @@ METRIC_MEMBER = re.compile(r"metric/([^_]+)_([\d.]+)_(.+)_(\d{4}-\d{2}-\d{2})_(\
 
 
 @contextmanager
-def archive_csv(archive, member, row_limit=None):
-    """Read one CSV from a multipart archive without extracting it to disk."""
+def archive_stream(archive, member, partial=False):
+    """Open one CSV stream from a multipart archive without expanding it on disk."""
     proc = subprocess.Popen(
         ["7z", "x", "-so", str(archive), member],
         stdout=subprocess.PIPE,
     )
     stream = TextIOWrapper(proc.stdout, encoding="utf-8-sig", newline="")
     try:
-        reader = csv.DictReader(stream)
-        yield reader if row_limit is None else islice(reader, row_limit)
+        yield stream
     finally:
         stream.close()
-        if row_limit is not None and proc.poll() is None:
+        if partial and proc.poll() is None:
             proc.terminate()
         status = proc.wait()
-    if row_limit is None and status:
+    if not partial and status:
         raise RuntimeError(f"7-Zip failed for {member} in {archive} with exit code {status}")
+
+
+@contextmanager
+def archive_csv(archive, member, row_limit=None):
+    with archive_stream(archive, member, partial=row_limit is not None) as stream:
+        reader = csv.DictReader(stream)
+        yield reader if row_limit is None else islice(reader, row_limit)
 
 
 def metric_time(row):

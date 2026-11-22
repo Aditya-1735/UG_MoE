@@ -2,7 +2,7 @@
 
 Updated 2026-11-22 on `hdfs` · GPU server · Conda environment `muad`
 
-**All GAIA archives verified.** Initial checks found ten shared service IDs, supported UTC+8 as the text timestamp interpretation, and confirmed streaming from the split ZIPs. The coverage audit module passed a bounded check. The full coverage scan, final labels and split, adapter, and GAIA experiments are pending.
+**Coverage audit complete.** The three verified archives cover ten common service instances. The frozen split uses 11 eligible July dates in UTC+8. The streaming adapter and shared-loader integration are in place. The next job builds the full processed dataset from the existing archives. [Build command](#build-the-gaia-dataset)
 
 This file is the working record for the third dataset. Update the checklist and append a dated journal entry after each implementation step or server run. Record what changed, how it was verified, and where the evidence lives. Keep proposed settings marked as such until the data audit supports them. Use `muad` for Python commands. Codex runs short checks and records verified checkpoints locally. Publishing to `origin/hdfs` uses the project user's own GitHub identity with write access. The user launches long downloads, data builds, and GPU experiments with `nohup`.
 
@@ -21,7 +21,7 @@ Use the **July 2021 MicroSS data** from CloudWise's `release-v1.0`, at `5f1d772a
 | Randomly split, overlapping SN windows inflated scores. | Split chronological blocks before generating windows. Keep entire incidents in one partition. |
 | Early TT validation was anomaly-heavy and anomaly-F1 favored an all-anomalous checkpoint. | Verify both classes in every split. Select by validation macro-F1, with validation PR-AUC as the tiebreaker. |
 | Clock offsets and sparse TT traces affected how much those inputs could contribute. | Audit timestamps and coverage for each modality before setting the sampling grid or interpreting the model's results. |
-| SN and TT log templates were mined across all runs. | Fit GAIA's template vocabulary, feature statistics, and any trace-derived topology on training data only. |
+| SN and TT log templates were mined across all runs. | Use fixed log severity counts for the GAIA run. Fit feature normalization and infer trace-derived topology on training data only. |
 | Several seed-42 effects disappeared in the final results. | Label the GAIA result as single-seed. Consider additional UG-MoE seeds only after the seed-42 workflow passes and the schedule allows. |
 
 [Provided guide](<7. UG-MoE_Implementation_Guide.md>) · [Implementation report](UG-MoE_Implementation_Report.md) · [Project status](PROJECT_STATUS.md) · [Project explained](PROJECT_EXPLAINED.md) · [Run history](EXPERIMENT_RUN_HISTORY.md)
@@ -34,9 +34,10 @@ Use the **July 2021 MicroSS data** from CloudWise's `release-v1.0`, at `5f1d772a
 | Done | Fetch, test, and extract the injection-record archive. | Pinned commit verified. `7z t` passed. The archive extracted one 3,643,229-byte CSV. [Retry log](project/experiments/runs/gaia_fetch_run_v1_retry_20261122_145518.log) |
 | Done | Measure the archive and extraction footprint and verify split-ZIP streaming. | [Size log](project/experiments/runs/gaia_telemetry_sizes_20261122_145949.log), three terminal-volume indexes, and a local streaming probe. |
 | Done | Fetch and verify the remaining compressed MicroSS telemetry. | All 81 files present. The downloader checked blob hashes, all three `7z t` checks passed, and the completion marker was printed. [Bulk download log](project/experiments/runs/gaia_fetch_telemetry_v1_git_20261122_153224.log) |
-| Pending | Audit telemetry, topology, and fault records. | Common date range, time conversions, cadence, node mapping, coverage, parsed and unresolved incident counts. |
-| Pending | Freeze the GAIA feature schema, label rules, and chronological split. | Selected window and stride, cut dates and gaps, coverage policy, topology provenance, split manifest. |
-| Pending | Implement the adapter and verify the shared loader with full UG-MoE v2. | Commit, compilation result, pilot build log, and data and loader checks. |
+| Done | Audit telemetry and fault records. | [Coverage JSON](project/experiments/runs/gaia_coverage_20261122_155845/coverage.json) and [audit log](project/experiments/runs/gaia_coverage_20261122_155845.log). |
+| Done | Freeze the GAIA feature schema, label rules, and chronological split. | [Data contract](#4-data-contract-and-preprocessing) and [decision record](#6-decisions). |
+| Done | Implement the streaming adapter and shared loader. | [Builder](project/data_pipeline/build_gaia.py) and [loader](project/experiments/common.py#L189). |
+| Pending | Build and check the full GAIA artifacts. | Build log, class counts, trace graph, and split manifest. |
 | Pending | Complete the full-v2 training run at seed 42. | Launch command, log, checkpoint, `summary.json`, selected epoch, metrics, and skipped-batch count. |
 | Pending | Report the seed-42 result alongside the published AnoFusion reference. | UG-MoE test metrics and run paths, AnoFusion Table 3, both scoring protocols, and comparison limits. |
 
@@ -51,7 +52,7 @@ The project filesystem showed 9.2 GiB free at the first bulk download. This acco
 | Business | 32 | 1.53 GiB | 17.18 GiB |
 | Total | 81 | 3.81 GiB | 29.41 GiB |
 
-Compressed sizes came from the pinned Git tree. Extracted sizes came from `unzip -Z -t` on the three terminal `.zip` volumes. The terminal volumes are already cached in the archive directories and their Git blob hashes match the pinned tree. Local p7zip 16.02 passed a byte-for-byte streaming check on a small multipart ZIP. The full GAIA archives still need integrity checks after the numbered parts arrive.
+Compressed sizes came from the pinned Git tree. Extracted sizes came from `unzip -Z -t` on the three terminal `.zip` volumes. Local p7zip 16.02 passed a byte-for-byte streaming check on a small multipart ZIP. All 81 archive parts matched their pinned Git blob hashes and all three archives passed `7z t`.
 
 | Audit item | What to verify and record |
 | --- | --- |
@@ -75,7 +76,7 @@ The audit must establish a usable common July period and enough labeled incident
 | Access permission denied injection | 15 | The message declares one hour and supplies an emission timestamp. An explicit start field is absent. Verify the start interpretation against telemetry before using these intervals. |
 | Failed injection / normal-memory markers | 10 / 17 | Count separately from successful fault injections. |
 
-The 695 explicit 600-second records are an initial candidate set, based on the stated start in the message. Verify their clock alignment and merge overlapping candidates into system-level time intervals before counting independent episodes. CPU outliers, uncertain permission start times, and 19 July coverage remain open. Avoid treating unresolved affected periods as confirmed normal time.
+The 695 unique, explicit 600-second memory and file-moving injections form the positive-label source, using the stated starts. These are service-level records and can overlap in time. The masking and date exclusion policy below covers the unresolved intervals.
 
 ### Preliminary metric cadence
 
@@ -87,32 +88,49 @@ Four Docker metric CSVs for `mobservice1` and `logservice2` were readable from t
 - Metrics use Unix epoch milliseconds. Use `start_time` for trace events and the timestamp embedded in the message for business logs. The top-level business `datetime` field is date-only in the observed files.
 - For early July memory injections, interpreting the `run/` timestamps as UTC+8 gave 49 rises above 0.5 GiB in 50 events with enough surrounding metric data. Interpreting them as UTC gave zero such rises in 56 events with enough metric data. The aligned median rise under UTC+8 was 1.002 GiB.
 - In the business-log sample, all 880 parseable embedded epoch timestamps agreed within one second with the message clock interpreted as UTC+8. The trace and business event clocks also agreed within one second for 19,230 of 19,330 sampled trace-ID matches within the same service. Use UTC+8 for the local calendar and retain the metric epoch values as absolute times.
-- [The coverage audit](project/data_pipeline/audit_gaia.py) records each selected member's row range, daily occupied 30-second bins, invalid timestamps, and service mismatches. On the GPU server, a 128-row prefix from every selected member passed in `muad` with no invalid timestamps or service mismatches. A complete metric member also streamed successfully. The broad date range and split feasibility depend on the full scan.
+- The coverage audit records each member's row range, daily occupied 30-second bins, invalid timestamps, and service mismatches. The full scan covered **5,230,960** metric rows in 140 selected members, **28,681,438** trace rows in ten members, and **87,974,871** business-log rows in ten members. It flagged 294 invalid business-log timestamps and out-of-order rows in all three modalities. The adapter aggregates by timestamps to handle ordering. [Audit code](project/data_pipeline/audit_gaia.py) · [Coverage report](project/experiments/runs/gaia_coverage_20261122_155845/coverage.json)
 
 ## 4. Data contract and preprocessing
 
 ### Chronological partition and window labels
 
-1. Start from approximately **60% train, 20% validation, 20% test** of usable time. Place cuts at incident-free boundaries around those targets and record the exact timestamps. Leave a gap of at least **60 seconds** at each cut, extended if the feature lookback requires it. Check that each partition has normal windows and distinct fault episodes.
-2. Evaluate a **30-second grid** for GAIA. The initial metric sample is slower than the 10-second Eadro window. Choose window length and stride from the measured cadence, coverage, and incident durations. Record the missing-value policy and qualify what the chosen resolution can show about short CPU incidents.
-3. Generate windows within each partition. Prevent rolling features, metric fills, incidents, or windows from crossing cuts. Base positive labels on overlap with a confirmed injection interval. Use the Eadro convention of at least one second of overlap if the selected timestamps support that resolution. Record how overlapping injections are handled for per-type counts. The classifier remains binary.
-4. Select metric channels and fit the log-template vocabulary using training data. Keep an unknown-template bucket for later logs. Fit normalization on training windows and apply it identically to validation and test. Infer a fixed graph from training parent–child calls and retain a documented node-to-index map. Preserve label metadata for diagnostics.
+An eligible UTC+8 date must appear in the injection log and have observations for every metric series and all ten instances in both trace and business logs. July 19 lacks injection records. The first potentially unbounded CPU interval starts July 26, so July 26 onward is excluded. The 11 remaining days are split chronologically using the 60/20/20 target.
+
+| Split | July 2021 dates (UTC+8) | Normal | Memory | File move | Total |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Train | 1, 2, 3, 8, 10, 17, 21 | 2,614 | 539 | 32 | 3,185 |
+| Validation | 22, 23 | 923 | 200 | 18 | 1,141 |
+| Test | 24, 25 | 1,007 | 176 | 11 | 1,194 |
+
+These window counts come from a preflight on the real metric archives and injection records. The build records the realized counts in `quality.json`.
+
+- Use 30-second bins and non-overlapping 120-second windows within each day. Require all seven metric channels for all ten instances in all four bins. Drop windows with missing metric bins. The preflight dropped 2,239 windows for this reason.
+- Leave a 120-second margin on both sides of the two midnight partition cuts on July 22 and 24. Mask confirmed injections that cross a cut. The preflight found one such injection.
+- Exclude windows that overlap any of the 27 bounded ambiguous intervals. These cover 12 short CPU injections and 15 permission exceptions. Each permission exception is masked within one hour on either side of its message timestamp. The preflight excluded 157 windows for masked intervals and four for cut margins.
+- Mark a window anomalous when it overlaps a confirmed memory or file-moving injection by at least one second. The type with greatest overlap supplies the per-type count if events overlap. Other eligible windows supply the normal class. The classifier maps both fault types to the same binary target.
+
+### Input features and topology
+
+- Metrics contain the bin mean for each of the three Docker CPU, two memory, and two network series selected by the audit. This uses the supplied metric values.
+- Traces contain `log1p` of the mean nonnegative span latency in milliseconds per instance and 30-second bin. A bin with no usable spans is encoded as zero.
+- Business logs contain `log1p` of per-window counts in five fixed severity buckets per instance. The buckets are INFO, WARNING, ERROR, DEBUG, and OTHER. The fixed encoding avoids a separate template-mining pass. A bucket with no events is encoded as zero.
+- The graph uses directed parent-to-child calls joined by trace and span IDs in the first common hour of training traces on July 1, starting at 14:57:53.049982 UTC+8. Add one self-loop per node. A bounded read of real members for that hour found 30 directed cross-service links. The build records the final links and their supporting counts.
+- The runner fits normalization on training windows and applies the stored statistics to all splits. Feature dimensions and service order are stored in `metadata.json`.
 
 ### Outputs and integration points
 
-The proposed processed root is `project/datasets/gaia/processed/micross_v1/`.
+The processed root is `project/datasets/gaia/processed/micross_v1/`. At the preflight count the raw feature arrays total about 8 MiB before metadata and serialization overhead.
 
 | Output | Contents |
 | --- | --- |
-| `chunks.pkl` | Window ID, start time, aligned metric `[N, T, M]`, trace `[N, T, R]`, and log `[N, E]` arrays, and incident metadata. `culprit=0` denotes normal operation and positive IDs denote fault types. `N` is the fixed node count and `T` the number of time steps. |
+| `chunks.pkl` | Window ID, epoch start time, metric `[10, 4, 7]`, trace `[10, 4, 1]`, and log `[10, 5]` arrays. `culprit` is 0 for normal, 1 for memory, and 2 for file moving. |
 | `metadata.json` | `format=gaia_micross_v1`, source revision, system, node IDs, directed `edges`, `node_num`, `metric_num`, `trace_dim`, `event_num`, label map, sampling and feature definitions. |
-| `quality.json` | Date range, timestamp conversions, per-day and per-node coverage, field parse failures, unmapped entities, graph checks, and counts of windows and independent incidents by split and type. |
-| `split_manifest.json` | Exact split bounds, gaps, window IDs, incident assignments, source revision, and a stable manifest identifier or hash for matching runs. |
+| `quality.json` | Audit and label paths, record and exclusion counts, retained windows by split and class, dropped windows by reason, graph sample timestamps, and directed call counts. |
+| `split_manifest.json` | Exact split dates, UTC+8 offset, margins, window IDs, and source revision. |
 
-- **Adapter.** Add `project/data_pipeline/build_gaia.py` to read the audited archives, align the telemetry, and write the contract above. Read selected metric files and stream trace and business CSVs in bounded batches. Estimate processed size and graph-loader memory from a sample before building the whole benchmark.
-- **Shared loader.** `common.py` currently sends any directory with `chunks.pkl` through the Eadro run-assignment code. Dispatch by dataset format and read GAIA's explicit manifest. Reuse the existing DGL dataset, training-only normalizer, training loop, and metrics. Verify that SN and TT still resolve their existing splits. [Shared loader](project/experiments/common.py#L189)
-- **Model dimensions.** Full v2 already takes metric, trace, and event dimensions from metadata. Verify that the GAIA pilot matches its input contract. [Registry](project/experiments/registry.py#L79)
-- **Verification.** Compile changed Python files. For the user-run data check, verify the manifest is complete and disjoint, every window uses only its own partition's observations, every incident belongs to at most one partition, feature arrays are finite with the declared shapes, edges resolve to valid nodes, and each split has both classes. Verify that learned preprocessing uses training data and that the quality report explains drops or missing modalities. Record split and normalization artifacts from the first runner invocation.
+- The adapter streams selected CSV columns in batches and publishes the processed directory only after all four artifacts are ready. [Builder](project/data_pipeline/build_gaia.py)
+- The shared loader dispatches on the GAIA format marker, checks that the manifest assigns each window exactly once, and uses the existing dataset, train-only normalizer, model registry, and training loop. [Shared loader](project/experiments/common.py#L189) · [Model registry](project/experiments/registry.py#L79)
+- After the full build, check the manifest, shapes, finite values, graph indices, and class counts before launching seed 42. Record the saved split and normalization artifacts from the runner.
 
 ## 5. Experiment sequence
 
@@ -134,17 +152,16 @@ The published `mobservice2` label file has one binary label per second across Ju
 
 Use the GAIA runner's saved result to report a two-row comparison with `Source`, `Prediction unit and scoring`, `Precision`, `Recall`, and `F1` columns. Put UG-MoE's macro-F1 and other metrics in its own results summary. The rows represent different prediction targets and scoring protocols, so the table supports a published reference comparison only. Include the seed, split, and run path with the UG-MoE result.
 
-## 6. Decisions to finalize after the audit
+## 6. Decisions
 
-| Decision | Current proposal | Recorded outcome |
-| --- | --- | --- |
-| Exact dates and time zone | Common July period after aligning all sources. | UTC+8 supported by cross-source checks. The common date range is pending the full coverage scan. |
-| Node granularity and topology | Use verified service instances where possible. Infer the fixed graph from training call spans. | Pending entity and trace audit. |
-| Metric channels, cadence, and windows | Start from the Eadro feature definitions where GAIA has equivalent channels. Evaluate 30-second bins. | Four sampled series show 30-second cadence. Final channel set, window, and stride are pending the broader audit. |
-| Label and exclusion rules | Use explicit injection intervals, with an audit of ambiguous cases and overlap rules. | Pending review of `run/` records. |
-| Split boundaries and background coverage | Approximately 60/20/20 chronological with a gap at each cut. | Pending incident and coverage counts. |
-| AnoFusion benchmark | Cite the paper's published D1 precision, recall, and F1 with its original evaluation protocol. | Published reference verified. |
-| Final GAIA experiment scope | Full UG-MoE v2 at seed 42, followed by the published comparison. | User confirmed the single-model schedule. |
+| Decision | Recorded outcome |
+| --- | --- |
+| Dates and time zone | 11 audited July dates in UTC+8. Validation starts July 22 and test starts July 24. |
+| Node granularity and topology | Ten service instances with directed parent-to-child calls from the first common training trace hour and one self-loop per instance. |
+| Features and windows | Seven metric channels, mean trace span latency, and five fixed business-log severity counts. Thirty-second bins in non-overlapping two-minute windows. |
+| Label and exclusion rules | Confirmed memory and file-moving intervals supply positives. Mask bounded CPU and permission intervals, exclude July 26 onward, and leave two-minute margins around both cuts. |
+| AnoFusion benchmark | Cite the paper's published D1 precision, recall, and F1 with its original evaluation protocol. |
+| GAIA experiment scope | Full UG-MoE v2 at seed 42, followed by the published comparison. |
 
 ## 7. Server commands
 
@@ -254,9 +271,29 @@ tail -f "$GAIA_AUDIT.log"
 
 The job finishes with `GAIA coverage audit saved to ...`. Record the JSON and log paths. Use the full scan for split decisions. The `--rows-per-member` option is intended for bounded checks.
 
+### Build the GAIA dataset
+
+Use the completed coverage report. The builder reads the verified archives in place and writes the compact processed features to `datasets/gaia/processed/micross_v1`.
+
+```bash
+cd "$HOME/AHA_BTP/UG_MoE/project"
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate muad
+GAIA_BUILD_LOG="experiments/runs/gaia_build_$(date +%Y%m%d_%H%M%S).log"
+
+nohup "$CONDA_PREFIX/bin/python" -u -m data_pipeline.build_gaia \
+  --coverage experiments/runs/gaia_coverage_20261122_155845/coverage.json \
+  > "$GAIA_BUILD_LOG" 2>&1 < /dev/null &
+
+echo "PID=$!  Log=$GAIA_BUILD_LOG"
+tail -f "$GAIA_BUILD_LOG"
+```
+
+The completion marker is `GAIA dataset saved to ...`. Verify the four artifacts and record the class counts and graph from `quality.json` before running seed 42.
+
 ### First seed-42 training job
 
-Run after the GAIA adapter and shared loader are implemented and the processed data and split pass the checks above. The example uses the proposed processed root. Replace it with the recorded path if the build uses a different root.
+Run after the processed data and split pass the checks above.
 
 ```bash
 cd "$HOME/AHA_BTP/UG_MoE/project"
@@ -304,6 +341,8 @@ The `Saved to:` line identifies the timestamped results directory. Check `models
 | 2026-11-22 | Clock and coverage checks | Confirmed the ten common application service IDs and gathered evidence for UTC+8 from memory injections, embedded business-log times, and trace-to-log matches. Added a streaming coverage audit and checked 128 rows from 160 real archive members plus a complete metric member in `muad`. | [Clock evidence](#archive-schemas-and-clock-evidence) · [Coverage command](#run-the-streaming-coverage-audit). Run the full coverage audit before freezing the split. |
 | 2026-11-22 | AnoFusion baseline added | The user selected the KDD 2023 GAIA benchmark paper for comparison. Verified its Table 3 scores, checked the public source tree at `ae3c4ea98509008844a3eecf7c0bd1529faaba67`, and confirmed that our trace count matches its D1 count. Compared the released `mobservice2` labels with the raw memory injection intervals in `muad`. Specified a matched system-window rerun and tracked the published instance-level result. | [AnoFusion comparison](#anofusion-comparison). Freeze shared windows and labels after the coverage scan. |
 | 2026-11-22 | GAIA schedule narrowed | The user confirmed a single full UG-MoE v2 training run at seed 42. The comparison will use AnoFusion's published D1 metrics. The prior rerun plan was superseded. | [Experiment sequence](#5-experiment-sequence). Finish coverage, build the pilot and full dataset, then train seed 42. |
+| 2026-11-22 | Full coverage audit completed | The user completed the streaming scan. Combined its per-service coverage with the injection records to select 11 eligible dates. A preflight on all selected real metric members and the real labels yielded 5,520 usable windows with both classes in every split. | [Coverage JSON](project/experiments/runs/gaia_coverage_20261122_155845/coverage.json) · [Split and window counts](#chronological-partition-and-window-labels). |
+| 2026-11-22 | GAIA adapter implemented and checked | Added archive streaming, time-bin aggregation, a training trace graph, and an explicit split manifest. A bounded real trace probe found 30 directed cross-service links. In `muad`, the changed Python files compiled, and a six-window compressed fixture using the real audit and labels passed feature-shape, class, and split checks. The shared loader wrote its training-only normalization statistics, and full v2 produced finite CPU logits and loss for one batch from each split. | [Builder](project/data_pipeline/build_gaia.py) · [Full build command](#build-the-gaia-dataset). The full telemetry build and GPU training are pending. |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 

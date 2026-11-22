@@ -187,19 +187,27 @@ def segment_normal_runs(chunks: Dict, runs: List[Dict], run_ids: List[int], wind
 
 
 def _load_pipeline_splits(data_dir: Path, batch_size: int, split_out: Optional[Path], normalize: str) -> Dict:
-    """load_splits() for directories produced by data_pipeline.build_eadro (chunks.pkl + metadata.json)."""
+    """Load rebuilt Eadro or GAIA chunks with their dataset-specific split."""
     chunks, node_num, edges, metadata = load_data(str(data_dir / "chunks.pkl"), str(data_dir / "metadata.json"))
-    assignment = assign_pipeline_runs(metadata["runs"])
-    ids = {s: sorted(k for k, c in chunks.items() if c["run_index"] in set(assignment[s]))
-           for s in ("train", "val", "test")}
-    if assignment["segmented"]:
-        seg = segment_normal_runs(chunks, metadata["runs"], assignment["segmented"], int(metadata["chunk_lenth"]))
-        ids = {s: sorted(ids[s] + seg[s]) for s in ids}
-    split_info = {"data_dir": str(data_dir), "split": "pipeline_runs", "system": metadata.get("system"),
-                  "runs": {s: [metadata["runs"][i]["name"] + f" ({metadata['runs'][i]['kind']})"
-                               for i in assignment[s]] for s in assignment},
-                  "normal_segments": {s: [lo, hi] for s, lo, hi in NORMAL_SEGMENTS}
-                  if assignment["segmented"] else None}
+    if metadata.get("format") == "gaia_micross_v1":
+        manifest = json.loads((data_dir / "split_manifest.json").read_text(encoding="utf-8"))
+        ids = {split: manifest.pop(f"{split}_ids") for split in ("train", "val", "test")}
+        all_ids = ids["train"] + ids["val"] + ids["test"]
+        if any(not subset for subset in ids.values()) or len(all_ids) != len(chunks) or set(all_ids) != chunks.keys():
+            raise ValueError("GAIA split manifest must assign every chunk to exactly one nonempty partition")
+        split_info = {"data_dir": str(data_dir), "system": metadata.get("system"), **manifest}
+    else:
+        assignment = assign_pipeline_runs(metadata["runs"])
+        ids = {s: sorted(k for k, c in chunks.items() if c["run_index"] in set(assignment[s]))
+               for s in ("train", "val", "test")}
+        if assignment["segmented"]:
+            seg = segment_normal_runs(chunks, metadata["runs"], assignment["segmented"], int(metadata["chunk_lenth"]))
+            ids = {s: sorted(ids[s] + seg[s]) for s in ids}
+        split_info = {"data_dir": str(data_dir), "split": "pipeline_runs", "system": metadata.get("system"),
+                      "runs": {s: [metadata["runs"][i]["name"] + f" ({metadata['runs'][i]['kind']})"
+                                   for i in assignment[s]] for s in assignment},
+                      "normal_segments": {s: [lo, hi] for s, lo, hi in NORMAL_SEGMENTS}
+                      if assignment["segmented"] else None}
     if split_out is not None:
         split_out = Path(split_out)
         split_out.parent.mkdir(parents=True, exist_ok=True)
