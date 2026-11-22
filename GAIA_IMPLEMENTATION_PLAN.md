@@ -2,7 +2,7 @@
 
 Updated 2026-11-22 on `hdfs` · GPU server · Conda environment `muad`
 
-**GAIA dataset built.** The three verified archives cover ten common service instances. The build retained 5,520 windows from ten July dates in UTC+8. The next experiment is full UG-MoE v2 at seed 42. [Training command](#first-seed-42-training-job)
+**GAIA seed-42 experiment complete.** Full UG-MoE v2 achieved test anomaly F1 **0.6571** and macro-F1 **0.8058** on the frozen chronological split. [Verified result](#seed-42-result) · [AnoFusion comparison](#anofusion-comparison)
 
 This file is the working record for the third dataset. Update the checklist and append a dated journal entry after each implementation step or server run. Record what changed, how it was verified, and where the evidence lives. Keep proposed settings marked as such until the data audit supports them. Use `muad` for Python commands. Codex runs short checks and records verified checkpoints locally. Publishing to `origin/hdfs` uses the project user's own GitHub identity with write access. The user launches long downloads, data builds, and GPU experiments with `nohup`.
 
@@ -38,8 +38,8 @@ Use the **July 2021 MicroSS data** from CloudWise's `release-v1.0`, at `5f1d772a
 | Done | Freeze the GAIA feature schema, label rules, and chronological split. | [Data contract](#4-data-contract-and-preprocessing) and [decision record](#6-decisions). |
 | Done | Implement the streaming adapter and shared loader. | [Builder](project/data_pipeline/build_gaia.py) and [loader](project/experiments/common.py#L189). |
 | Done | Build and check the full GAIA artifacts. | [Build log](project/experiments/runs/gaia_build_20261122_170933.log) · [Quality report](project/datasets/gaia/processed/micross_v1/quality.json) · [Split manifest](project/datasets/gaia/processed/micross_v1/split_manifest.json). |
-| Pending | Complete the full-v2 training run at seed 42. | Launch command, log, checkpoint, `summary.json`, selected epoch, metrics, and skipped-batch count. |
-| Pending | Report the seed-42 result alongside the published AnoFusion reference. | UG-MoE test metrics and run paths, AnoFusion Table 3, both scoring protocols, and comparison limits. |
+| Done | Complete the full-v2 training run at seed 42. | [Run record](#run-log) · [Runner summary](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/summary.json). |
+| Done | Report the seed-42 result alongside the published AnoFusion reference. | [Both results and scoring protocols](#anofusion-comparison). |
 
 ## 3. Acquisition and raw-data audit
 
@@ -144,13 +144,29 @@ Use validation macro-F1 for checkpoint selection and validation PR-AUC for ties.
 
 The first run uses the historical defaults of Adam, learning rate `5e-4`, batch size `50`, weight decay `1e-5`, a `50` epoch cap, and patience `15`. Pass `--models ug_moe2:full` explicitly. Additional seeds and GAIA ablations are deferred. [Runner defaults](project/experiments/registry.py#L213)
 
+### Seed-42 result
+
+The run selected epoch **17** by validation macro-F1 with PR-AUC as the tiebreaker. Early stopping ended training at epoch 32. The recorded history contains zero skipped batches and the runner reported no errors. The saved split matches the frozen manifest, and the checkpoint loaded on CPU with finite tensors. [Training log](project/experiments/runs/gaia_full_s42_20261122_175126.log) · [Per-seed result](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/ug_moe2_full_seed42.json)
+
+| Split | Anomaly precision | Anomaly recall | Anomaly F1 | Normal F1 | Macro-F1 | PR-AUC | ROC-AUC |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Validation | 0.9381 | 0.9037 | 0.9206 | 0.9817 | 0.9511 | 0.9310 | 0.9479 |
+| Test | 0.9892 | 0.4920 | 0.6571 | 0.9545 | 0.8058 | 0.6357 | 0.6996 |
+
+On the July 24–25 test split, the model detected 92 of 187 anomalous windows and falsely flagged one of 1,007 normal windows. It detected 81 of 176 memory-injection windows and all 11 file-moving windows. All 95 misses occurred during memory injections. The runner's all-anomalous reference scored 0.2708 anomaly F1 on the same test windows. [Test metrics and class counts](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/summary.json)
+
 ### AnoFusion comparison
 
 Table 3 reports **0.795 precision, 0.945 recall, and 0.857 F1** for AnoFusion on GAIA D1. The paper evaluates unsupervised instance-level detection, uses the first 60% of each instance's timeline for training and the remaining 40% for testing, and describes one-minute observations and continuous failure-segment scoring. Our complete trace scan counted 28,681,438 rows across ten instances, which matches the D1 trace count in Table 2. The score from Table 3 is a published reference under the paper's protocol. [AnoFusion paper, Table 2, Table 3, §5.1 and §6.2](KDD23-AnoFusion.pdf) · [GAIA audit log](project/experiments/runs/gaia_coverage_20261122_155845.log)
 
 The published `mobservice2` label file has one binary label per second across July in UTC+8, with 123,479 positive seconds. The 66 explicit 600-second memory injections for that instance span 39,600 second bins using the recorded start rounded down to a second. All these bins are positive in the published labels. This corroborates the memory labels and establishes that the published demo covers additional positive periods. [Published `mobservice2` labels](https://github.com/AIOps-Lab-NKU/AnoFusion/blob/ae3c4ea98509008844a3eecf7c0bd1529faaba67/labeled_service/mobservice2.csv)
 
-Use the GAIA runner's saved result to report a two-row comparison with `Source`, `Prediction unit and scoring`, `Precision`, `Recall`, and `F1` columns. Put UG-MoE's macro-F1 and other metrics in its own results summary. The rows represent different prediction targets and scoring protocols, so the table supports a published reference comparison only. Include the seed, split, and run path with the UG-MoE result.
+| Source | Prediction unit and scoring | Precision | Recall | F1 |
+| --- | --- | ---: | ---: | ---: |
+| UG-MoE v2 full, seed 42 | Supervised binary detection on two-minute system windows. Chronological train/validation/test split, with July 24–25 held out. | 0.9892 | 0.4920 | 0.6571 |
+| AnoFusion, published GAIA D1 | Unsupervised instance-level detection with one-minute observations and continuous failure-segment scoring. Chronological 60/40 split for each instance. | 0.795 | 0.945 | 0.857 |
+
+The prediction units, label coverage, splits, and scoring protocols differ. The table places the single-seed UG-MoE result alongside the published reference. [UG-MoE runner summary](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/summary.json) · [AnoFusion paper, Table 3](KDD23-AnoFusion.pdf)
 
 ## 6. Decisions
 
@@ -344,23 +360,30 @@ The `Saved to:` line identifies the timestamped results directory. Check `models
 | 2026-11-22 | Full coverage audit completed | The user completed the streaming scan. Combined its per-service coverage with the injection records to select 11 eligible dates. A preflight on all selected real metric members and the real labels yielded 5,520 usable windows with both classes in every split. | [Coverage JSON](project/experiments/runs/gaia_coverage_20261122_155845/coverage.json) · [Split and window counts](#chronological-partition-and-window-labels). |
 | 2026-11-22 | GAIA adapter implemented and checked | Added archive streaming, time-bin aggregation, a training trace graph, and an explicit split manifest. A bounded real trace probe found 30 directed cross-service links. In `muad`, the changed Python files compiled, and a six-window compressed fixture using the real audit and labels passed feature-shape, class, and split checks. The shared loader wrote its training-only normalization statistics, and full v2 produced finite CPU logits and loss for one batch from each split. | [Builder](project/data_pipeline/build_gaia.py) · [Full build command](#build-the-gaia-dataset). The full telemetry build and GPU training are pending. |
 | 2026-11-22 | Full GAIA build completed and verified | The user ran the build on `hdfs` at `4caf3f9` in `muad`. It completed in about 24 minutes and saved 5,520 windows. Checked every saved feature array for correct shape and finite values, verified all window IDs against the disjoint chronological split and cut margins, and confirmed 30 cross-service arcs and ten self-loops. Checked the saved normalization against the training data and ran full UG-MoE v2 on one real CPU batch of 50 from each split with finite outputs and loss. | [Build log](project/experiments/runs/gaia_build_20261122_170933.log) · [Quality report](project/datasets/gaia/processed/micross_v1/quality.json) · [Seed-42 launch](#first-seed-42-training-job). GPU training is pending. |
+| 2026-11-22 | Seed-42 launches recorded | The initial launch stopped at CUDA initialization. The retry completed and its artifacts passed the checkpoint, split, history, and metric checks. | [Run log](#run-log). |
+| 2026-11-22 | Published comparison recorded | Paired the verified seed-42 scores with AnoFusion's reported GAIA D1 scores and documented the evaluation protocols. | [AnoFusion comparison](#anofusion-comparison). |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 
 ### Run log
 
-Both injection-archive attempts are recorded in the journal. GAIA training runs are pending. Add one entry per launch, including retries or superseded runs.
+#### 2026-11-22 17:47 IST, CUDA initialization failure
 
-```text
-Date and purpose:
-Status:
-Code commit / data release / split manifest ID:
-GPU / Conda environment:
-Exact command:
-Log path / output directory / checkpoint:
-Model(s) / seed(s) / deviations from defaults:
-Split sizes and class counts:
-Selected epoch / skipped batches / runner errors:
-Validation and test results:
-Interpretation and follow-up:
+The runner requested CUDA for `ug_moe2:full` at seed 42 and exited the model run before epoch 1 with `No CUDA GPUs are available`. The launch produced no model checkpoint or result. The user retried in a separate run. [First launch log](project/experiments/runs/gaia_full_s42_20261122_174745.log)
+
+#### 2026-11-22 17:51–18:06 IST, seed-42 retry
+
+The user ran in `muad` on `hdfs` with the code at `ac89cb2`, the pinned GAIA release, and the manifest recorded above. The runner saved the selected epoch, checkpoint, split, and training statistics. The GPU index was not captured in the artifacts. The runner arguments below are from the saved config. [Launch log](project/experiments/runs/gaia_full_s42_20261122_175126.log) · [Runner summary](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/summary.json)
+
+```bash
+# From project/ with muad active and CUDA visibility set as above.
+nohup "$CONDA_PREFIX/bin/python" -u experiments/run_baselines.py \
+  --device cuda \
+  --data-dir datasets/gaia/processed/micross_v1 \
+  --models ug_moe2:full \
+  --seeds 42 \
+  --output-dir experiments/runs/gaia_full_s42_20261122_175126 \
+  > experiments/runs/gaia_full_s42_20261122_175126.log 2>&1 < /dev/null &
 ```
+
+Artifacts are in `project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/`. [Checkpoint](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/ug_moe2_full_seed42_best.pth) · [Saved split](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/split.json) · [Normalization](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/normalization.json)
