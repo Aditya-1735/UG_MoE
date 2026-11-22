@@ -78,12 +78,16 @@ The audit must establish a usable common July period and enough labeled incident
 
 The 695 explicit 600-second records are an initial candidate set, based on the stated start in the message. Verify their clock alignment and merge overlapping candidates into system-level time intervals before counting independent episodes. CPU outliers, uncertain permission start times, and 19 July coverage remain open. Avoid treating unresolved affected periods as confirmed normal time.
 
+### Preliminary metric cadence
+
+Four Docker metric CSVs for `mobservice1` and `logservice2` were readable from the metric archive's terminal volume. Their extracted bytes matched the ZIP entry sizes and CRCs. CPU, disk I/O, and network samples all had a modal interval of **30 seconds**, with duplicates, gaps, or out-of-order rows in some files. The 10-second Eadro setting is unsuitable for these series at their native cadence. Audit the selected channels before freezing a GAIA grid and a window that spans multiple real observations.
+
 ## 4. Data contract and preprocessing
 
 ### Chronological partition and window labels
 
 1. Start from approximately **60% train, 20% validation, 20% test** of usable time. Place cuts at incident-free boundaries around those targets and record the exact timestamps. Leave a gap of at least **60 seconds** at each cut, extended if the feature lookback requires it. Check that each partition has normal windows and distinct fault episodes.
-2. Start with **10-second windows and a 5-second stride**, matching TT, if the audit shows adequate native metric coverage at that resolution. Select the time grid and window length from measured telemetry cadence and incident durations. Record the resolution, missing-value policy, and the reason for any deviation before training.
+2. Evaluate a **30-second grid** for GAIA. The initial metric sample is slower than the 10-second Eadro window. Choose window length and stride from the measured cadence, coverage, and incident durations. Record the missing-value policy and qualify what the chosen resolution can show about short CPU incidents.
 3. Generate windows within each partition. Prevent rolling features, metric fills, incidents, or windows from crossing cuts. Base positive labels on overlap with a confirmed injection interval. Use the Eadro convention of at least one second of overlap if the selected timestamps support that resolution. Record how overlapping injections are handled for per-type counts. The classifier remains binary.
 4. Select metric channels and fit the log-template vocabulary using training data. Keep an unknown-template bucket for later logs. Fit normalization on training windows and apply it identically to validation and test. Infer a fixed graph from training parent–child calls and retain a documented node-to-index map. Preserve label metadata for diagnostics.
 
@@ -134,7 +138,7 @@ After verification, add GAIA paths and the GAIA label map to the report workflow
 | --- | --- | --- |
 | Exact dates and time zone | Common July period after aligning all sources. | Pending audit. |
 | Node granularity and topology | Use verified service instances where possible. Infer the fixed graph from training call spans. | Pending entity and trace audit. |
-| Metric channels, cadence, and windows | Start from the Eadro representation and TT window settings where supported by GAIA. | Pending coverage and cadence audit. |
+| Metric channels, cadence, and windows | Start from the Eadro feature definitions where GAIA has equivalent channels. Evaluate 30-second bins. | Four sampled series show 30-second cadence. Final channel set, window, and stride are pending the broader audit. |
 | Label and exclusion rules | Use explicit injection intervals, with an audit of ambiguous cases and overlap rules. | Pending review of `run/` records. |
 | Split boundaries and background coverage | Approximately 60/20/20 chronological with a gap at each cut. | Pending incident and coverage counts. |
 | Final GAIA experiment scope | Clean five-model comparison, with further analyses tied to claims about GAIA. | Pending seed-42 results. |
@@ -214,40 +218,15 @@ tail -f "$GAIA_LOG"
 
 ### Fetch and verify the compressed telemetry
 
-This job downloads the numbered volumes directly into the archive directory. It reads expected file paths and Git blob hashes from the pinned release. It reuses existing verified files and renames a temporary download only after its hash matches. Once all parts are present, it checks each archive without extracting its CSVs. Allow time for about 3.7 GiB of remaining downloads and the integrity checks.
+The [archive downloader](scripts/fetch_gaia_archives.sh) downloads the numbered volumes directly into the archive directory. It reads expected file paths and Git blob hashes from the pinned release. It reuses existing verified files and renames a temporary download only after its hash matches. Once all parts are present, it checks each archive without extracting its CSVs. Allow time for about 3.7 GiB of remaining downloads and the integrity checks.
 
 ```bash
 cd "$HOME/AHA_BTP/UG_MoE/project"
-GAIA_RELEASE="$PWD/datasets/gaia/raw/release-v1.0"
-GAIA_ARCHIVES="$PWD/datasets/gaia/archives/micross_v1"
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate muad
 GAIA_LOG="experiments/runs/gaia_fetch_telemetry_v1_$(date +%Y%m%d_%H%M%S).log"
 
-nohup bash -c '
-  set -euo pipefail
-  REV=$(git -C "$1" rev-parse HEAD)
-  test "$REV" = 5f1d772a7845dd93e4ab04dfc0ee725bf0ca933a
-  BASE="https://raw.githubusercontent.com/CloudWise-OpenSource/GAIA-DataSet/$REV"
-  df -h "$1"
-  git -C "$1" ls-tree -r "$REV" MicroSS/metric MicroSS/trace MicroSS/business |
-    while read -r mode kind expected path; do
-      test "$kind" = blob
-      target="$2/${path#MicroSS/}"
-      mkdir -p "$(dirname "$target")"
-      if [[ -f "$target" ]] && [[ $(git hash-object "$target") == "$expected" ]]; then
-        printf "Verified local %s\n" "$path"
-        continue
-      fi
-      printf "Fetching %s\n" "$path"
-      curl --fail --silent --show-error --location --connect-timeout 10 \
-        --max-time 180 --retry 3 --output "$target.part" "$BASE/$path"
-      test "$(git hash-object "$target.part")" = "$expected"
-      mv "$target.part" "$target"
-    done
-  for modality in metric trace business; do
-    7z t "$2/$modality/${modality}_split.zip"
-  done
-  printf "All three telemetry archives verified in %s\n" "$2"
-' _ "$GAIA_RELEASE" "$GAIA_ARCHIVES" > "$GAIA_LOG" 2>&1 < /dev/null &
+nohup bash ../scripts/fetch_gaia_archives.sh > "$GAIA_LOG" 2>&1 < /dev/null &
 
 echo "PID=$!  Log=$GAIA_LOG"
 tail -f "$GAIA_LOG"
@@ -294,6 +273,8 @@ The `Saved to:` line identifies the timestamped results directory. Check `models
 | 2026-11-22 | First acquisition attempt failed | The user launched the injection-record job using `git clone --filter=blob:none --sparse`. Git 2.25.1 tried to use the HTTPS URL as its working directory during sparse-checkout initialization. The workspace check found no resulting checkout. Replaced the launch with `--no-checkout`, followed by sparse-checkout setup and a checkout of the verified revision. | [Failed launch log](project/experiments/runs/gaia_fetch_run_v1_20261122_145300.log) · [Git bug fix](https://github.com/git/git/commit/47dbf10d8a5ce8c9b441a16b7698c7d70585dff0). Retry and verify `run.zip`. |
 | 2026-11-22 | Injection records acquired | The user reran the revised launch. The checkout resolved to the pinned commit, `7z t` passed, and one CSV was extracted. Read-only inspection counted records by message family and checked explicit starts and durations against message emission times. | [Retry log](project/experiments/runs/gaia_fetch_run_v1_retry_20261122_145518.log) · [Label audit](#injection-records-observed-on-2026-11-22). Size the telemetry archives next. |
 | 2026-11-22 | Telemetry storage measured | The user ran the GitHub inventory. Codex fetched the three terminal ZIP volumes, matched their Git blob hashes to the pinned release, and used their indexes to measure extraction sizes. A small split-ZIP probe verified `7z x -so` against the original member bytes. | [Size log](project/experiments/runs/gaia_telemetry_sizes_20261122_145949.log). Cache the remaining compressed parts and test the complete archives. |
+| 2026-11-22 | Metric sampling and downloader prepared | CRC-verified four metric samples and measured 30-second cadence. Added a resumable downloader that verifies every archive part against the Git tree. A temporary three-archive fixture passed download, cached-part reuse, `7z t`, and retry checks. | [Preliminary cadence](#preliminary-metric-cadence) · [Downloader](scripts/fetch_gaia_archives.sh). Launch the full archive download in `muad`. |
+| 2026-11-22 | GitHub publication blocked | Committed the plan and storage audit as `f7541b5`. HTTPS required GitHub credentials. The existing SSH key authenticated as `Sriharshith1863`, which GitHub denied write access to `Aditya-1735/UG_MoE`. | The local `hdfs` checkpoint remains available. Publishing requires an account with write access to the repository. |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 
