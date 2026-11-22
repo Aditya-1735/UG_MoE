@@ -430,6 +430,33 @@ tail -f "$GAIA_MATCH/comparison.log"
 
 The evaluator writes `comparison/summary.json` and `comparison/predictions.csv`. Record the final run paths and the shared-window results here.
 
+#### Run the last three instances on a spare GPU
+
+The original job runs sequentially on GPU 1. Its assigned scores for the combined evaluation are the first seven instances, through `redisservice1`. The spare job handles `redisservice2`, `webservice1`, and `webservice2` with the same inputs, pinned source, seed 42, and training defaults. Each instance initializes its own network and optimizer from the same seed.
+
+```bash
+cd "$HOME/AHA_BTP/UG_MoE/project"
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate muad
+GAIA_MATCH="experiments/runs/gaia_matched_20261122_183655"
+
+nvidia-smi
+read -r -p 'Spare GPU index: ' GAIA_SPARE_GPU
+
+CUDA_VISIBLE_DEVICES="${GAIA_SPARE_GPU:?Enter the spare GPU index}" \
+  nohup "$CONDA_PREFIX/bin/python" -u -m experiments.run_gaia_anofusion \
+  --source experiments/runs/gaia_anofusion_source \
+  --observations "$GAIA_MATCH/observations.npz" \
+  --output-dir "$GAIA_MATCH/anofusion_tail" \
+  --device cuda --seed 42 \
+  --services redisservice2 webservice1 webservice2 \
+  > "$GAIA_MATCH/anofusion_tail.log" 2>&1 < /dev/null &
+echo "PID=$!  Log=$GAIA_MATCH/anofusion_tail.log"
+tail -f "$GAIA_MATCH/anofusion_tail.log"
+```
+
+Once the original job has saved `redisservice1.npz` and the spare job prints `AnoFusion scores saved to`, verify the two jobs used the recorded inputs and parameters. Check all ten assigned score files for the frozen manifest hash, matching timestamps, and full validation and test coverage. Collect the verified score files and their launch provenance in a new `anofusion_combined` directory for the shared evaluator.
+
 ## 8. Implementation journal
 
 | Date | Milestone | What was done and how | Evidence and next step |
@@ -456,6 +483,7 @@ The evaluator writes `comparison/summary.json` and `comparison/predictions.csv`.
 | 2026-11-22 | Matched comparison implemented | Added the input exporter, pinned AnoFusion runner, and shared window scorer. The three scripts compiled in `muad`. A small compressed fixture exercised the exporter and one CPU training epoch for each of the ten instances using the public network. Mock AnoFusion scores on the real manifest exercised the complete window join and reproduced the saved UG-MoE F1 at its original threshold. Checked the validation threshold search against an exhaustive sweep. | The pinned source checkout is available in the ignored `project/experiments/runs/gaia_anofusion_source` directory. Start the full export and baseline training with the [matched run commands](#run-the-matched-gaia-comparison). |
 | 2026-11-22 | Matched input export completed | The user ran the export in `muad` at `3717663`. It took about 17 minutes and wrote 5.8 MiB for 5,520 windows, four bins, ten instances, and 13 channels. Verified that every value was finite, the manifest and window order matched, and every window had three or four forecast targets. Per instance there are 12,646 train, 4,430 validation, and 4,582 test targets. A short CPU check with the real `mobservice2` data passed with one batch per split. | [Export log](project/experiments/runs/gaia_matched_20261122_183655/export.log). Observation SHA-256 is `50d643f77ab5741e48e3a083081a53709e84231711eeea64bac841f2f90dcbb5`. Launch AnoFusion training at seed 42. |
 | 2026-11-22 23:01 IST | AnoFusion training in progress | The seed-42 CUDA job had saved checkpoints and scores for `dbservice1`, `dbservice2`, `logservice1`, and `logservice2`, with best validation-forecast epochs 43, 100, 59, and 46 respectively. Verified the four score files against the frozen manifest and checked their 4,430 validation and 4,582 test scores per instance. `mobservice1` was at epoch 56. | [Training log](project/experiments/runs/gaia_matched_20261122_183655/anofusion.log). Run the shared evaluator after all ten score files and the runner summary are saved. |
+| 2026-11-22 23:07 IST | Spare GPU planned for three instances | Five instances had saved their scores and `mobservice2` was training. The user reported a spare GPU slot. The original invocation uses `muad`, the pinned source, the exported observations, seed 42, and the default cap of 100 epochs, batch size 64, and patience 10. Assigned its first seven completed instances to the shared evaluation and the other three to the spare job. | [Spare job launch](#run-the-last-three-instances-on-a-spare-gpu). Launch and combined scoring are pending. |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 
