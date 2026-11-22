@@ -12,7 +12,7 @@ Train UG-MoE v2 on GAIA MicroSS and evaluate normal-versus-anomalous classificat
 
 Use the **July 2021 MicroSS data** from CloudWise's `release-v1.0`, at `5f1d772a7845dd93e4ab04dfc0ee725bf0ca933a`. Use `metric/`, `trace/`, and `business/` as feature sources and `run/` as the source for injection records. CloudWise's August update omits August traces. The benchmark period will be the audited intersection of available July telemetry and label coverage. [Pinned release](https://github.com/CloudWise-OpenSource/GAIA-DataSet/releases/tag/release-v1.0) · [Release notes](https://github.com/CloudWise-OpenSource/GAIA-DataSet/releases) · [Upstream schema](https://github.com/CloudWise-OpenSource/GAIA-DataSet#micross)
 
-AnoFusion used GAIA for instance-level failure detection under its own split and evaluation protocol. Cite it as related work. Any numerical comparison would require running both methods on a shared prediction target, split, and scoring protocol. [AnoFusion, §5–6](KDD23-AnoFusion.pdf)
+**AnoFusion (KDD 2023) is the external GAIA baseline.** The paper used CloudWise GAIA MicroSS as D1. We will cite its published result and run the released AnoFusion model on our shared GAIA benchmark for the direct comparison described below. [AnoFusion paper, §5–6](KDD23-AnoFusion.pdf) · [Authors' code](https://github.com/AIOps-Lab-NKU/AnoFusion/tree/ae3c4ea98509008844a3eecf7c0bd1529faaba67)
 
 ### Lessons carried over from SN and TT
 
@@ -39,6 +39,7 @@ AnoFusion used GAIA for instance-level failure detection under its own split and
 | Pending | Implement the adapter and verify shared loader and baseline compatibility. | Commit, edited files, compilation result, user-run build log, and data and loader checks. |
 | Pending | Complete the full-v2 training run at seed 42. | Launch command, log, checkpoint, `summary.json`, selected epoch, metrics, and skipped-batch count. |
 | Pending | Complete the seed-42 comparison and check checkpoint evaluation. | Per-model results on the same split and a checkpoint-based clean-score check. |
+| Pending | Run AnoFusion on the matched GAIA benchmark at seed 42. | Pinned upstream revision, input and label provenance, settings and compatibility changes, validation threshold, and scores on identical held-out window IDs. |
 | Pending | Complete final paired runs and regenerate the GAIA results. | Exact run directories, five seed results per model, tables, and the final findings and limitations. |
 
 ## 3. Acquisition and raw-data audit
@@ -122,11 +123,26 @@ The proposed processed root is `project/datasets/gaia/processed/micross_v1/`.
 | Single-model integration | `ug_moe2:full`, seed **42**, using the audited GAIA dataset. Use the shared defaults for the first comparable run. | Training logs the expected split, metrics are finite, the epoch history shows zero skipped batches, checkpoint and per-seed result exist, and `errors` is empty. Investigate unexpected skips before the final runs. |
 | Same-seed comparison | `muad`, `gat`, `ug_moe2:plain`, and `ug_moe2:graph` at seed **42** with the same frozen inputs as full v2. | All five models have results for the same split, feature schema, and settings. Compare with all-normal and all-anomalous predictors and investigate any collapse. |
 | Checkpoint evaluation | Reload the full-v2 checkpoint on the same GAIA artifacts. Run clean evaluation and, if covering robustness, the existing missing-modality, noise, and routing/fusion diagnostics. | Clean full-v2 metrics match training's held-out evaluation within numerical tolerance. Record model key, checkpoint, split, normalization, and seed for every evaluation. |
-| Final comparison | **42, 123, 456, 789, 999** for all five models, after the seed-42 workflow is verified. | Report per-seed values, mean and standard deviation, paired deltas, and seed counts. Reuse a seed-42 result only if its code, data, split, preprocessing, and settings match the final protocol. |
+| Final comparison | **42, 123, 456, 789, 999** for the five existing models and the matched AnoFusion baseline, after their seed-42 checks pass. | Report per-seed values, mean and standard deviation, paired deltas, and seed counts. Reuse a seed-42 result only if its code, data, split, preprocessing, and settings match the final protocol. |
 
 Use validation macro-F1 for checkpoint selection and validation PR-AUC for ties. Record test macro-F1, anomaly precision, recall and F1, normal-class F1, PR-AUC, ROC-AUC, normal-window false-positive rate, and per-type recall where labels support it. Make protocol and hyperparameter decisions from the training and validation data.
 
 The first comparable run uses the historical defaults of Adam, learning rate `5e-4`, batch size `50`, weight decay `1e-5`, a `50` epoch cap, and patience `15`. Record any changes that become necessary for GAIA and apply comparable settings to the models being compared. Keep legacy variants out of the main table by passing the model names explicitly. [Runner defaults](project/experiments/registry.py#L213)
+
+### AnoFusion comparison
+
+Table 3 reports **0.795 precision, 0.945 recall, and 0.857 F1** for AnoFusion on GAIA D1. The paper evaluates unsupervised instance-level detection, uses the first 60% of each instance's timeline for training and the remaining 40% for testing, and describes one-minute observations and continuous failure-segment scoring. Our complete trace scan counted 28,681,438 rows across ten instances, which matches the D1 trace count in Table 2. The score from Table 3 is a published reference under the paper's protocol. [AnoFusion paper, Table 2, Table 3, §5.1 and §6.2](KDD23-AnoFusion.pdf) · [GAIA audit log](project/experiments/runs/gaia_coverage_20261122_155845.log)
+
+The public AnoFusion snapshot at `ae3c4ea98509008844a3eecf7c0bd1529faaba67` ships example inputs, a timestamp configuration, and labels for `mobservice2`. The example code expects a second metric CSV that the snapshot omits. Its evaluation entry point hard-codes a CUDA device and checkpoint path and creates a test-specific graph and data normalization. Record these differences when adapting the released forecasting model. A full reproduction of Table 3 also needs the authors' complete per-instance inputs, label intervals, split, and segment scoring implementation. [Demo files](https://github.com/AIOps-Lab-NKU/AnoFusion/tree/ae3c4ea98509008844a3eecf7c0bd1529faaba67/data) · [Published example labels](https://github.com/AIOps-Lab-NKU/AnoFusion/tree/ae3c4ea98509008844a3eecf7c0bd1529faaba67/labeled_service) · [Runner](https://github.com/AIOps-Lab-NKU/AnoFusion/blob/ae3c4ea98509008844a3eecf7c0bd1529faaba67/utils/main.py)
+
+The published `mobservice2` label file has one binary label per second across July in UTC+8, with 123,479 positive seconds. The 66 explicit 600-second memory injections for that instance span 39,600 second bins using the recorded start rounded down to a second. All these bins are positive in the published labels. This corroborates the memory labels and establishes that the published demo covers additional positive periods. [Published `mobservice2` labels](https://github.com/AIOps-Lab-NKU/AnoFusion/blob/ae3c4ea98509008844a3eecf7c0bd1529faaba67/labeled_service/mobservice2.csv)
+
+For the direct comparison, keep the project's **system-window detection task** so we can include UG-MoE v2's existing binary classifier and the SN/TT baselines:
+
+1. Use the same audited GAIA dates, service IDs, fault intervals, eligible test windows, and chronological partitions for both methods. Freeze a common evaluation grid after checking telemetry coverage. Define each positive system window from the audited failure intervals that overlap it.
+2. Run the released AnoFusion forecasting model on one service as an integration check, then generate per-instance anomaly scores for all ten services from the shared GAIA data. Fit preprocessing, normalization and graph statistics with training data. Record any compatibility adjustments made for `muad`, along with differences from the paper's pipeline.
+3. At each shared evaluation point, aggregate AnoFusion's instance scores with a maximum to obtain one system score. Fix threshold settings using validation and apply them to the held-out windows. Keep access to labels explicit. AnoFusion fits its forecasting model without fault labels and uses validation labels for threshold calibration in this comparison. UG-MoE v2 trains on labeled windows.
+4. Report the matched methods together using pointwise anomaly precision, recall and F1, macro-F1, PR-AUC, and false-positive rate. Label the rerun **AnoFusion, adapted to system-window detection**. Show the paper's published instance-level score with its original protocol in the results discussion. Validate the matched pipeline at seed 42 before final paired runs.
 
 ### Additional analyses and reporting
 
@@ -149,7 +165,8 @@ After verification, add GAIA paths and the GAIA label map to the report workflow
 | Metric channels, cadence, and windows | Start from the Eadro feature definitions where GAIA has equivalent channels. Evaluate 30-second bins. | Four sampled series show 30-second cadence. Final channel set, window, and stride are pending the broader audit. |
 | Label and exclusion rules | Use explicit injection intervals, with an audit of ambiguous cases and overlap rules. | Pending review of `run/` records. |
 | Split boundaries and background coverage | Approximately 60/20/20 chronological with a gap at each cut. | Pending incident and coverage counts. |
-| Final GAIA experiment scope | Clean five-model comparison, with further analyses tied to claims about GAIA. | Pending seed-42 results. |
+| AnoFusion benchmark | Use the authors' code on the shared GAIA benchmark and aggregate to system-window predictions. | The public source is pinned. Common evaluation timestamps and baseline adaptation are pending. |
+| Final GAIA experiment scope | Clean comparison with the five existing models and matched AnoFusion, with further analyses tied to claims about GAIA. | Pending seed-42 results. |
 
 ## 7. Server commands
 
@@ -307,6 +324,7 @@ The `Saved to:` line identifies the timestamped results directory. Check `models
 | 2026-11-22 | Freed space for GAIA telemetry | At the user's request, removed the 2.1 GiB extracted Eadro `raw/` directory after verifying both pinned source archive checksums and checking the processed SN and TT files. | `/DATA` showed 8.9 GiB free after removal. The Eadro directory now uses 443 MiB for archives and processed data. |
 | 2026-11-22 | All telemetry archives verified | The user ran the revised downloader. All 81 parts were present and all three archives passed `7z t`. `/DATA` showed 7.5 GiB free after completion. | [Bulk download log](project/experiments/runs/gaia_fetch_telemetry_v1_git_20261122_153224.log). Keep the archives compressed. |
 | 2026-11-22 | Clock and coverage checks | Confirmed the ten common application service IDs and gathered evidence for UTC+8 from memory injections, embedded business-log times, and trace-to-log matches. Added a streaming coverage audit and checked 128 rows from 160 real archive members plus a complete metric member in `muad`. | [Clock evidence](#archive-schemas-and-clock-evidence) · [Coverage command](#run-the-streaming-coverage-audit). Run the full coverage audit before freezing the split. |
+| 2026-11-22 | AnoFusion baseline added | The user selected the KDD 2023 GAIA benchmark paper for comparison. Verified its Table 3 scores, checked the public source tree at `ae3c4ea98509008844a3eecf7c0bd1529faaba67`, and confirmed that our trace count matches its D1 count. Compared the released `mobservice2` labels with the raw memory injection intervals in `muad`. Specified a matched system-window rerun and tracked the published instance-level result. | [AnoFusion comparison](#anofusion-comparison). Freeze shared windows and labels after the coverage scan. |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 
