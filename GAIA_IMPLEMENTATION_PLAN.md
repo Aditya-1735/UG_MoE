@@ -2,7 +2,7 @@
 
 Updated 2026-11-22 on `hdfs` · GPU server · Conda environment `muad`
 
-**Coverage audit complete.** The three verified archives cover ten common service instances. The frozen split uses 11 eligible July dates in UTC+8. The streaming adapter and shared-loader integration are in place. The next job builds the full processed dataset from the existing archives. [Build command](#build-the-gaia-dataset)
+**GAIA dataset built.** The three verified archives cover ten common service instances. The build retained 5,520 windows from ten July dates in UTC+8. The next experiment is full UG-MoE v2 at seed 42. [Training command](#first-seed-42-training-job)
 
 This file is the working record for the third dataset. Update the checklist and append a dated journal entry after each implementation step or server run. Record what changed, how it was verified, and where the evidence lives. Keep proposed settings marked as such until the data audit supports them. Use `muad` for Python commands. Codex runs short checks and records verified checkpoints locally. Publishing to `origin/hdfs` uses the project user's own GitHub identity with write access. The user launches long downloads, data builds, and GPU experiments with `nohup`.
 
@@ -37,7 +37,7 @@ Use the **July 2021 MicroSS data** from CloudWise's `release-v1.0`, at `5f1d772a
 | Done | Audit telemetry and fault records. | [Coverage JSON](project/experiments/runs/gaia_coverage_20261122_155845/coverage.json) and [audit log](project/experiments/runs/gaia_coverage_20261122_155845.log). |
 | Done | Freeze the GAIA feature schema, label rules, and chronological split. | [Data contract](#4-data-contract-and-preprocessing) and [decision record](#6-decisions). |
 | Done | Implement the streaming adapter and shared loader. | [Builder](project/data_pipeline/build_gaia.py) and [loader](project/experiments/common.py#L189). |
-| Pending | Build and check the full GAIA artifacts. | Build log, class counts, trace graph, and split manifest. |
+| Done | Build and check the full GAIA artifacts. | [Build log](project/experiments/runs/gaia_build_20261122_170933.log) · [Quality report](project/datasets/gaia/processed/micross_v1/quality.json) · [Split manifest](project/datasets/gaia/processed/micross_v1/split_manifest.json). |
 | Pending | Complete the full-v2 training run at seed 42. | Launch command, log, checkpoint, `summary.json`, selected epoch, metrics, and skipped-batch count. |
 | Pending | Report the seed-42 result alongside the published AnoFusion reference. | UG-MoE test metrics and run paths, AnoFusion Table 3, both scoring protocols, and comparison limits. |
 
@@ -96,13 +96,13 @@ Four Docker metric CSVs for `mobservice1` and `logservice2` were readable from t
 
 An eligible UTC+8 date must appear in the injection log and have observations for every metric series and all ten instances in both trace and business logs. July 19 lacks injection records. The first potentially unbounded CPU interval starts July 26, so July 26 onward is excluded. The 11 remaining days are split chronologically using the 60/20/20 target.
 
-| Split | July 2021 dates (UTC+8) | Normal | Memory | File move | Total |
+| Split | Assigned July 2021 dates (UTC+8) | Normal | Memory | File move | Total |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Train | 1, 2, 3, 8, 10, 17, 21 | 2,614 | 539 | 32 | 3,185 |
 | Validation | 22, 23 | 923 | 200 | 18 | 1,141 |
 | Test | 24, 25 | 1,007 | 176 | 11 | 1,194 |
 
-These window counts come from a preflight on the real metric archives and injection records. The build records the realized counts in `quality.json`.
+The full build matched the preflight counts. July 3 passed the daily coverage check and had zero retained windows after window-level filtering. The manifest records assigned dates and retained window IDs. Its SHA-256 is `81a385ae4ace3b9480dead6d209b9f50955f05f992bf0dd934bf34e0f8a7bc26`. [Quality report](project/datasets/gaia/processed/micross_v1/quality.json) · [Split manifest](project/datasets/gaia/processed/micross_v1/split_manifest.json)
 
 - Use 30-second bins and non-overlapping 120-second windows within each day. Require all seven metric channels for all ten instances in all four bins. Drop windows with missing metric bins. The preflight dropped 2,239 windows for this reason.
 - Leave a 120-second margin on both sides of the two midnight partition cuts on July 22 and 24. Mask confirmed injections that cross a cut. The preflight found one such injection.
@@ -114,12 +114,12 @@ These window counts come from a preflight on the real metric archives and inject
 - Metrics contain the bin mean for each of the three Docker CPU, two memory, and two network series selected by the audit. This uses the supplied metric values.
 - Traces contain `log1p` of the mean nonnegative span latency in milliseconds per instance and 30-second bin. A bin with no usable spans is encoded as zero.
 - Business logs contain `log1p` of per-window counts in five fixed severity buckets per instance. The buckets are INFO, WARNING, ERROR, DEBUG, and OTHER. The fixed encoding avoids a separate template-mining pass. A bucket with no events is encoded as zero.
-- The graph uses directed parent-to-child calls joined by trace and span IDs in the first common hour of training traces on July 1, starting at 14:57:53.049982 UTC+8. Add one self-loop per node. A bounded read of real members for that hour found 30 directed cross-service links. The build records the final links and their supporting counts.
+- The graph uses directed parent-to-child calls joined by trace and span IDs in the first common hour of training traces on July 1, starting at 14:57:53.049982 UTC+8. The full build confirmed 30 directed cross-service links and one self-loop per node. The quality report records the links and their supporting counts.
 - The runner fits normalization on training windows and applies the stored statistics to all splits. Feature dimensions and service order are stored in `metadata.json`.
 
 ### Outputs and integration points
 
-The processed root is `project/datasets/gaia/processed/micross_v1/`. At the preflight count the raw feature arrays total about 8 MiB before metadata and serialization overhead.
+The processed root is `project/datasets/gaia/processed/micross_v1/`. The four artifacts occupy 8.6 MiB on the server.
 
 | Output | Contents |
 | --- | --- |
@@ -156,7 +156,7 @@ Use the GAIA runner's saved result to report a two-row comparison with `Source`,
 
 | Decision | Recorded outcome |
 | --- | --- |
-| Dates and time zone | 11 audited July dates in UTC+8. Validation starts July 22 and test starts July 24. |
+| Dates and time zone | 11 assigned July dates in UTC+8, with retained windows on ten. Validation starts July 22 and test starts July 24. |
 | Node granularity and topology | Ten service instances with directed parent-to-child calls from the first common training trace hour and one self-loop per instance. |
 | Features and windows | Seven metric channels, mean trace span latency, and five fixed business-log severity counts. Thirty-second bins in non-overlapping two-minute windows. |
 | Label and exclusion rules | Confirmed memory and file-moving intervals supply positives. Mask bounded CPU and permission intervals, exclude July 26 onward, and leave two-minute margins around both cuts. |
@@ -343,6 +343,7 @@ The `Saved to:` line identifies the timestamped results directory. Check `models
 | 2026-11-22 | GAIA schedule narrowed | The user confirmed a single full UG-MoE v2 training run at seed 42. The comparison will use AnoFusion's published D1 metrics. The prior rerun plan was superseded. | [Experiment sequence](#5-experiment-sequence). Finish coverage, build the pilot and full dataset, then train seed 42. |
 | 2026-11-22 | Full coverage audit completed | The user completed the streaming scan. Combined its per-service coverage with the injection records to select 11 eligible dates. A preflight on all selected real metric members and the real labels yielded 5,520 usable windows with both classes in every split. | [Coverage JSON](project/experiments/runs/gaia_coverage_20261122_155845/coverage.json) · [Split and window counts](#chronological-partition-and-window-labels). |
 | 2026-11-22 | GAIA adapter implemented and checked | Added archive streaming, time-bin aggregation, a training trace graph, and an explicit split manifest. A bounded real trace probe found 30 directed cross-service links. In `muad`, the changed Python files compiled, and a six-window compressed fixture using the real audit and labels passed feature-shape, class, and split checks. The shared loader wrote its training-only normalization statistics, and full v2 produced finite CPU logits and loss for one batch from each split. | [Builder](project/data_pipeline/build_gaia.py) · [Full build command](#build-the-gaia-dataset). The full telemetry build and GPU training are pending. |
+| 2026-11-22 | Full GAIA build completed and verified | The user ran the build on `hdfs` at `4caf3f9` in `muad`. It completed in about 24 minutes and saved 5,520 windows. Checked every saved feature array for correct shape and finite values, verified all window IDs against the disjoint chronological split and cut margins, and confirmed 30 cross-service arcs and ten self-loops. Checked the saved normalization against the training data and ran full UG-MoE v2 on one real CPU batch of 50 from each split with finite outputs and loss. | [Build log](project/experiments/runs/gaia_build_20261122_170933.log) · [Quality report](project/datasets/gaia/processed/micross_v1/quality.json) · [Seed-42 launch](#first-seed-42-training-job). GPU training is pending. |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 
