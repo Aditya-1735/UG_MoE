@@ -43,7 +43,7 @@ AnoFusion used GAIA for instance-level failure detection under its own split and
 
 ## 3. Acquisition and raw-data audit
 
-The project filesystem showed 9.8 GiB free on 2026-11-22. This accommodates the compressed archives. The telemetry CSVs require about 29.41 GiB if fully extracted. Keep the archive parts together under `project/datasets/gaia/archives/micross_v1/`. Download the parts directly from the pinned revision so the compressed files occupy a single copy outside the sparse checkout. Stream individual CSV members using `7z x -so` and retain only compact summaries or processed features. Estimate the footprint of processed windows and temporary state before a full build. The commands are in [Server commands](#7-server-commands). [CloudWise MicroSS directory](https://github.com/CloudWise-OpenSource/GAIA-DataSet/tree/main/MicroSS)
+The project filesystem showed 9.2 GiB free at the first bulk download. This accommodates the compressed archives. The telemetry CSVs require about 29.41 GiB if fully extracted. Keep the archive parts together under `project/datasets/gaia/archives/micross_v1/`. The downloader fetches blobs from the pinned revision over Git HTTPS and puts its temporary Git object store on `/tmp`, which had 16 GiB free when checked. Stream individual CSV members using `7z x -so` and retain only compact summaries or processed features. Estimate the footprint of processed windows and temporary state before a full build. The commands are in [Server commands](#7-server-commands). [CloudWise MicroSS directory](https://github.com/CloudWise-OpenSource/GAIA-DataSet/tree/main/MicroSS)
 
 | Modality | Archive files | Compressed | Extracted |
 | --- | ---: | ---: | ---: |
@@ -218,13 +218,13 @@ tail -f "$GAIA_LOG"
 
 ### Fetch and verify the compressed telemetry
 
-The [archive downloader](scripts/fetch_gaia_archives.sh) downloads the numbered volumes directly into the archive directory. It reads expected file paths and Git blob hashes from the pinned release. It reuses existing verified files and renames a temporary download only after its hash matches. Once all parts are present, it checks each archive without extracting its CSVs. Allow time for about 3.7 GiB of remaining downloads and the integrity checks.
+The [archive downloader](scripts/fetch_gaia_archives.sh) reads expected file paths and blob hashes from the pinned release. It fetches missing parts through a temporary Git partial clone over public HTTPS with credentials disabled. It reuses existing verified files and renames a temporary download only after its hash matches. Once all parts are present, it checks each archive without extracting its CSVs. Allow time for about 3.7 GiB of remaining downloads and the integrity checks. [Git partial clone](https://git-scm.com/docs/partial-clone)
 
 ```bash
 cd "$HOME/AHA_BTP/UG_MoE/project"
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate muad
-GAIA_LOG="experiments/runs/gaia_fetch_telemetry_v1_$(date +%Y%m%d_%H%M%S).log"
+GAIA_LOG="experiments/runs/gaia_fetch_telemetry_v1_git_$(date +%Y%m%d_%H%M%S).log"
 
 nohup bash ../scripts/fetch_gaia_archives.sh > "$GAIA_LOG" 2>&1 < /dev/null &
 
@@ -276,6 +276,7 @@ The `Saved to:` line identifies the timestamped results directory. Check `models
 | 2026-11-22 | Metric sampling and downloader prepared | CRC-verified four metric samples and measured 30-second cadence. Added a resumable downloader that verifies every archive part against the Git tree. A temporary three-archive fixture passed download, cached-part reuse, `7z t`, and retry checks. | [Preliminary cadence](#preliminary-metric-cadence) · [Downloader](scripts/fetch_gaia_archives.sh). Launch the full archive download in `muad`. |
 | 2026-11-22 | GitHub publication blocked | Committed the plan and storage audit as `f7541b5` and the downloader as `2ce7707`. HTTPS required GitHub authentication. The shared server identity lacked write access to `Aditya-1735/UG_MoE`. The project user directed that future publishing use their own identity. | The local `hdfs` checkpoints are ready for publication through the project user's authorized GitHub access. |
 | 2026-11-22 | User published the first GAIA checkpoints | The user pushed `hdfs`. A read-only GitHub check confirmed `2ce7707` on the remote, with the plan and downloader committed. The revised publishing note was still a working-tree edit at the time of that push. | Publish the revised note in a follow-up commit on `hdfs`. |
+| 2026-11-22 | First telemetry download timed out | The raw GitHub route stalled on `business_split.z01` at connection setup. An independent Git HTTPS probe downloaded that 51,380,224-byte volume and matched its pinned Git blob hash. Cached the verified part and switched the downloader to Git HTTPS with its temporary object store on `/tmp`. A small split-archive fixture verified retry, reuse, integrity checks, and scratch cleanup. | [Failed download log](project/experiments/runs/gaia_fetch_telemetry_v1_20261122_152540.log) · [Retry command](#fetch-and-verify-the-compressed-telemetry). Retry and verify all three archives. |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 

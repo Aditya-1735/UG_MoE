@@ -12,31 +12,52 @@ if [[ "$revision" != "$expected_revision" ]]; then
   exit 1
 fi
 
-base_url="https://raw.githubusercontent.com/CloudWise-OpenSource/GAIA-DataSet/$revision"
+source_url=https://github.com/CloudWise-OpenSource/GAIA-DataSet.git
+public_git=(git -c credential.helper= -c protocol.version=2 -c gc.auto=0)
+export GIT_TERMINAL_PROMPT=0
+transfer_dir=
+trap '[[ -z "$transfer_dir" ]] || rm -rf -- "$transfer_dir"' EXIT
+
 mkdir -p "$archive_dir"
-df -h "$archive_dir"
+df -h "$archive_dir" /tmp
+archive_tree=$(git -C "$release_dir" ls-tree -r "$revision" MicroSS/metric MicroSS/trace MicroSS/business)
 
-git -C "$release_dir" ls-tree -r "$revision" MicroSS/metric MicroSS/trace MicroSS/business |
-  while read -r mode kind expected_hash source_path; do
-    test "$kind" = blob
-    target="$archive_dir/${source_path#MicroSS/}"
-    mkdir -p "$(dirname -- "$target")"
+while read -r mode kind expected_hash source_path; do
+  test "$kind" = blob
+  target="$archive_dir/${source_path#MicroSS/}"
+  mkdir -p "$(dirname -- "$target")"
 
-    if [[ -f "$target" ]] && [[ $(git hash-object "$target") == "$expected_hash" ]]; then
-      printf 'Verified local %s\n' "$source_path"
-      continue
+  if [[ -f "$target" ]] && [[ $(git hash-object "$target") == "$expected_hash" ]]; then
+    printf 'Verified local %s\n' "$source_path"
+    continue
+  fi
+
+  if [[ -z "$transfer_dir" ]]; then
+    transfer_dir=$(mktemp -d /tmp/ugmoe-gaia-transfer.XXXXXX)
+    printf 'Using Git HTTPS with temporary object storage at %s\n' "$transfer_dir"
+    timeout 60s "${public_git[@]}" clone --quiet --depth 1 --filter=blob:none \
+      --no-checkout --branch release-v1.0 "$source_url" "$transfer_dir/release"
+    test "$(git -C "$transfer_dir/release" rev-parse HEAD)" = "$expected_revision"
+  fi
+
+  printf 'Fetching %s\n' "$source_path"
+  for attempt in 1 2 3; do
+    if timeout 180s "${public_git[@]}" -C "$transfer_dir/release" \
+      cat-file blob "$expected_hash" > "$target.part"; then
+      break
     fi
-
-    printf 'Fetching %s\n' "$source_path"
-    curl --fail --silent --show-error --location --connect-timeout 10 \
-      --max-time 180 --retry 3 --output "$target.part" "$base_url/$source_path"
-    actual_hash=$(git hash-object "$target.part")
-    if [[ "$actual_hash" != "$expected_hash" ]]; then
-      printf 'Git blob hash mismatch for %s\n' "$source_path" >&2
+    printf 'Git download failed for %s (attempt %s of 3)\n' "$source_path" "$attempt" >&2
+    if [[ "$attempt" == 3 ]]; then
       exit 1
     fi
-    mv -- "$target.part" "$target"
   done
+  actual_hash=$(git hash-object "$target.part")
+  if [[ "$actual_hash" != "$expected_hash" ]]; then
+    printf 'Git blob hash mismatch for %s\n' "$source_path" >&2
+    exit 1
+  fi
+  mv -- "$target.part" "$target"
+done <<< "$archive_tree"
 
 for modality in metric trace business; do
   7z t "$archive_dir/$modality/${modality}_split.zip"
