@@ -51,9 +51,11 @@ def forecast_indices(timestamps, splits):
     return targets, history
 
 
-def relation_graph(train):
+def relation_graph(train, modality_sizes=(len(METRIC_CHANNELS), len(LOG_LEVELS), 1)):
     """Make the six published modality-pair relations using train-only mutual information."""
-    groups = np.repeat((0, 1, 2), (len(METRIC_CHANNELS), len(LOG_LEVELS), 1))
+    groups = np.repeat((0, 1, 2), modality_sizes)
+    if train.shape[1] != len(groups):
+        raise ValueError("Expected one modality assignment for every feature")
     edges = np.zeros((len(groups), len(groups), 6), dtype=np.float32)
     cutoffs = np.quantile(train, np.arange(1, 10) / 10, axis=0)
     discrete = [
