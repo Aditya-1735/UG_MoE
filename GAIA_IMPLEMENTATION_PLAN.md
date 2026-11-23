@@ -1,8 +1,8 @@
 # GAIA MicroSS implementation and experiment log
 
-Updated 2026-11-22 on `hdfs` · GPU server · Conda environment `muad`
+Updated 2026-11-23 on `hdfs` · GPU server · Conda environment `muad`
 
-**GAIA seed-42 experiment complete.** Full UG-MoE v2 achieved test anomaly F1 **0.6571** and macro-F1 **0.8058** on the frozen chronological split. The matched comparison uses the same checkpoint and a separate AnoFusion run. [Verified result](#seed-42-result) · [Matched protocol](#matched-gaia-evaluation)
+**Matched GAIA comparison complete.** At seed 42, full UG-MoE v2 achieved anomaly F1 **0.6571** and adapted AnoFusion achieved **0.1284** on the same 1,194 held-out system windows. [Matched results](#matched-seed-42-results) · [Matched protocol](#matched-gaia-evaluation)
 
 This file is the working record for the third dataset. Update the checklist and append a dated journal entry after each implementation step or server run. Record what changed, how it was verified, and where the evidence lives. Keep proposed settings marked as such until the data audit supports them. Use `muad` for Python commands. Codex runs short checks and records verified checkpoints locally. Publishing to `origin/hdfs` uses the project user's own GitHub identity with write access. The user launches long downloads, data builds, and GPU experiments with `nohup`.
 
@@ -41,7 +41,7 @@ Use the **July 2021 MicroSS data** from CloudWise's `release-v1.0`, at `5f1d772a
 | Done | Complete the full-v2 training run at seed 42. | [Run record](#run-log) · [Runner summary](project/experiments/runs/gaia_full_s42_20261122_175126/baselines_20261122_175136/summary.json). |
 | Done | Report the seed-42 result alongside the published AnoFusion reference. | [Both results and scoring protocols](#anofusion-comparison). |
 | Done | Export and verify the aligned AnoFusion inputs. | [Export log](project/experiments/runs/gaia_matched_20261122_183655/export.log) · [Observations](project/experiments/runs/gaia_matched_20261122_183655/observations.npz). |
-| Running | Train and score AnoFusion and compare both models on the frozen windows. | [AnoFusion log](project/experiments/runs/gaia_matched_20261122_183655/anofusion.log) · [Shared protocol](#matched-gaia-evaluation). |
+| Done | Train and score AnoFusion and compare both models on the frozen windows. | [AnoFusion log](project/experiments/runs/gaia_matched_20261122_183655/anofusion.log) · [Matched results](#matched-seed-42-results). |
 
 ## 3. Acquisition and raw-data audit
 
@@ -185,6 +185,17 @@ The AnoFusion model source is pinned at `ae3c4ea98509008844a3eecf7c0bd1529faaba6
 Restart forecast history at timestamp gaps and split cuts. Pad short histories with their first observed bin. Every retained window has at least three forecast targets after this reset rule. Convert the demo's normalized forecast error to a per-instance percentile using training errors. Take the maximum percentile across all scored bins and all ten instances in each window. This yields one system score per window. Require score coverage from every instance for every validation and test window.
 
 Choose each model's highest threshold among those that maximize validation macro-F1. Report precision, recall, anomaly F1, normal F1, macro-F1, PR-AUC, and ROC-AUC on the frozen test windows. The original seed-42 result above uses the checkpoint's argmax decisions. UG-MoE trains with binary window labels. AnoFusion trains on telemetry forecasts and uses the same validation labels for its final threshold.
+
+#### Matched seed-42 results
+
+Both pipelines were evaluated on the same 1,194 two-minute system windows from July 24–25 and used the same 1,141 validation windows for their decision thresholds. The chosen thresholds were `0.5266876221` for UG-MoE v2 and `0.9965999842` for AnoFusion's aggregated percentile score. Their validation macro-F1 scores were 0.9511 and 0.5273, respectively. [Evaluation summary](project/experiments/runs/gaia_matched_20261122_183655/comparison/summary.json)
+
+| Seed-42 model | Test precision | Test recall | Anomaly F1 | Normal F1 | Macro-F1 | PR-AUC | ROC-AUC |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| UG-MoE v2 full | 0.9892 | 0.4920 | 0.6571 | 0.9545 | 0.8058 | 0.6357 | 0.6996 |
+| AnoFusion (adapted) | 0.1500 | 0.1123 | 0.1284 | 0.8617 | 0.4951 | 0.1506 | 0.4844 |
+
+UG-MoE detected 92 of 187 anomalous windows and falsely flagged one of 1,007 normal windows. Adapted AnoFusion detected 21 of 187 and falsely flagged 119 normal windows. Its detections included 19 of 176 memory-injection windows and two of 11 file-moving windows. The anomaly F1 difference was 0.5287 under this single-seed protocol. The published 0.857 remains the reference for AnoFusion's original instance-level D1 evaluation. [Window predictions](project/experiments/runs/gaia_matched_20261122_183655/comparison/predictions.csv) · [AnoFusion paper, Table 3](KDD23-AnoFusion.pdf)
 
 ## 6. Decisions
 
@@ -457,6 +468,8 @@ The evaluator writes `comparison/summary.json` and `comparison/predictions.csv`.
 | 2026-11-22 | Matched input export completed | The user ran the export in `muad` at `3717663`. It took about 17 minutes and wrote 5.8 MiB for 5,520 windows, four bins, ten instances, and 13 channels. Verified that every value was finite, the manifest and window order matched, and every window had three or four forecast targets. Per instance there are 12,646 train, 4,430 validation, and 4,582 test targets. A short CPU check with the real `mobservice2` data passed with one batch per split. | [Export log](project/experiments/runs/gaia_matched_20261122_183655/export.log). Observation SHA-256 is `50d643f77ab5741e48e3a083081a53709e84231711eeea64bac841f2f90dcbb5`. Launch AnoFusion training at seed 42. |
 | 2026-11-22 23:01 IST | AnoFusion training in progress | The seed-42 CUDA job had saved checkpoints and scores for `dbservice1`, `dbservice2`, `logservice1`, and `logservice2`, with best validation-forecast epochs 43, 100, 59, and 46 respectively. Verified the four score files against the frozen manifest and checked their 4,430 validation and 4,582 test scores per instance. `mobservice1` was at epoch 56. | [Training log](project/experiments/runs/gaia_matched_20261122_183655/anofusion.log). Run the shared evaluator after all ten score files and the runner summary are saved. |
 | 2026-11-22 23:12 IST | Continued on a single GPU | The spare launch for `redisservice2`, `webservice1`, and `webservice2` stopped at CUDA initialization with `No CUDA GPUs are available`. The original seed-42 process on GPU 1 remains active with five completed instances and `mobservice2` training. The user confirmed that it will train all ten instances sequentially. | [Spare launch log](project/experiments/runs/gaia_matched_20261122_183655/anofusion_tail.log) · [Original training log](project/experiments/runs/gaia_matched_20261122_183655/anofusion.log). Evaluate the original `anofusion` directory once all ten score files and its summary are saved. |
+| 2026-11-23 03:32 IST | AnoFusion training completed | The original seed-42 job saved all ten checkpoints and score files on GPU 1. Verified finite checkpoint parameters, the best validation forecast epoch for every instance, the frozen manifest hash, and matching timestamps for all 4,430 validation and 4,582 test forecasts per instance. | [Training log](project/experiments/runs/gaia_matched_20261122_183655/anofusion.log) · [AnoFusion run summary](project/experiments/runs/gaia_matched_20261122_183655/anofusion/summary.json). |
+| 2026-11-23 | Matched evaluation completed | Ran the shared evaluator on CPU in `muad` with the original AnoFusion output and the saved UG-MoE checkpoint. Verified all 2,335 prediction rows against the frozen split and labels, checked each validation threshold by exhaustive sweep, and recomputed the reported metrics from the CSV. | [Matched results](#matched-seed-42-results) · [Evaluator log](project/experiments/runs/gaia_matched_20261122_183655/comparison.log). |
 
 For a code or data update, record the date, commit, affected files, decision and rationale, exact artifacts, verification performed, and next unresolved item. For any failed attempt, keep the command and log path and add the cause and recovery once confirmed.
 
