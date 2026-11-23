@@ -161,8 +161,10 @@ class UGMoEv2(nn.Module):
         return self.node_pool(torch.cat([h.mean(1), h.max(1).values], -1))
 
     def _encode(self, graph):
+        logs = graph.ndata["logs"]
+        # Older datasets store one count vector per node. GAIA also supplies per-minute counts.
         x = {"metric": graph.ndata["metrics"], "trace": graph.ndata["traces"],
-             "log": graph.ndata["logs"].unsqueeze(1)}      # logs have no time axis -> T = 1
+             "log": logs.unsqueeze(1) if logs.ndim == 2 else logs}
         seq = {m: self.enc[m](x[m]) + self.mod_emb[i] for i, m in enumerate(MODALITIES)}  # [BN, T, D]
         node = {m: seq[m].mean(1) for m in MODALITIES}     # [BN, D]
         return seq, node
